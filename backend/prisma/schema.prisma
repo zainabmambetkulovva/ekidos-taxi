@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      String   @default("ADMIN")
+  avatar    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Driver {
+  id                    String    @id @default(uuid())
+  firstName             String
+  lastName              String
+  middleName            String?
+  birthDate             DateTime?
+  phone                 String    @unique
+  whatsappNumber        String?
+  passportNumber        String?
+  passportPhoto         String?
+  licenseNumber         String?
+  licensePhoto          String?
+  techPassportNumber    String?
+  techPassportPhoto     String?
+  driverPhoto           String?
+  notes                 String?
+  status                String    @default("OFFLINE")
+  accountStatus         String    @default("PENDING")
+  latitude              Float?
+  longitude             Float?
+  lastLocationUpdate    DateTime?
+  totalEarnings         Float     @default(0)
+  totalOrders           Int       @default(0)
+  rating                Float     @default(5.0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  vehicle               Vehicle?
+  orders                Order[]   @relation("DriverOrders")
+  documents             Document[]
+  notifications         Notification[] @relation("DriverNotifications")
+  otps                  OTP[]
+  driverStatusHistory   DriverStatusLog[]
+
+  @@map("drivers")
+}
+
+model Vehicle {
+  id              String   @id @default(uuid())
+  brand           String
+  model           String
+  year            Int
+  color           String
+  plateNumber     String   @unique
+  insuranceNumber String?
+  driverId        String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  driver          Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("vehicles")
+}
+
+model Order {
+  id              String    @id @default(uuid())
+  orderNumber     String    @unique
+  pickupAddress   String
+  destAddress     String
+  pickupLat       Float?
+  pickupLng       Float?
+  destLat         Float?
+  destLng         Float?
+  clientName      String
+  clientPhone     String
+  tariff          String    @default("Standard")
+  comment         String?
+  paymentMethod   String    @default("CASH")
+  price           Float     @default(0)
+  status          String    @default("PENDING")
+  driverId        String?
+  assignedAt      DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  driver          Driver?   @relation("DriverOrders", fields: [driverId], references: [id])
+  client          Client?   @relation(fields: [clientPhone], references: [phone])
+  payment         Payment?
+
+  @@map("orders")
+}
+
+model Client {
+  id              String   @id @default(uuid())
+  name            String
+  phone           String   @unique
+  favoriteAddress String?
+  totalOrders     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  orders          Order[]
+
+  @@map("clients")
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  orderId       String   @unique
+  amount        Float
+  method        String
+  status        String   @default("pending")
+  transactionId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Document {
+  id          String    @id @default(uuid())
+  type        String
+  url         String
+  fileName    String
+  expiresAt   DateTime?
+  driverId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  driverId  String?
+  adminId   String?
+  createdAt DateTime @default(now())
+
+  driver    Driver?  @relation("DriverNotifications", fields: [driverId], references: [id])
+
+  @@map("notifications")
+}
+
+model Report {
+  id              String   @id @default(uuid())
+  type            String
+  period          String
+  data            String
+  totalRevenue    Float    @default(0)
+  totalOrders     Int      @default(0)
+  cancelledOrders Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@map("reports")
+}
+
+model DriverStatusLog {
+  id        String   @id @default(uuid())
+  driverId  String
+  status    String
+  createdAt DateTime @default(now())
+
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("driver_status_logs")
+}
+
+model OTP {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  driverId  String?
+  createdAt DateTime @default(now())
+
+  driver    Driver?  @relation(fields: [driverId], references: [id])
+
+  @@map("otps")
+}
+
+model Settings {
+  id           String   @id @default(uuid())
+  companyName  String   @default("EKIDOS TAXI")
+  companyLogo  String?
+  theme        String   @default("dark")
+  language     String   @default("ru")
+  currency     String   @default("KGS")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("settings")
+}

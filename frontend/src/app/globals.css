@@ -1,0 +1,255 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 3%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 95%;
+    --primary: 0 85% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 85% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 0 85% 50%;
+    --radius: 0.75rem;
+
+    /* Ethno theme */
+    --ethno-dark: #0d1117;
+    --ethno-sidebar: #0f1923;
+    --ethno-gold: #c9a84c;
+    --ethno-gold-light: #e2c97e;
+    --ethno-felt: #111820;
+    --ethno-wood: #2a1a0e;
+    --ethno-text: #e8dfc8;
+    --ethno-border: rgba(201, 168, 76, 0.2);
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; font-feature-settings: "rlig" 1, "calt" 1; }
+}
+
+/* ============ ETHNO SIDEBAR ============ */
+.ethno-sidebar {
+  background: var(--ethno-sidebar);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(201, 168, 76, 0.03) 4px,
+      rgba(201, 168, 76, 0.03) 5px
+    );
+  border-right: 1px solid var(--ethno-border);
+  box-shadow: inset -1px 0 0 rgba(201, 168, 76, 0.08);
+}
+
+.ethno-sidebar-logo {
+  color: var(--ethno-gold-light);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.ethno-sidebar-logo span.accent {
+  color: var(--ethno-gold);
+}
+
+.ethno-nav-item {
+  color: rgba(232, 223, 200, 0.7);
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.ethno-nav-item:hover {
+  background: rgba(201, 168, 76, 0.07);
+  color: var(--ethno-gold-light);
+  border-color: rgba(201, 168, 76, 0.12);
+}
+
+.ethno-nav-item.active {
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--ethno-gold);
+  border-color: rgba(201, 168, 76, 0.25);
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.08);
+}
+
+.ethno-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 2px;
+  background: var(--ethno-gold);
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 6px var(--ethno-gold);
+}
+
+/* Decorative bottom border for sidebar */
+.ethno-sidebar-footer {
+  border-top: 1px solid rgba(201, 168, 76, 0.15);
+  background: linear-gradient(180deg, transparent 0%, rgba(42, 26, 14, 0.3) 100%);
+}
+
+/* ============ ETHNO CARDS ============ */
+.ethno-card {
+  background: rgba(15, 25, 35, 0.8);
+  border: 1px solid rgba(201, 168, 76, 0.12);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ethno-card:hover {
+  border-color: rgba(201, 168, 76, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(201, 168, 76, 0.05);
+}
+
+/* ============ ETHNO BUTTONS ============ */
+.ethno-btn-primary {
+  background: linear-gradient(135deg, #c9343a 0%, #a02428 100%);
+  border: 1px solid rgba(220, 80, 80, 0.3);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(180, 40, 40, 0.25);
+  transition: all 0.2s;
+}
+
+.ethno-btn-primary:hover {
+  background: linear-gradient(135deg, #e03a40 0%, #b52a2e 100%);
+  box-shadow: 0 4px 16px rgba(180, 40, 40, 0.35);
+  transform: translateY(-1px);
+}
+
+/* ============ ETHNO PATTERN BACKGROUND ============ */
+.ethno-bg {
+  background-color: var(--ethno-dark);
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(201, 168, 76, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(180, 40, 40, 0.04) 0%, transparent 50%);
+}
+
+/* Gold divider ornament */
+.ethno-divider {
+  position: relative;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+.ethno-divider::before,
+.ethno-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 20px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.3));
+}
+.ethno-divider::before { left: 0; }
+.ethno-divider::after { right: 0; background: linear-gradient(270deg, transparent, rgba(201, 168, 76, 0.3)); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #0a0e14; }
+::-webkit-scrollbar-thumb { background: rgba(201, 168, 76, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(201, 168, 76, 0.4); }
+
+/* Neon glow */
+.neon-text {
+  text-shadow: 0 0 7px rgba(220, 38, 38, 0.8), 0 0 10px rgba(220, 38, 38, 0.6),
+               0 0 21px rgba(220, 38, 38, 0.4);
+}
+
+/* Gold glow text */
+.gold-text {
+  color: var(--ethno-gold-light);
+  text-shadow: 0 0 8px rgba(201, 168, 76, 0.4);
+}
+
+/* Leaflet fix */
+.leaflet-container { height: 100%; width: 100%; border-radius: 0.75rem; }
+
+/* Fade in */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.8s ease-out forwards; }
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(0 0% 7%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 25%);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(0 85% 50%);
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(15, 15, 15, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Neon glow */
+.neon-text {
+  text-shadow: 0 0 7px rgba(220, 38, 38, 0.8),
+               0 0 10px rgba(220, 38, 38, 0.6),
+               0 0 21px rgba(220, 38, 38, 0.4),
+               0 0 42px rgba(220, 38, 38, 0.2);
+}
+
+.neon-border {
+  box-shadow: 0 0 5px rgba(220, 38, 38, 0.3),
+              inset 0 0 5px rgba(220, 38, 38, 0.1);
+}
+
+/* Leaflet fix */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 0.75rem;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out forwards;
+}
