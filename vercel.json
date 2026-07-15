@@ -1,0 +1,1 @@
+{"framework":"nextjs","rootDirectory":"frontend","buildCommand":"cd frontend && next build","outputDirectory":"frontend/.next","installCommand":"cd frontend && npm install --legacy-peer-deps"}
