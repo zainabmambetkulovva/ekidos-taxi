@@ -9,16 +9,34 @@ interface DriverMapProps {
   showMarker: boolean;
 }
 
-const API_URL = typeof window !== 'undefined'
-  ? `http://${window.location.hostname}:5000`
-  : 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+  || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5000` : 'http://localhost:5000');
 
 export default function DriverMap({ center, showMarker }: DriverMapProps) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
+  const [myLocation, setMyLocation] = useState<[number, number]>(center);
   const { activeOrder } = useDriverStore();
   const mapRef = useRef<any>(null);
   const routeLayerRef = useRef<any>(null);
+
+  // Get real GPS location
+  useEffect(() => {
+    if (!showMarker) return;
+    if (!navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setMyLocation([pos.coords.latitude, pos.coords.longitude]);
+      },
+      () => {
+        // GPS error — use default center
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [showMarker]);
 
   // Load Leaflet via CDN
   useEffect(() => {
@@ -76,7 +94,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
         mapRef.current.removeLayer(routeLayerRef.current);
       }
 
-      const from = { lat: center[0], lng: center[1] };
+      const from = { lat: myLocation[0], lng: myLocation[1] };
       let to = { lat: center[0] + 0.005, lng: center[1] + 0.005 };
 
       // Use order coordinates if available
@@ -121,22 +139,23 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     if (!container) return;
     container.innerHTML = '';
 
-    const map = L.map(container, { center, zoom: 15, zoomControl: false });
+    const map = L.map(container, { center: myLocation, zoom: 15, zoomControl: false });
     mapRef.current = map;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap',
     }).addTo(map);
 
-    // Driver position marker
+    // Driver position marker (real GPS)
     if (showMarker) {
       const driverIcon = L.divIcon({
         className: '',
-        html: `<div style="width:16px;height:16px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(59,130,246,0.5)"></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
+        html: `<div style="width:18px;height:18px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5)"></div>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
       });
-      L.marker(center, { icon: driverIcon }).addTo(map);
+      L.marker(myLocation, { icon: driverIcon }).addTo(map)
+        .bindPopup('Сиздин ордуңуз');
     }
 
     // Order markers (when no active order)
@@ -157,7 +176,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     setTimeout(() => map.invalidateSize(), 300);
 
     return () => { map.remove(); mapRef.current = null; };
-  }, [mapLoaded, showMarker, orders, activeOrder]);
+  }, [mapLoaded, showMarker, orders, activeOrder, myLocation]);
 
   return (
     <div id="driver-map-container" style={{ height: '100%', width: '100%', minHeight: '300px', background: '#111' }} />
