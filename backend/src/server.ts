@@ -81,7 +81,7 @@ app.get('/api/health', (_, res) => {
 // Socket.IO
 setupSocketHandlers(io);
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);
@@ -98,3 +98,4 @@ process.on('SIGTERM', async () => {
   await prisma.$disconnect();
   process.exit(0);
 });
+
