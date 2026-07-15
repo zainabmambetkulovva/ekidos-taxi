@@ -2,6 +2,8 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
@@ -33,10 +35,29 @@ export const io = new Server(httpServer, {
 });
 
 // Middleware
+app.use(helmet({ contentSecurityPolicy: false })); // Security headers
 app.use(cors({
   origin: true,
   credentials: true,
 }));
+
+// Rate limiting — login endpoints
+const loginLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 5, // 5 attempts per minute
+  message: { error: 'Слишком много попыток. Подождите 1 минуту.' },
+  standardHeaders: true,
+});
+app.use('/api/auth/admin/login', loginLimiter);
+app.use('/api/auth/driver/login', loginLimiter);
+
+// General rate limit
+const generalLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 100, // 100 requests per minute
+});
+app.use('/api', generalLimiter);
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 

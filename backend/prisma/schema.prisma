@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Admin {
@@ -29,6 +30,8 @@ model Driver {
   middleName            String?
   birthDate             DateTime?
   phone                 String    @unique
+  password              String?
+  displayPassword       String?
   whatsappNumber        String?
   passportNumber        String?
   passportPhoto         String?
@@ -91,8 +94,12 @@ model Order {
   comment         String?
   paymentMethod   String    @default("CASH")
   price           Float     @default(0)
+  driverEarning   Float     @default(0)
+  companyCommission Float   @default(0)
+  distance        Float     @default(0)
   status          String    @default("PENDING")
   driverId        String?
+  clientId        String?
   assignedAt      DateTime?
   completedAt     DateTime?
   cancelledAt     DateTime?
@@ -100,7 +107,7 @@ model Order {
   updatedAt       DateTime  @updatedAt
 
   driver          Driver?   @relation("DriverOrders", fields: [driverId], references: [id])
-  client          Client?   @relation(fields: [clientPhone], references: [phone])
+  client          Client?   @relation("ClientOrders", fields: [clientId], references: [id])
   payment         Payment?
 
   @@map("orders")
@@ -115,7 +122,7 @@ model Client {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  orders          Order[]
+  orders          Order[]   @relation("ClientOrders")
 
   @@map("clients")
 }
@@ -169,7 +176,7 @@ model Report {
   id              String   @id @default(uuid())
   type            String
   period          String
-  data            String
+  data            Json     @default("{}")
   totalRevenue    Float    @default(0)
   totalOrders     Int      @default(0)
   cancelledOrders Int      @default(0)

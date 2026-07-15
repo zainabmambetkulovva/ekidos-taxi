@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Clock, CheckCircle2, Navigation, Phone } from 'lucide-react';
 import { useDriverStore } from '@/store/useDriverStore';
+import api from '@/lib/axios';
 import { toast } from 'sonner';
 
 const DriverMap = dynamic(() => import('./driver-map'), {
@@ -29,9 +30,17 @@ export default function DriverHomePage() {
     }
   };
 
-  const handleCompleteOrder = () => {
-    setActiveOrder(null);
-    toast.success('Заказ выполнен! Молодец!');
+  const handleCompleteOrder = async () => {
+    if (!activeOrder) return;
+    try {
+      await api.patch(`/orders/${activeOrder.id}/complete`);
+      setActiveOrder(null);
+      toast.success('Заказ выполнен! Молодец!');
+    } catch {
+      // Even if API fails, clear locally
+      setActiveOrder(null);
+      toast.success('Заказ выполнен!');
+    }
   };
 
   return (

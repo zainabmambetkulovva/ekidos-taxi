@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   Plus, Search, Car, Phone, Loader2, Filter,
-  Pencil, Trash2, ShieldOff, ShieldCheck,
+  Pencil, Trash2, ShieldOff, ShieldCheck, KeyRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,12 +56,20 @@ export default function DriversPage() {
       const { data } = await api.post('/drivers', d);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
       setIsFormOpen(false);
       setEditingDriver(null);
       setFormData({ ...emptyForm });
-      toast.success(editingDriver ? 'Водитель обновлён' : 'Водитель добавлен');
+      if (data.plainPassword && !editingDriver) {
+        // Show generated password to admin
+        toast.success(
+          `Водитель добавлен! Пароль: ${data.plainPassword}`,
+          { duration: 15000, description: `Телефон: ${data.phone} • Пароль: ${data.plainPassword}` }
+        );
+      } else {
+        toast.success(editingDriver ? 'Водитель обновлён' : 'Водитель добавлен');
+      }
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Ошибка');
@@ -90,6 +98,18 @@ export default function DriversPage() {
       toast.success('Водитель удалён');
     },
     onError: () => toast.error('Ошибка удаления'),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.patch(`/drivers/${id}/reset-password`);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Новый пароль: ${data.password}`, { duration: 15000, description: 'Скопируйте и передайте водителю' });
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+    onError: () => toast.error('Ошибка сброса пароля'),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -219,6 +239,14 @@ export default function DriversPage() {
                     <span className="text-xs text-muted-foreground">{driver.totalOrders} заказов</span>
                   </div>
 
+                  {/* Password — only visible to admin */}
+                  {driver.displayPassword && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <KeyRound className="w-3 h-3 text-blue-400" />
+                      <span className="text-xs font-mono text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded">{driver.displayPassword}</span>
+                    </div>
+                  )}
+
                   {/* Action buttons */}
                   <div className="flex gap-2 mt-3 pt-3 border-t border-border">
                     <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-xs" onClick={() => openEdit(driver)}>
@@ -228,12 +256,20 @@ export default function DriversPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className={`flex-1 gap-1.5 text-xs ${driver.accountStatus === 'BLOCKED' ? 'text-green-400 border-green-500/30 hover:bg-green-500/10' : 'text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/10'}`}
+                      className="gap-1.5 text-xs text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+                      onClick={() => resetPasswordMutation.mutate(driver.id)}
+                      disabled={resetPasswordMutation.isPending}
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`gap-1.5 text-xs ${driver.accountStatus === 'BLOCKED' ? 'text-green-400 border-green-500/30 hover:bg-green-500/10' : 'text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/10'}`}
                       onClick={() => blockMutation.mutate({ id: driver.id, status: driver.accountStatus === 'BLOCKED' ? 'ACTIVE' : 'BLOCKED' })}
                       disabled={blockMutation.isPending}
                     >
                       {driver.accountStatus === 'BLOCKED' ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
-                      {driver.accountStatus === 'BLOCKED' ? 'Разблок.' : 'Блок.'}
                     </Button>
                     <Button
                       size="sm"

@@ -105,6 +105,93 @@ router.post('/driver/request-otp', async (req: Request, res: Response) => {
   }
 });
 
+// Driver login with phone + password
+router.post('/driver/login', async (req: Request, res: Response) => {
+  try {
+    const { phone, password } = req.body;
+
+    if (!phone || !password) {
+      return res.status(400).json({ error: 'Телефон жана пароль жазылышы керек' });
+    }
+
+    // Normalize phone: remove spaces, add +996 if needed
+    let normalizedPhone = phone.replace(/\s+/g, '');
+    if (normalizedPhone.startsWith('0')) {
+      normalizedPhone = '+996' + normalizedPhone.slice(1);
+    }
+    if (!normalizedPhone.startsWith('+')) {
+      normalizedPhone = '+' + normalizedPhone;
+    }
+
+    // Try exact match first, then normalized
+    let driver = await prisma.driver.findUnique({
+      where: { phone: normalizedPhone },
+      include: { vehicle: true },
+    });
+
+    // Try with spaces (how admin might have saved it)
+    if (!driver) {
+      const withSpace = normalizedPhone.replace('+996', '+996 ');
+      driver = await prisma.driver.findUnique({
+        where: { phone: withSpace },
+        include: { vehicle: true },
+      });
+    }
+
+    // Try original input
+    if (!driver) {
+      driver = await prisma.driver.findUnique({
+        where: { phone },
+        include: { vehicle: true },
+      });
+    }
+
+    if (!driver) {
+      return res.status(404).json({
+        error: 'Сиз биздин базада жоксуз. Сураныч диспетчерге кайрылыңыз.',
+      });
+    }
+
+    if (driver.accountStatus === 'BLOCKED') {
+      return res.status(403).json({ error: 'Аккаунтуңуз бөгөттөлгөн. Диспетчерге кайрылыңыз.' });
+    }
+
+    if (!driver.password) {
+      return res.status(400).json({ error: 'Пароль дагы орнотулган эмес. Диспетчерге кайрылыңыз.' });
+    }
+
+    const isValid = await bcrypt.compare(password, driver.password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Пароль туура эмес' });
+    }
+
+    const token = jwt.sign(
+      { id: driver.id, phone: driver.phone, role: 'DRIVER' },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '30d' }
+    );
+
+    return res.json({
+      token,
+      driver: {
+        id: driver.id,
+        firstName: driver.firstName,
+        lastName: driver.lastName,
+        phone: driver.phone,
+        status: driver.status,
+        accountStatus: driver.accountStatus,
+        vehicle: driver.vehicle,
+        rating: driver.rating,
+        totalEarnings: driver.totalEarnings,
+        totalOrders: driver.totalOrders,
+      },
+    });
+  } catch (error) {
+    console.error('Driver login error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Verify OTP
 router.post('/driver/verify-otp', async (req: Request, res: Response) => {
   try {

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../server';
 import { io } from '../server';
 import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
+import { calculatePrice, calculateDistance, TARIFFS, COMPANY_COMMISSION } from '../lib/tariff';
 
 const router = Router();
 
@@ -12,6 +13,32 @@ function generateOrderNumber(): string {
   const suffix = Math.floor(1000 + Math.random() * 9000);
   return `${prefix}-${suffix}`;
 }
+
+// Get tariffs
+router.get('/tariffs', async (req: Request, res: Response) => {
+  return res.json({ tariffs: TARIFFS, commission: COMPANY_COMMISSION });
+});
+
+// Calculate price
+router.post('/calculate-price', async (req: Request, res: Response) => {
+  try {
+    const { pickupLat, pickupLng, destLat, destLng, tariff } = req.body;
+
+    if (pickupLat && pickupLng && destLat && destLng) {
+      const distance = calculateDistance(pickupLat, pickupLng, destLat, destLng);
+      // Road distance is ~1.4x straight-line distance
+      const roadDistance = Math.round(distance * 1.4 * 10) / 10;
+      const pricing = calculatePrice(roadDistance, tariff || 'Standard');
+      return res.json(pricing);
+    }
+
+    // Default minimum price
+    const pricing = calculatePrice(1, tariff || 'Standard');
+    return res.json(pricing);
+  } catch (error) {
+    return res.status(500).json({ error: 'Calculation error' });
+  }
+});
 
 // Get all orders
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
@@ -97,6 +124,12 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Заполните все обязательные поля' });
     }
 
+    // Price validation
+    const inputPrice = parseFloat(price) || 0;
+    if (inputPrice < 0 || inputPrice > 50000) {
+      return res.status(400).json({ error: 'Цена должна быть от 0 до 50000 сом' });
+    }
+
     const orderNumber = generateOrderNumber();
 
     // Geocode addresses
@@ -105,6 +138,32 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
       geocodeAddress(pickupAddress),
       geocodeAddress(destAddress),
     ]);
+
+    // Calculate price automatically if coordinates available
+    let orderPrice = inputPrice;
+    let driverEarning = 0;
+    let companyCommission = 0;
+    let distance = 0;
+
+    if (pickupCoords && destCoords) {
+      const dist = calculateDistance(pickupCoords.lat, pickupCoords.lng, destCoords.lat, destCoords.lng);
+      distance = Math.round(dist * 1.4 * 10) / 10; // road distance estimate
+      
+      if (orderPrice === 0) {
+        // Auto-calculate if no manual price given
+        const pricing = calculatePrice(distance, tariff || 'Standard');
+        orderPrice = pricing.total;
+        driverEarning = pricing.driverEarning;
+        companyCommission = pricing.companyCommission;
+      } else {
+        // Manual price — still calculate commission
+        companyCommission = Math.round(orderPrice * 0.15);
+        driverEarning = orderPrice - companyCommission;
+      }
+    } else if (orderPrice > 0) {
+      companyCommission = Math.round(orderPrice * 0.15);
+      driverEarning = orderPrice - companyCommission;
+    }
 
     const order = await prisma.order.create({
       data: {
@@ -120,7 +179,10 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
         tariff: tariff || 'Standard',
         comment: comment || null,
         paymentMethod: paymentMethod || 'CASH',
-        price: parseFloat(price) || 0,
+        price: orderPrice,
+        driverEarning,
+        companyCommission,
+        distance,
       },
     });
 
@@ -213,7 +275,7 @@ router.patch('/:id/complete', authenticateToken, async (req: Request, res: Respo
         data: {
           status: 'ONLINE',
           totalOrders: { increment: 1 },
-          totalEarnings: { increment: order.price },
+          totalEarnings: { increment: order.driverEarning || order.price },
         },
       });
     }

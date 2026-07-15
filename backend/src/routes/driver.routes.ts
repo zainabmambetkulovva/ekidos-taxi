@@ -1,16 +1,27 @@
 import { Router, Request, Response } from 'express';
+import bcrypt from 'bcrypt';
 import { prisma } from '../server';
+import { io } from '../server';
 import { authenticateToken, authorizeRoles, AuthRequest } from '../middleware/auth.middleware';
 
 const router = Router();
+
+/** Generate random 8-char password: digits + uppercase */
+function generatePassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let pw = '';
+  for (let i = 0; i < 8; i++) {
+    pw += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return pw;
+}
 
 // Get all drivers
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { status, accountStatus, search, page = '1', limit = '50' } = req.query;
-    
+
     const where: any = {};
-    
     if (status) where.status = status;
     if (accountStatus) where.accountStatus = accountStatus;
     if (search) {
@@ -49,18 +60,14 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
       where: { id },
       include: { vehicle: true, documents: true, orders: { take: 20, orderBy: { createdAt: 'desc' } } },
     });
-
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver not found' });
-    }
-
+    if (!driver) return res.status(404).json({ error: 'Driver not found' });
     return res.json(driver);
   } catch (error) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Create driver
+// Create driver — auto-generates password, saves hashed + plain
 router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async (req: Request, res: Response) => {
   try {
     const {
@@ -70,11 +77,16 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
       vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber,
     } = req.body;
 
-    // Check if phone already exists
+    if (!phone) return res.status(400).json({ error: 'Phone number is required' });
+
     const existing = await prisma.driver.findUnique({ where: { phone } });
     if (existing) {
-      return res.status(400).json({ error: 'Driver with this phone number already exists' });
+      return res.status(400).json({ error: 'Водитель с таким номером уже существует' });
     }
+
+    // Generate unique password for this driver
+    const plainPassword = generatePassword();
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     const driver = await prisma.driver.create({
       data: {
@@ -83,6 +95,8 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
         middleName,
         birthDate: birthDate ? new Date(birthDate) : null,
         phone,
+        password: hashedPassword,
+        displayPassword: plainPassword, // Only visible to admin, not to driver
         whatsappNumber,
         passportNumber,
         passportPhoto,
@@ -107,7 +121,14 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
       include: { vehicle: true },
     });
 
-    return res.status(201).json(driver);
+    // Notify admins of new driver registration
+    io.to('admin-room').emit('notification', {
+      title: 'Новый водитель',
+      message: `Зарегистрирован ${firstName} ${lastName} — пароль: ${plainPassword}`,
+      type: 'new_driver',
+    });
+
+    return res.status(201).json({ ...driver, plainPassword });
   } catch (error) {
     console.error('Create driver error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -147,7 +168,6 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
       include: { vehicle: true },
     });
 
-    // Update vehicle if exists
     if (vehicleBrand && driver.vehicle) {
       await prisma.vehicle.update({
         where: { id: driver.vehicle.id },
@@ -174,12 +194,8 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
       });
     }
 
-    const updatedDriver = await prisma.driver.findUnique({
-      where: { id },
-      include: { vehicle: true },
-    });
-
-    return res.json(updatedDriver);
+    const updated = await prisma.driver.findUnique({ where: { id }, include: { vehicle: true } });
+    return res.json(updated);
   } catch (error) {
     console.error('Update driver error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -202,12 +218,31 @@ router.patch('/:id/status', authenticateToken, async (req: Request, res: Respons
   try {
     const id = req.params.id as string;
     const { status } = req.body;
-    const driver = await prisma.driver.update({
-      where: { id },
-      data: { status },
-    });
+    const driver = await prisma.driver.update({ where: { id }, data: { status } });
     return res.json(driver);
   } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reset driver password — generates new random password
+router.patch('/:id/reset-password', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const newPassword = generatePassword();
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.driver.update({
+      where: { id },
+      data: {
+        password: hashedPassword,
+        displayPassword: newPassword,
+      },
+    });
+
+    return res.json({ password: newPassword, message: 'Пароль успешно сброшен' });
+  } catch (error) {
+    console.error('Reset password error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
