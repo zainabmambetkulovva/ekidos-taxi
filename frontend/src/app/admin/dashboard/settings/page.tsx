@@ -140,7 +140,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Язык интерфейса</Label>
-              <Select value={language} onValueChange={(v) => { setLanguage(v); setLang(v as Lang); }}>
+              <Select value={language} onValueChange={(v) => { setLanguage(v as 'ru' | 'kg' | 'en'); setLang(v as Lang); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
