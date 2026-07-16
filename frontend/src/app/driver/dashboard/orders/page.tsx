@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Clock, Banknote, CreditCard, CheckCircle2, XCircle, Phone } from 'lucide-react';
 import { useDriverStore } from '@/store/useDriverStore';
+import { useLanguageStore } from '@/store/useLanguageStore';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 
 export default function DriverOrdersPage() {
   const router = useRouter();
   const { isOnline, setActiveOrder } = useDriverStore();
+  const { t } = useLanguageStore();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -77,14 +79,14 @@ export default function DriverOrdersPage() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Заказдар</h2>
+        <h2 className="text-xl font-bold">{t('availableOrders')}</h2>
         <span className="text-xs bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full font-bold">{orders.length}</span>
       </div>
 
       {orders.length === 0 ? (
         <div className="text-center py-16">
           <Clock className="w-14 h-14 mx-auto text-gray-700 mb-3" />
-          <h3 className="text-base font-medium text-gray-400">Жаңы заказ жок</h3>
+          <h3 className="text-base font-medium text-gray-400">{t('noOrders')}</h3>
           <p className="text-xs text-gray-600 mt-1">Диспетчер заказ жазганда автоматтуу пайда болот</p>
         </div>
       ) : (
@@ -123,7 +125,7 @@ export default function DriverOrdersPage() {
                   className="flex-1 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  Принять
+                  {t('accept')}
                 </button>
                 <button
                   onClick={() => handleReject(order.id)}

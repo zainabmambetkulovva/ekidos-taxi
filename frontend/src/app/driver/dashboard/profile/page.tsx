@@ -5,11 +5,13 @@ import { Star, Phone, Car, Calendar, Award, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLanguageStore } from '@/store/useLanguageStore';
 import api from '@/lib/axios';
 
 export default function ProfilePage() {
   const [driver, setDriver] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguageStore();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -43,7 +45,7 @@ export default function ProfilePage() {
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="text-xl font-bold">Профиль</h2>
+      <h2 className="text-xl font-bold">{t('profile')}</h2>
 
       {/* Avatar & Name */}
       <Card className="bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20">
