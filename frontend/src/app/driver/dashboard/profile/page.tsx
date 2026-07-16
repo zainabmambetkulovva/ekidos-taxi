@@ -76,7 +76,7 @@ export default function ProfilePage() {
         <Card>
           <CardContent className="p-4 text-center">
             <MapPin className="w-6 h-6 text-green-400 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{driver.totalEarnings || 0} сом</p>
+            <p className="text-2xl font-bold">{Number(driver.totalEarnings || 0).toLocaleString('ru-RU')} сом</p>
             <p className="text-xs text-muted-foreground">Заработано</p>
           </CardContent>
         </Card>
