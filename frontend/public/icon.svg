@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#dc2626"/>
+  <g transform="translate(56, 120)">
+    <!-- Car body -->
+    <path d="M360 180H40c-15 0-25-10-25-25v-40c0-15 10-25 25-25h30l30-50c5-10 15-15 25-15h150c10 0 20 5 25 15l30 50h30c15 0 25 10 25 25v40c0 15-10 25-25 25z" fill="white"/>
+    <!-- Windows -->
+    <path d="M120 70l-20 35h80V70H120z" fill="#dc2626" opacity="0.8"/>
+    <path d="M200 70v35h80l-20-35H200z" fill="#dc2626" opacity="0.8"/>
+    <!-- Wheels -->
+    <circle cx="110" cy="185" r="30" fill="#1a1a1a"/>
+    <circle cx="110" cy="185" r="15" fill="#555"/>
+    <circle cx="290" cy="185" r="30" fill="#1a1a1a"/>
+    <circle cx="290" cy="185" r="15" fill="#555"/>
+    <!-- Taxi sign -->
+    <rect x="155" y="25" width="90" height="30" rx="8" fill="#facc15"/>
+    <text x="200" y="47" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="16" fill="#1a1a1a">TAXI</text>
+  </g>
+  <!-- EKIDOS text -->
+  <text x="256" y="420" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="60" fill="white">EKIDOS</text>
+</svg>
