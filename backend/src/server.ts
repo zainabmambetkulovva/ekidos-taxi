@@ -35,6 +35,7 @@ export const io = new Server(httpServer, {
 });
 
 // Middleware
+app.set('trust proxy', 1); // Trust Railway's proxy
 app.use(helmet({ contentSecurityPolicy: false })); // Security headers
 app.use(cors({
   origin: true,
@@ -81,7 +82,7 @@ app.get('/api/health', (_, res) => {
 // Socket.IO
 setupSocketHandlers(io);
 
-const PORT: number = parseInt(process.env.PORT || '5000', 10);
+const PORT: number = parseInt(process.env.PORT || '8080', 10);
 
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {
