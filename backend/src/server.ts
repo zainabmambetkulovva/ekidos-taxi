@@ -83,8 +83,9 @@ setupSocketHandlers(io);
 
 const PORT: number = parseInt(process.env.PORT || '5000', 10);
 
-httpServer.listen(PORT, () => {
-  console.log(`🚀 EKIDOS TAXI Server running on port ${PORT}`);
+// @ts-ignore
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);
   console.log(`📡 Socket.IO ready`);
 });
 
