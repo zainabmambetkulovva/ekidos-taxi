@@ -7,19 +7,21 @@ import {
   UserCircle, Settings, LogOut, Menu, X,
   Star, Car,
 } from 'lucide-react';
-
-const driverMenu = [
-  { icon: MapPin, label: 'Главная', href: '/driver/dashboard' },
-  { icon: List, label: 'Заказы', href: '/driver/dashboard/orders' },
-  { icon: Navigation, label: 'Текущий заказ', href: '/driver/dashboard/current' },
-  { icon: UserCircle, label: 'Профиль', href: '/driver/dashboard/profile' },
-  { icon: Settings, label: 'Настройки', href: '/driver/dashboard/settings' },
-];
+import { useLanguageStore } from '@/store/useLanguageStore';
 
 export default function DriverDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useLanguageStore();
+
+  const driverMenu = [
+    { icon: MapPin, label: t('dashboard'), href: '/driver/dashboard' },
+    { icon: List, label: t('availableOrders'), href: '/driver/dashboard/orders' },
+    { icon: Navigation, label: t('currentOrder'), href: '/driver/dashboard/current' },
+    { icon: UserCircle, label: t('profile'), href: '/driver/dashboard/profile' },
+    { icon: Settings, label: t('settings'), href: '/driver/dashboard/settings' },
+  ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -106,7 +108,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/5 transition-all"
               >
                 <LogOut className="w-5 h-5" />
-                <span className="text-sm font-medium">Выход</span>
+                <span className="text-sm font-medium">{t('logout')}</span>
               </button>
             </div>
           </aside>

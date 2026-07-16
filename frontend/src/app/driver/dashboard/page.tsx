@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Clock, CheckCircle2, Navigation, Phone } from 'lucide-react';
 import { useDriverStore } from '@/store/useDriverStore';
+import { useLanguageStore } from '@/store/useLanguageStore';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 
@@ -17,16 +18,17 @@ const DriverMap = dynamic(() => import('./driver-map'), {
 
 export default function DriverHomePage() {
   const { isOnline, activeOrder, setOnline, setActiveOrder } = useDriverStore();
+  const { t } = useLanguageStore();
   const toktogulCenter: [number, number] = [41.8747, 72.9422];
 
   const handleToggleOnline = () => {
     if (!isOnline) {
       setOnline(true);
-      toast.success('Вы на линии. Ожидайте заказы.');
+      toast.success(t('onLine') + '. ' + t('waitingOrders'));
     } else {
       setOnline(false);
       setActiveOrder(null);
-      toast('Смена завершена.');
+      toast(t('endShift'));
     }
   };
 
@@ -59,7 +61,7 @@ export default function DriverHomePage() {
             <div className="bg-[#0d0d0d] border border-green-500/30 rounded-2xl p-4 shadow-2xl">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-green-400 uppercase tracking-wider">Активный заказ</span>
+                <span className="text-xs font-bold text-green-400 uppercase tracking-wider">{t('activeOrder')}</span>
                 <span className="text-xl font-black text-green-400">{activeOrder.price} сом</span>
               </div>
 
@@ -93,14 +95,14 @@ export default function DriverHomePage() {
                   className="flex-1 h-11 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
                 >
                   <Navigation className="w-4 h-4" />
-                  Навигация
+                  {t('navigate')}
                 </button>
                 <button
                   onClick={handleCompleteOrder}
                   className="flex-1 h-11 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all shadow-lg shadow-green-500/20"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  Завершить заказ
+                  {t('completeOrder')}
                 </button>
               </div>
             </div>
@@ -112,8 +114,8 @@ export default function DriverHomePage() {
           <div className="px-3 pb-2">
             <div className="bg-[#111]/90 border border-white/10 rounded-2xl p-3 text-center backdrop-blur-sm">
               <Clock className="w-5 h-5 text-gray-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-400">Ожидание заказов...</p>
-              <p className="text-[10px] text-gray-600 mt-0.5">Заказы появятся в разделе "Заказы"</p>
+              <p className="text-xs text-gray-400">{t('waitingOrders')}</p>
+              <p className="text-[10px] text-gray-600 mt-0.5">{t('availableOrders')}</p>
             </div>
           </div>
         )}
@@ -128,7 +130,7 @@ export default function DriverHomePage() {
                 : 'bg-yellow-400 text-black shadow-yellow-400/30'
             }`}
           >
-            {isOnline ? 'Завершить смену' : 'Выйти на линию'}
+            {isOnline ? t('endShift') : t('goOnline')}
           </button>
         </div>
       </div>
