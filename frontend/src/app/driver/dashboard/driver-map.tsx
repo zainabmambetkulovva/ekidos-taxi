@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useDriverStore } from '@/store/useDriverStore';
-import { getRoute } from '@/lib/routing';
 
 interface DriverMapProps {
   center: [number, number];
@@ -13,32 +12,16 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
   || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5000` : 'http://localhost:5000');
 
 export default function DriverMap({ center, showMarker }: DriverMapProps) {
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [mapReady, setMapReady] = useState(false);
   const [myLocation, setMyLocation] = useState<[number, number]>(center);
   const { activeOrder } = useDriverStore();
   const mapRef = useRef<any>(null);
-  const routeLayerRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const orderMarkersRef = useRef<any[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const initedRef = useRef(false);
 
-  // Get real GPS location
-  useEffect(() => {
-    if (!showMarker) return;
-    if (!navigator.geolocation) return;
-
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setMyLocation([pos.coords.latitude, pos.coords.longitude]);
-      },
-      () => {
-        // GPS error — use default center
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
-    );
-
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [showMarker]);
-
-  // Load Leaflet via CDN
+  // Load Leaflet CSS and JS once
   useEffect(() => {
     if (!document.querySelector('link[href*="leaflet@1.9.4"]')) {
       const link = document.createElement('link');
@@ -49,16 +32,97 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     if (!(window as any).L) {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = () => setMapLoaded(true);
+      script.onload = () => setMapReady(true);
       document.head.appendChild(script);
     } else {
-      setMapLoaded(true);
+      setMapReady(true);
     }
   }, []);
 
-  // Fetch orders when online
+  // Initialize map ONCE
   useEffect(() => {
-    if (!showMarker) { setOrders([]); return; }
+    if (!mapReady || initedRef.current || !containerRef.current) return;
+    const L = (window as any).L;
+    if (!L) return;
+
+    const map = L.map(containerRef.current, {
+      center: myLocation,
+      zoom: 15,
+      zoomControl: false,
+      attributionControl: false,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OSM',
+    }).addTo(map);
+
+    mapRef.current = map;
+    initedRef.current = true;
+
+    setTimeout(() => map.invalidateSize(), 200);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      initedRef.current = false;
+    };
+  }, [mapReady]);
+
+  // GPS tracking — update marker position without recreating map
+  useEffect(() => {
+    if (!showMarker || !navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const newLoc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setMyLocation(newLoc);
+
+        const L = (window as any).L;
+        const map = mapRef.current;
+        if (!L || !map) return;
+
+        if (markerRef.current) {
+          markerRef.current.setLatLng(newLoc);
+        } else {
+          const icon = L.divIcon({
+            className: '',
+            html: `<div style="width:18px;height:18px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5)"></div>`,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+          });
+          markerRef.current = L.marker(newLoc, { icon }).addTo(map);
+        }
+
+        map.panTo(newLoc, { animate: true, duration: 0.5 });
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      if (markerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(markerRef.current);
+        markerRef.current = null;
+      }
+    };
+  }, [showMarker, mapReady]);
+
+  // Remove driver marker when offline
+  useEffect(() => {
+    if (!showMarker && markerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(markerRef.current);
+      markerRef.current = null;
+    }
+  }, [showMarker]);
+
+  // Fetch and show order markers
+  useEffect(() => {
+    if (!showMarker || activeOrder) return;
+    const L = (window as any).L;
+    const map = mapRef.current;
+    if (!L || !map) return;
+
     const fetchOrders = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -66,119 +130,41 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const data = await res.json();
-        setOrders(Array.isArray(data) ? data : []);
-      } catch { setOrders([]); }
+        const orders = Array.isArray(data) ? data : [];
+
+        // Clear old markers
+        orderMarkersRef.current.forEach(m => map.removeLayer(m));
+        orderMarkersRef.current = [];
+
+        // Add new markers
+        orders.forEach((order: any) => {
+          if (!order.pickupLat || !order.pickupLng) return;
+          const icon = L.divIcon({
+            className: '',
+            html: `<div style="width:28px;height:28px;background:#ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:9px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${order.price}</div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+          });
+          const m = L.marker([order.pickupLat, order.pickupLng], { icon }).addTo(map)
+            .bindPopup(`<b>${order.pickupAddress}</b><br>→ ${order.destAddress}<br><b style="color:#22c55e">${order.price} сом</b>`);
+          orderMarkersRef.current.push(m);
+        });
+      } catch {}
     };
+
     fetchOrders();
     const iv = setInterval(fetchOrders, 15000);
-    return () => clearInterval(iv);
-  }, [showMarker]);
-
-  // Draw route when activeOrder exists
-  useEffect(() => {
-    if (!mapLoaded || !mapRef.current || !activeOrder) {
-      // Remove old route
-      if (routeLayerRef.current && mapRef.current) {
-        mapRef.current.removeLayer(routeLayerRef.current);
-        routeLayerRef.current = null;
-      }
-      return;
-    }
-
-    const drawRoute = async () => {
-      const L = (window as any).L;
-      if (!L) return;
-
-      // Remove old route
-      if (routeLayerRef.current) {
-        mapRef.current.removeLayer(routeLayerRef.current);
-      }
-
-      const from = { lat: myLocation[0], lng: myLocation[1] };
-      let to = { lat: center[0] + 0.005, lng: center[1] + 0.005 };
-
-      // Use order coordinates if available
-      if (activeOrder.pickupLat && activeOrder.pickupLng) {
-        to = { lat: activeOrder.pickupLat, lng: activeOrder.pickupLng };
-      }
-
-      const route = await getRoute(from, to);
-      if (route && route.coordinates.length > 0) {
-        const polyline = L.polyline(route.coordinates, {
-          color: '#ef4444',
-          weight: 5,
-          opacity: 0.8,
-          dashArray: '10, 10',
-        }).addTo(mapRef.current);
-
-        routeLayerRef.current = polyline;
-        mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-
-        // Add destination marker
-        const destIcon = L.divIcon({
-          className: '',
-          html: `<div style="width:20px;height:20px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)"></div>`,
-          iconSize: [20, 20],
-          iconAnchor: [10, 10],
-        });
-        L.marker([to.lat, to.lng], { icon: destIcon }).addTo(mapRef.current)
-          .bindPopup(`<b>${activeOrder.pickupAddress}</b><br>${route.distance} км • ~${route.duration} мин`);
-      }
+    return () => {
+      clearInterval(iv);
+      orderMarkersRef.current.forEach(m => map?.removeLayer(m));
+      orderMarkersRef.current = [];
     };
-
-    drawRoute();
-  }, [activeOrder, mapLoaded]);
-
-  // Render map
-  useEffect(() => {
-    if (!mapLoaded) return;
-    const L = (window as any).L;
-    if (!L) return;
-
-    const container = document.getElementById('driver-map-container');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const map = L.map(container, { center: myLocation, zoom: 15, zoomControl: false });
-    mapRef.current = map;
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap',
-    }).addTo(map);
-
-    // Driver position marker (real GPS)
-    if (showMarker) {
-      const driverIcon = L.divIcon({
-        className: '',
-        html: `<div style="width:18px;height:18px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5)"></div>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
-      });
-      L.marker(myLocation, { icon: driverIcon }).addTo(map)
-        .bindPopup('Сиздин ордуңуз');
-    }
-
-    // Order markers (when no active order)
-    if (showMarker && !activeOrder && orders.length > 0) {
-      orders.forEach((order) => {
-        if (!order.pickupLat || !order.pickupLng) return;
-        const icon = L.divIcon({
-          className: '',
-          html: `<div style="width:30px;height:30px;background:#ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:10px;border:2px solid white;box-shadow:0 2px 8px rgba(239,68,68,0.5)">${order.price}</div>`,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
-        });
-        L.marker([order.pickupLat, order.pickupLng], { icon }).addTo(map)
-          .bindPopup(`<b>${order.pickupAddress}</b><br>→ ${order.destAddress}<br><span style="color:#22c55e;font-weight:700">${order.price} сом</span>`);
-      });
-    }
-
-    setTimeout(() => map.invalidateSize(), 300);
-
-    return () => { map.remove(); mapRef.current = null; };
-  }, [mapLoaded, showMarker, orders, activeOrder, myLocation]);
+  }, [showMarker, activeOrder, mapReady]);
 
   return (
-    <div id="driver-map-container" style={{ height: '100%', width: '100%', minHeight: '300px', background: '#111' }} />
+    <div
+      ref={containerRef}
+      style={{ height: '100%', width: '100%', minHeight: '300px', background: '#111' }}
+    />
   );
 }

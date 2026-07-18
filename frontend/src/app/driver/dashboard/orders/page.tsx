@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Clock, Banknote, CreditCard, CheckCircle2, XCircle, Phone } from 'lucide-react';
 import { useDriverStore } from '@/store/useDriverStore';
@@ -15,6 +15,8 @@ export default function DriverOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const prevOrderCountRef = useRef(0);
+
   // Fetch available orders from backend
   useEffect(() => {
     if (!isOnline) { setOrders([]); setLoading(false); return; }
@@ -22,13 +24,36 @@ export default function DriverOrdersPage() {
     const fetchOrders = async () => {
       try {
         const { data } = await api.get('/orders/available');
-        setOrders(Array.isArray(data) ? data : []);
+        const newOrders = Array.isArray(data) ? data : [];
+
+        // Play sound if new orders arrived
+        if (newOrders.length > prevOrderCountRef.current && prevOrderCountRef.current >= 0) {
+          try {
+            const audio = new Audio('/notification.mp3');
+            audio.volume = 0.8;
+            audio.play().catch(() => {});
+          } catch {}
+          // Browser notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('EKIDOS TAXI', {
+              body: t('availableOrders') + ` (${newOrders.length})`,
+              icon: '/icon-192.png',
+            });
+          }
+        }
+        prevOrderCountRef.current = newOrders.length;
+        setOrders(newOrders);
       } catch {
         setOrders([]);
       } finally {
         setLoading(false);
       }
     };
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
 
     fetchOrders();
     const interval = setInterval(fetchOrders, 8000);
