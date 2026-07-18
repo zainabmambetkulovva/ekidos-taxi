@@ -17,6 +17,7 @@ import uploadRoutes from './routes/upload.routes';
 import reportRoutes from './routes/report.routes';
 import notificationRoutes from './routes/notification.routes';
 import adminRoutes from './routes/admin.routes';
+import topupRoutes from './routes/topup.routes';
 import { setupSocketHandlers } from './socket';
 
 dotenv.config();
@@ -73,6 +74,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admins', adminRoutes);
+app.use('/api/topup', topupRoutes);
 
 // Health check
 app.get('/api/health', (_, res) => {
@@ -82,7 +84,7 @@ app.get('/api/health', (_, res) => {
 // Socket.IO
 setupSocketHandlers(io);
 
-const PORT: number = parseInt(process.env.PORT || '8080', 10);
+const PORT: number = parseInt(process.env.PORT || '8080+', 10);
 
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {
@@ -101,3 +103,4 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
+76

@@ -62,7 +62,8 @@ npx prisma migrate dev --name init
 npx prisma generate
 
 # Seed default admin account
-npx ts-node prisma/seed.ts
+
+
 ```
 
 ### 3. Environment Variables

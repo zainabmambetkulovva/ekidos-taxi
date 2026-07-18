@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Car, Star, TableProperties, Phone,
-  Map, BarChart3, Settings, LogOut, Menu, X,
+  Map, BarChart3, Settings, LogOut, Menu, X, Wallet,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useNotificationStore } from '@/store/useNotificationStore';
@@ -18,6 +18,7 @@ const menuKeys = [
   { icon: Car, key: 'drivers', href: '/admin/dashboard/drivers' },
   { icon: Star, key: 'rating', href: '/admin/dashboard/rating' },
   { icon: TableProperties, key: 'tables', href: '/admin/dashboard/tables' },
+  { icon: Wallet, key: 'balance', href: '/admin/dashboard/balance' },
   { icon: Phone, key: 'dispatcher', href: '/admin/dashboard/dispatcher' },
   { icon: Map, key: 'liveMap', href: '/admin/dashboard/map' },
   { icon: BarChart3, key: 'reports', href: '/admin/dashboard/reports' },

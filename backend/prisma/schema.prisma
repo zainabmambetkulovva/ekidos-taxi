@@ -49,6 +49,8 @@ model Driver {
   totalEarnings         Float     @default(0)
   totalOrders           Int       @default(0)
   rating                Float     @default(5.0)
+  balance               Float     @default(0)
+  telegramId            BigInt?   @unique
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -58,6 +60,7 @@ model Driver {
   notifications         Notification[] @relation("DriverNotifications")
   otps                  OTP[]
   driverStatusHistory   DriverStatusLog[]
+  topupRequests         TopupRequest[]
 
   @@map("drivers")
 }
@@ -221,4 +224,20 @@ model Settings {
   updatedAt    DateTime @updatedAt
 
   @@map("settings")
+}
+
+model TopupRequest {
+  id          String   @id @default(uuid())
+  driverId    String
+  telegramId  BigInt
+  driverName  String
+  photoUrl    String?
+  amount      Float?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("topup_requests")
 }
