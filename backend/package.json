@@ -1,16 +1,12 @@
 {
   "name": "ekidos-taxi-backend",
   "version": "1.0.1",
-  "description": "EKIDOS TAXI Dispatch Management System - Backend",
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "npx tsc",
+    "build": "tsc --skipLibCheck",
     "start": "node dist/server.js",
-    "postinstall": "prisma generate",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -26,7 +22,6 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "socket.io": "^4.8.1",
-    "typescript": "^5.6.3",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
@@ -39,10 +34,7 @@
     "@types/uuid": "^10.0.0",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.6.3"
+  }
 }
