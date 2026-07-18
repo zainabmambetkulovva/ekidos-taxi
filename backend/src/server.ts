@@ -89,7 +89,7 @@ app.get('/api/health', (_, res) => {
 // Socket.IO
 setupSocketHandlers(io);
 
-const PORT: number = parseInt(process.env.PORT || '8080+', 10);
+const PORT: number = parseInt(process.env.PORT || '3000+', 10);
 
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {

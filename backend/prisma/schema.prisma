@@ -51,6 +51,7 @@ model Driver {
   rating                Float     @default(5.0)
   balance               Float     @default(0)
   telegramId            BigInt?   @unique
+  blockedUntil          DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 

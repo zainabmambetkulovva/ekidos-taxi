@@ -1,10 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   MapPin, Phone, User, Navigation, CheckCircle2,
-  Clock, Banknote, CreditCard,
+  Clock, Banknote, CreditCard, XCircle,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,12 +13,15 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/axios';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useDriverStore } from '@/store/useDriverStore';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 
 export default function CurrentOrderPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const { setOnline, setActiveOrder } = useDriverStore();
+  const [cancelStep, setCancelStep] = useState(0);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['driver-current-order', user?.id],
@@ -161,6 +165,47 @@ export default function CurrentOrderPage() {
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Complete
+              </Button>
+            </div>
+
+            {/* Cancel with 3-step warning */}
+            <div className="pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                onClick={async () => {
+                  const nextStep = cancelStep + 1;
+                  setCancelStep(nextStep);
+
+                  if (nextStep === 1) {
+                    toast.error('⚠️ Заказ аяктаган жок!');
+                    return;
+                  }
+                  if (nextStep === 2) {
+                    toast.error('⚠️ Заказды аяктаңыз! Кийинки аракетте блоктолосуз!');
+                    return;
+                  }
+                  if (nextStep >= 3) {
+                    try {
+                      const driverInfo = localStorage.getItem('driverInfo');
+                      const driverId = driverInfo ? JSON.parse(driverInfo).id : user?.id;
+                      await api.patch(`/orders/${currentOrder.id}/cancel`, { driverId, cancelStep: 3 });
+                      setActiveOrder(null);
+                      setOnline(false);
+                      localStorage.setItem('ekidos-blocked-until', new Date(Date.now() + 5*60*60*1000).toISOString());
+                      toast.error('🚫 Сиз 5 саатка блоктолдуңуз!');
+                      queryClient.invalidateQueries({ queryKey: ['driver-current-order'] });
+                    } catch {
+                      toast.error('Ошибка');
+                    }
+                  }
+                }}
+              >
+                <XCircle className="w-4 h-4 mr-1" />
+                {cancelStep === 0 && 'Отмена кылуу'}
+                {cancelStep === 1 && 'Чын эле отмена кыласызбы?'}
+                {cancelStep >= 2 && '⚠️ Блоктолосуз!'}
               </Button>
             </div>
           </CardContent>

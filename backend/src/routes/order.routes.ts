@@ -298,28 +298,75 @@ router.patch('/:id/complete', authenticateToken, async (req: Request, res: Respo
   }
 });
 
-// Cancel order
+// Cancel order — 3-step warning system
 router.patch('/:id/cancel', authenticateToken, async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const order = await prisma.order.update({
+    const { driverId, cancelStep } = req.body;
+    // cancelStep: 1 = first warning, 2 = second warning, 3 = block driver
+
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Step 1 & 2: just return warning, don't cancel
+    if (cancelStep === 1) {
+      return res.json({ warning: true, step: 1, message: 'Заказ аяктаган жок! Чын эле отмена кыласызбы?' });
+    }
+    if (cancelStep === 2) {
+      return res.json({ warning: true, step: 2, message: 'Заказды аяктаңыз! Кийинки аракетте блоктолосуз.' });
+    }
+
+    // Step 3: cancel order + block driver for 5 hours
+    await prisma.order.update({
       where: { id },
-      data: {
-        status: 'CANCELLED',
-        cancelledAt: new Date(),
-      },
+      data: { status: 'CANCELLED', cancelledAt: new Date() },
     });
 
-    if (order.driverId) {
+    const blockDriverId = driverId || order.driverId;
+    if (blockDriverId) {
+      const blockedUntil = new Date(Date.now() + 5 * 60 * 60 * 1000); // +5 hours
       await prisma.driver.update({
-        where: { id: order.driverId },
-        data: { status: 'ONLINE' },
+        where: { id: blockDriverId },
+        data: {
+          status: 'OFFLINE',
+          accountStatus: 'BLOCKED',
+          blockedUntil,
+        },
+      });
+
+      io.to(`driver:${blockDriverId}`).emit('driver:blocked', {
+        blockedUntil: blockedUntil.toISOString(),
+        reason: 'Заказды аяктабай отмена кылдыңыз',
       });
     }
 
     io.emit('order:cancelled', { orderId: id });
+    io.to('admin-room').emit('driver:blocked-notification', {
+      driverId: blockDriverId,
+      blockedUntil: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
+    });
 
-    return res.json(order);
+    return res.json({
+      warning: false,
+      step: 3,
+      message: 'Сиз заказды аяктаган жоксуз. 5 саатка блоктолдуңуз.',
+      blocked: true,
+    });
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Unblock driver manually (admin)
+router.patch('/driver/:driverId/unblock', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { driverId } = req.params;
+    await prisma.driver.update({
+      where: { id: driverId },
+      data: { accountStatus: 'ACTIVE', blockedUntil: null },
+    });
+    return res.json({ success: true });
   } catch (error) {
     return res.status(500).json({ error: 'Internal server error' });
   }
