@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Clock, Banknote, CreditCard, CheckCircle2, XCircle, Phone } from 'lucide-react';
 import { useDriverStore } from '@/store/useDriverStore';
 import { useLanguageStore } from '@/store/useLanguageStore';
+import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 
@@ -17,7 +18,55 @@ export default function DriverOrdersPage() {
 
   const prevOrderCountRef = useRef(0);
 
-  // Fetch available orders from backend
+  // Play notification sound and show browser notification
+  const notifyNewOrder = (count: number) => {
+    try {
+      const audio = new Audio('/notification.mp3');
+      audio.volume = 0.8;
+      audio.play().catch(() => {});
+    } catch {}
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('EKIDOS TAXI', {
+        body: t('availableOrders') + ` (${count})`,
+        icon: '/icon-192.png',
+      });
+    }
+  };
+
+  // Socket.IO real-time: listen for new orders
+  useEffect(() => {
+    if (!isOnline) return;
+
+    const socket = connectSocket();
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+
+    if (driverId) {
+      socket.emit('driver:join', driverId);
+    }
+
+    // New order arrives in real-time
+    socket.on('order:available', (order: any) => {
+      setOrders(prev => {
+        const exists = prev.find(o => o.id === order.id);
+        if (exists) return prev;
+        notifyNewOrder(prev.length + 1);
+        return [order, ...prev];
+      });
+    });
+
+    // Order taken by another driver — remove from list
+    socket.on('order:taken', ({ orderId }: { orderId: string }) => {
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+    });
+
+    return () => {
+      socket.off('order:available');
+      socket.off('order:taken');
+    };
+  }, [isOnline]);
+
+  // Fetch available orders from backend (polling as backup)
   useEffect(() => {
     if (!isOnline) { setOrders([]); setLoading(false); return; }
 
@@ -26,20 +75,9 @@ export default function DriverOrdersPage() {
         const { data } = await api.get('/orders/available');
         const newOrders = Array.isArray(data) ? data : [];
 
-        // Play sound if new orders arrived
-        if (newOrders.length > prevOrderCountRef.current && prevOrderCountRef.current >= 0) {
-          try {
-            const audio = new Audio('/notification.mp3');
-            audio.volume = 0.8;
-            audio.play().catch(() => {});
-          } catch {}
-          // Browser notification
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('EKIDOS TAXI', {
-              body: t('availableOrders') + ` (${newOrders.length})`,
-              icon: '/icon-192.png',
-            });
-          }
+        // Play sound if new orders arrived (from polling)
+        if (newOrders.length > prevOrderCountRef.current && prevOrderCountRef.current > 0) {
+          notifyNewOrder(newOrders.length);
         }
         prevOrderCountRef.current = newOrders.length;
         setOrders(newOrders);
