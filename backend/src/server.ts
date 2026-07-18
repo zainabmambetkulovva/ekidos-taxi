@@ -22,6 +22,11 @@ import { setupSocketHandlers } from './socket';
 
 dotenv.config();
 
+// BigInt JSON serialization support
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 const app = express();
 const httpServer = createServer(app);
 

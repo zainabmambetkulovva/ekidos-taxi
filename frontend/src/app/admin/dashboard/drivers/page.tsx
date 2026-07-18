@@ -24,7 +24,7 @@ const emptyForm = {
   phone: '', whatsappNumber: '', passportNumber: '',
   licenseNumber: '', techPassportNumber: '', insuranceNumber: '',
   vehicleBrand: '', vehicleModel: '', vehicleYear: '', vehicleColor: '',
-  plateNumber: '', notes: '', accountStatus: 'ACTIVE',
+  plateNumber: '', notes: '', accountStatus: 'ACTIVE', telegramId: '',
 };
 
 export default function DriversPage() {
@@ -145,6 +145,7 @@ export default function DriversPage() {
       plateNumber: driver.vehicle?.plateNumber || '',
       notes: driver.notes || '',
       accountStatus: driver.accountStatus || 'ACTIVE',
+      telegramId: driver.telegramId ? String(driver.telegramId) : '',
     });
     setIsFormOpen(true);
   };
@@ -312,6 +313,9 @@ export default function DriversPage() {
                 <div className="space-y-1.5"><Label>Дата рождения</Label><Input type="date" value={formData.birthDate} onChange={e => f('birthDate', e.target.value)} /></div>
                 <div className="space-y-1.5"><Label>Телефон *</Label><Input value={formData.phone} onChange={e => f('phone', e.target.value)} placeholder="+996..." required /></div>
                 <div className="space-y-1.5"><Label>WhatsApp</Label><Input value={formData.whatsappNumber} onChange={e => f('whatsappNumber', e.target.value)} placeholder="+996..." /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                <div className="space-y-1.5"><Label>Telegram ID</Label><Input value={formData.telegramId} onChange={e => f('telegramId', e.target.value)} placeholder="123456789" /></div>
               </div>
             </div>
 

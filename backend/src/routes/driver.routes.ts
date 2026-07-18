@@ -75,6 +75,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
       passportNumber, passportPhoto, licenseNumber, licensePhoto,
       techPassportNumber, techPassportPhoto, driverPhoto, notes, accountStatus,
       vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber,
+      telegramId,
     } = req.body;
 
     if (!phone) return res.status(400).json({ error: 'Phone number is required' });
@@ -98,6 +99,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
         password: hashedPassword,
         displayPassword: plainPassword, // Only visible to admin, not to driver
         whatsappNumber,
+        telegramId: telegramId ? BigInt(telegramId) : null,
         passportNumber,
         passportPhoto,
         licenseNumber,
@@ -144,6 +146,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
       passportNumber, passportPhoto, licenseNumber, licensePhoto,
       techPassportNumber, techPassportPhoto, driverPhoto, notes, accountStatus,
       vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber,
+      telegramId,
     } = req.body;
 
     const driver = await prisma.driver.update({
@@ -155,6 +158,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
         birthDate: birthDate ? new Date(birthDate) : undefined,
         phone,
         whatsappNumber,
+        telegramId: telegramId ? BigInt(telegramId) : undefined,
         passportNumber,
         passportPhoto,
         licenseNumber,
