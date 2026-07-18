@@ -156,9 +156,21 @@ export default function DriversPage() {
     setIsFormOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, driver?: any) => {
     if (status === 'ACTIVE') return <Badge variant="success">Активный</Badge>;
-    if (status === 'BLOCKED') return <Badge variant="destructive">Заблокирован</Badge>;
+    if (status === 'BLOCKED') {
+      if (driver?.blockedUntil) {
+        const until = new Date(driver.blockedUntil);
+        const now = new Date();
+        if (until > now) {
+          const diff = until.getTime() - now.getTime();
+          const h = Math.floor(diff / 3600000);
+          const m = Math.floor((diff % 3600000) / 60000);
+          return <Badge variant="destructive">🔒 {h}ч {m}м</Badge>;
+        }
+      }
+      return <Badge variant="destructive">Заблокирован</Badge>;
+    }
     return <Badge variant="warning">Ожидает</Badge>;
   };
 
@@ -225,7 +237,7 @@ export default function DriversPage() {
                         <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{driver.phone}</p>
                       </div>
                     </div>
-                    {getStatusBadge(driver.accountStatus)}
+                    {getStatusBadge(driver.accountStatus, driver)}
                   </div>
 
                   {driver.vehicle && (

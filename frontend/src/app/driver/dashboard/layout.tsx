@@ -8,6 +8,7 @@ import {
   Star, Car,
 } from 'lucide-react';
 import { useLanguageStore } from '@/store/useLanguageStore';
+import BlockTimer from './block-timer';
 
 export default function DriverDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -25,6 +26,8 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Block Timer Overlay */}
+      <BlockTimer />
       {/* Top Nav */}
       <header className="sticky top-0 z-[5000] bg-card/90 backdrop-blur-xl border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
