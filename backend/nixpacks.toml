@@ -2,10 +2,10 @@
 nixPkgs = ["nodejs_22", "openssl"]
 
 [phases.install]
-cmds = ["npm install --legacy-peer-deps"]
+cmds = ["npm install --include=dev --legacy-peer-deps"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["npx prisma generate", "npm run build"]
 
 [start]
 cmd = "node dist/server.js"
