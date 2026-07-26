@@ -45,7 +45,12 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       prisma.driver.count({ where }),
     ]);
 
-    return res.json({ drivers, total, page: parseInt(page as string), limit: parseInt(limit as string) });
+    // Serialize BigInt (telegramId) to string
+    const serialize = (obj: any): any => JSON.parse(
+      JSON.stringify(obj, (_, v) => typeof v === 'bigint' ? v.toString() : v)
+    );
+
+    return res.json({ drivers: serialize(drivers), total, page: parseInt(page as string), limit: parseInt(limit as string) });
   } catch (error) {
     console.error('Get drivers error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -99,7 +104,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
         password: hashedPassword,
         displayPassword: plainPassword, // Only visible to admin, not to driver
         whatsappNumber,
-        telegramId: telegramId ? BigInt(telegramId) : null,
+        telegramId: telegramId && telegramId.toString().trim() ? BigInt(telegramId.toString().trim()) : null,
         passportNumber,
         passportPhoto,
         licenseNumber,
@@ -158,7 +163,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
         birthDate: birthDate ? new Date(birthDate) : undefined,
         phone,
         whatsappNumber,
-        telegramId: telegramId ? BigInt(telegramId) : undefined,
+        telegramId: telegramId && telegramId.toString().trim() ? BigInt(telegramId.toString().trim()) : undefined,
         passportNumber,
         passportPhoto,
         licenseNumber,
