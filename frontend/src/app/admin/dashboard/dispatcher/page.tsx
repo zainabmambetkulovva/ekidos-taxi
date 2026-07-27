@@ -3,13 +3,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import {
-  Plus, MapPin, Phone, User, CreditCard, Banknote,
-  Loader2, Clock, CheckCircle2, XCircle,
-} from 'lucide-react';
+import { Plus, MapPin, Phone, User, Loader2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -20,32 +17,19 @@ import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useLanguageStore } from '@/store/useLanguageStore';
 
-// Phone validation: +996 7XX XXX XXX or 0XXX XXX XXX
+// Phone validation: +996 7XX XXX XXX
 function isValidKyrgyzPhone(phone: string): boolean {
   const cleaned = phone.replace(/[\s\-\(\)]/g, '');
-  // +996 7xxxxxxxx (12 digits total with +)
   if (/^\+996[57]\d{8}$/.test(cleaned)) return true;
-  // 0 7xxxxxxxx (10 digits)
   if (/^0[57]\d{8}$/.test(cleaned)) return true;
-  // 996 7xxxxxxxx (without +)
   if (/^996[57]\d{8}$/.test(cleaned)) return true;
   return false;
 }
 
-// Address validation: at least 3 chars, must contain letters
 function isValidAddress(address: string): boolean {
   const trimmed = address.trim();
   if (trimmed.length < 3) return false;
-  // Must contain at least some letters (Latin or Cyrillic)
   if (!/[a-zA-Zа-яА-ЯёЁүҮөӨңҢ]/.test(trimmed)) return false;
-  return true;
-}
-
-// Name validation: at least 2 chars, only letters and spaces
-function isValidName(name: string): boolean {
-  const trimmed = name.trim();
-  if (trimmed.length < 2) return false;
-  if (!/^[a-zA-Zа-яА-ЯёЁүҮөӨңҢ\s\-]+$/.test(trimmed)) return false;
   return true;
 }
 
@@ -57,8 +41,7 @@ export default function DispatcherPage() {
   const [orderForm, setOrderForm] = useState({
     pickupAddress: '',
     destAddress: '',
-    clientName: '',
-    clientPhone: '',
+    clientPhone: '',    // Позывной (3 цифра) же телефон
     tariff: 'Standard',
     comment: '',
     paymentMethod: 'CASH',
@@ -82,11 +65,7 @@ export default function DispatcherPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
       setIsOrderFormOpen(false);
-      setOrderForm({
-        pickupAddress: '', destAddress: '', clientName: '',
-        clientPhone: '', tariff: 'Standard', comment: '',
-        paymentMethod: 'CASH', price: '',
-      });
+      setOrderForm({ pickupAddress: '', destAddress: '', clientPhone: '', tariff: 'Standard', comment: '', paymentMethod: 'CASH', price: '' });
       setErrors({});
       toast.success(t('createOrder') + ' ✓');
     },
@@ -97,20 +76,20 @@ export default function DispatcherPage() {
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!isValidAddress(orderForm.pickupAddress)) {
-      newErrors.pickupAddress = t('pickupAddress') + ' — min 3 characters, must contain letters';
+      newErrors.pickupAddress = t('pickupAddress') + ' — кеминде 3 символ';
     }
-    if (!isValidAddress(orderForm.destAddress)) {
-      newErrors.destAddress = t('destAddress') + ' — min 3 characters, must contain letters';
+    // Б точка — милдеттүү эмес, бирок жазылса текшерилет
+    if (orderForm.destAddress && !isValidAddress(orderForm.destAddress)) {
+      newErrors.destAddress = t('destAddress') + ' — кеминде 3 символ';
     }
-    if (!isValidName(orderForm.clientName)) {
-      newErrors.clientName = t('clientName') + ' — only letters, min 2 characters';
+    // Позывной: 3 цифра же телефон номер
+    const callsign = orderForm.clientPhone.trim();
+    if (!callsign) {
+      newErrors.clientPhone = 'Позывной же телефон жазыңыз';
+    } else if (!/^\d{3}$/.test(callsign) && !isValidKyrgyzPhone(callsign)) {
+      newErrors.clientPhone = '3 цифра (позывной) же +996 7XX XXX XXX';
     }
-    if (!isValidKyrgyzPhone(orderForm.clientPhone)) {
-      newErrors.clientPhone = '+996 7XX XXX XXXX';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -118,30 +97,31 @@ export default function DispatcherPage() {
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    createOrderMutation.mutate(orderForm);
+    // clientName = позывной жана телефон
+    createOrderMutation.mutate({
+      ...orderForm,
+      clientName: orderForm.clientPhone, // позывной же номер катары
+    });
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING': return <Badge variant="warning">{t('pending') || 'Pending'}</Badge>;
-      case 'ASSIGNED': return <Badge variant="info">{t('assigned')}</Badge>;
-      case 'IN_PROGRESS': return <Badge variant="info">{t('inProgress')}</Badge>;
-      case 'COMPLETED': return <Badge variant="success">{t('completed')}</Badge>;
-      case 'CANCELLED': return <Badge variant="destructive">{t('cancelled')}</Badge>;
-      default: return <Badge variant="secondary">{status}</Badge>;
-    }
+    const map: Record<string, any> = {
+      PENDING: <Badge variant="warning">{t('pending')}</Badge>,
+      ASSIGNED: <Badge variant="info">{t('assigned')}</Badge>,
+      IN_PROGRESS: <Badge variant="info">{t('inProgress')}</Badge>,
+      COMPLETED: <Badge variant="success">{t('completed')}</Badge>,
+      CANCELLED: <Badge variant="destructive">{t('cancelled')}</Badge>,
+    };
+    return map[status] || <Badge variant="secondary">{status}</Badge>;
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t('dispatcher')}</h1>
-          <p className="text-muted-foreground">{t('createDispatch')}</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">{t('dispatcher')}</h1>
+        <p className="text-muted-foreground">{t('createDispatch')}</p>
       </div>
 
-      {/* Large Add Order Button */}
       <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
         <Button
           onClick={() => setIsOrderFormOpen(true)}
@@ -165,12 +145,7 @@ export default function DispatcherPage() {
         ) : (
           <div className="space-y-3">
             {ordersData?.orders?.map((order: any, index: number) => (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.03 }}
-              >
+              <motion.div key={order.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}>
                 <Card className="hover:border-white/20 transition-all">
                   <CardContent className="p-4">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -183,15 +158,16 @@ export default function DispatcherPage() {
                           <MapPin className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
                           <span className="text-muted-foreground">{order.pickupAddress}</span>
                         </div>
-                        <div className="flex items-start gap-2 text-sm">
-                          <MapPin className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                          <span className="text-muted-foreground">{order.destAddress}</span>
-                        </div>
+                        {order.destAddress && (
+                          <div className="flex items-start gap-2 text-sm">
+                            <MapPin className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-muted-foreground">{order.destAddress}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 text-sm">
                         <div className="text-right">
-                          <p className="font-medium">{order.clientName}</p>
-                          <p className="text-muted-foreground">{order.clientPhone}</p>
+                          <p className="font-medium text-yellow-400 font-mono text-lg">{order.clientPhone}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-lg">{formatCurrency(order.price)}</p>
@@ -203,16 +179,13 @@ export default function DispatcherPage() {
                       <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 text-sm text-muted-foreground">
                         <User className="w-4 h-4" />
                         <span>{t('driver')}: {order.driver.firstName} {order.driver.lastName}</span>
-                        {order.driver.vehicle && (
-                          <span>• {order.driver.vehicle.brand} {order.driver.vehicle.plateNumber}</span>
-                        )}
+                        {order.driver.vehicle && <span>• {order.driver.vehicle.plateNumber}</span>}
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </motion.div>
             ))}
-
             {(!ordersData?.orders || ordersData.orders.length === 0) && (
               <div className="text-center py-16">
                 <Clock className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
@@ -230,6 +203,7 @@ export default function DispatcherPage() {
             <DialogTitle className="text-xl">{t('createOrder')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateOrder} className="space-y-4">
+            {/* А точка — милдеттүү */}
             <div className="space-y-2">
               <Label>{t('pickupAddress')} *</Label>
               <div className="relative">
@@ -245,8 +219,9 @@ export default function DispatcherPage() {
               {errors.pickupAddress && <p className="text-xs text-red-400">{errors.pickupAddress}</p>}
             </div>
 
+            {/* Б точка — милдеттүү ЭМЕС */}
             <div className="space-y-2">
-              <Label>{t('destAddress')} *</Label>
+              <Label>{t('destAddress')} <span className="text-muted-foreground text-xs">(милдеттүү эмес)</span></Label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400" />
                 <Input
@@ -254,44 +229,32 @@ export default function DispatcherPage() {
                   onChange={(e) => { setOrderForm({...orderForm, destAddress: e.target.value}); setErrors({...errors, destAddress: ''}); }}
                   placeholder={t('destAddress')}
                   className={`pl-10 ${errors.destAddress ? 'border-red-500' : ''}`}
-                  required
                 />
               </div>
               {errors.destAddress && <p className="text-xs text-red-400">{errors.destAddress}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('clientName')} *</Label>
-                <Input
-                  value={orderForm.clientName}
-                  onChange={(e) => { setOrderForm({...orderForm, clientName: e.target.value}); setErrors({...errors, clientName: ''}); }}
-                  placeholder={t('clientName')}
-                  className={errors.clientName ? 'border-red-500' : ''}
-                  required
-                />
-                {errors.clientName && <p className="text-xs text-red-400">{errors.clientName}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>{t('clientPhone')} *</Label>
+            {/* Позывной же телефон */}
+            <div className="space-y-2">
+              <Label>Позывной же телефон *</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                 <Input
                   value={orderForm.clientPhone}
                   onChange={(e) => { setOrderForm({...orderForm, clientPhone: e.target.value}); setErrors({...errors, clientPhone: ''}); }}
-                  placeholder="+996 7XX XXX XXX"
-                  className={errors.clientPhone ? 'border-red-500' : ''}
+                  placeholder="123 же +996 7XX XXX XXX"
+                  className={`pl-10 ${errors.clientPhone ? 'border-red-500' : ''}`}
                   required
                 />
-                {errors.clientPhone && <p className="text-xs text-red-400">{errors.clientPhone}</p>}
               </div>
+              {errors.clientPhone && <p className="text-xs text-red-400">{errors.clientPhone}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('tariff')}</Label>
                 <Select value={orderForm.tariff} onValueChange={(v) => setOrderForm({...orderForm, tariff: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Standard">Standard</SelectItem>
                     <SelectItem value="Comfort">Comfort</SelectItem>
@@ -303,9 +266,7 @@ export default function DispatcherPage() {
               <div className="space-y-2">
                 <Label>{t('paymentMethod')}</Label>
                 <Select value={orderForm.paymentMethod} onValueChange={(v) => setOrderForm({...orderForm, paymentMethod: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="CASH">{t('cash')}</SelectItem>
                     <SelectItem value="CARD">{t('card')}</SelectItem>
@@ -316,28 +277,16 @@ export default function DispatcherPage() {
 
             <div className="space-y-2">
               <Label>{t('price')}</Label>
-              <Input
-                type="number"
-                value={orderForm.price}
-                onChange={(e) => setOrderForm({...orderForm, price: e.target.value})}
-                placeholder="0"
-                min="0"
-              />
+              <Input type="number" value={orderForm.price} onChange={(e) => setOrderForm({...orderForm, price: e.target.value})} placeholder="0" min="0" />
             </div>
 
             <div className="space-y-2">
               <Label>{t('comment')}</Label>
-              <Textarea
-                value={orderForm.comment}
-                onChange={(e) => setOrderForm({...orderForm, comment: e.target.value})}
-                placeholder={t('comment')}
-              />
+              <Textarea value={orderForm.comment} onChange={(e) => setOrderForm({...orderForm, comment: e.target.value})} placeholder={t('comment')} />
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-border">
-              <Button type="button" variant="outline" onClick={() => { setIsOrderFormOpen(false); setErrors({}); }}>
-                {t('cancel')}
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { setIsOrderFormOpen(false); setErrors({}); }}>{t('cancel')}</Button>
               <Button type="submit" disabled={createOrderMutation.isPending} className="gap-2">
                 {createOrderMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 {t('addOrder')}
