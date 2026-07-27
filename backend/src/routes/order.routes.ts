@@ -197,8 +197,61 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
       // Client creation may fail if phone format issue, non-critical
     }
 
-    // Broadcast to all connected drivers
-    io.emit('order:available', order);
+    // Auto-assign nearest driver within 500m
+    if (pickupCoords) {
+      try {
+        const onlineDrivers = await prisma.driver.findMany({
+          where: {
+            status: 'ONLINE',
+            accountStatus: 'ACTIVE',
+            latitude: { not: null },
+            longitude: { not: null },
+          },
+          select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
+        });
+
+        // Filter drivers within 500m (0.5 km)
+        const nearby = onlineDrivers
+          .map(d => ({
+            ...d,
+            distance: calculateDistance(pickupCoords.lat, pickupCoords.lng, d.latitude!, d.longitude!),
+          }))
+          .filter(d => d.distance <= 0.5);
+
+        if (nearby.length > 0) {
+          // Random selection from nearby drivers
+          const selected = nearby[Math.floor(Math.random() * nearby.length)];
+
+          // Assign order to selected driver
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { driverId: selected.id, status: 'ASSIGNED', assignedAt: new Date() },
+          });
+          await prisma.driver.update({
+            where: { id: selected.id },
+            data: { status: 'BUSY' },
+          });
+
+          // Notify the selected driver
+          io.to(`driver:${selected.id}`).emit('order:assigned', { ...order, driverId: selected.id, status: 'ASSIGNED' });
+          io.to('admin-room').emit('notification', {
+            title: 'Auto-Assigned',
+            message: `Order #${orderNumber} assigned to ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}m)`,
+            type: 'auto_assigned',
+          });
+          console.log(`✅ Auto-assigned #${orderNumber} to ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}m)`);
+        } else {
+          // No nearby drivers — broadcast to all
+          io.emit('order:available', order);
+        }
+      } catch (e) {
+        // Auto-assign failed — fallback to broadcast
+        io.emit('order:available', order);
+      }
+    } else {
+      // No coordinates — broadcast to all
+      io.emit('order:available', order);
+    }
     
     // Notify admin room
     io.to('admin-room').emit('order:new', order);
@@ -363,7 +416,7 @@ router.patch('/driver/:driverId/unblock', authenticateToken, async (req: Request
   try {
     const { driverId } = req.params;
     await prisma.driver.update({
-      where: { id: driverId },
+      where: { id: driverId as string },
       data: { accountStatus: 'ACTIVE', blockedUntil: null },
     });
     return res.json({ success: true });
