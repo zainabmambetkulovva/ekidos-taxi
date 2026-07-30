@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import type { Express } from 'express';
 import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends express.Request {
@@ -7,6 +8,8 @@ export interface AuthRequest extends express.Request {
     email?: string;
     role: string;
   };
+  file?: Express.Multer.File;
+  files?: Express.Multer.File[];
 }
 
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
