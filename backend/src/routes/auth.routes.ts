@@ -114,6 +114,47 @@ router.post('/driver/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Телефон жана пароль жазылышы керек' });
     }
 
+    // Check if input looks like a callsign (not a phone number)
+    if (!phone.startsWith('+') && !phone.startsWith('0') && !phone.startsWith('996')) {
+      // Try to find driver by callsign
+      const callsignDriver = await prisma.driver.findFirst({
+        where: { callsign: phone },
+        include: { vehicle: true },
+      });
+      if (callsignDriver) {
+        if (callsignDriver.accountStatus === 'BLOCKED') {
+          return res.status(403).json({ error: 'Аккаунтуңуз бөгөттөлгөн. Диспетчерге кайрылыңыз.' });
+        }
+        if (!callsignDriver.password) {
+          return res.status(400).json({ error: 'Пароль дагы орнотулган эмес. Диспетчерге кайрылыңыз.' });
+        }
+        const isValidCallsign = await bcrypt.compare(password, callsignDriver.password);
+        if (!isValidCallsign) {
+          return res.status(401).json({ error: 'Пароль туура эмес' });
+        }
+        const callsignToken = jwt.sign(
+          { id: callsignDriver.id, phone: callsignDriver.phone, role: 'DRIVER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '30d' }
+        );
+        return res.json({
+          token: callsignToken,
+          driver: {
+            id: callsignDriver.id,
+            firstName: callsignDriver.firstName,
+            lastName: callsignDriver.lastName,
+            phone: callsignDriver.phone,
+            status: callsignDriver.status,
+            accountStatus: callsignDriver.accountStatus,
+            vehicle: callsignDriver.vehicle,
+            rating: callsignDriver.rating,
+            totalEarnings: callsignDriver.totalEarnings,
+            totalOrders: callsignDriver.totalOrders,
+          },
+        });
+      }
+    }
+
     // Normalize phone: remove spaces, add +996 if needed
     let normalizedPhone = phone.replace(/\s+/g, '');
     if (normalizedPhone.startsWith('0')) {

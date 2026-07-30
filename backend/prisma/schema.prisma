@@ -52,6 +52,7 @@ model Driver {
   balance               Float     @default(0)
   telegramId            BigInt?   @unique
   blockedUntil          DateTime?
+  callsign              String?   @unique
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 

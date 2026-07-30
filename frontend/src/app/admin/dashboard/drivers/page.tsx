@@ -24,7 +24,7 @@ const emptyForm = {
   phone: '', whatsappNumber: '', passportNumber: '',
   licenseNumber: '', techPassportNumber: '', insuranceNumber: '',
   vehicleBrand: '', vehicleModel: '', vehicleYear: '', vehicleColor: '',
-  plateNumber: '', notes: '', accountStatus: 'ACTIVE', telegramId: '',
+  plateNumber: '', notes: '', accountStatus: 'ACTIVE', telegramId: '', callsign: '',
 };
 
 export default function DriversPage() {
@@ -146,6 +146,7 @@ export default function DriversPage() {
       notes: driver.notes || '',
       accountStatus: driver.accountStatus || 'ACTIVE',
       telegramId: driver.telegramId ? String(driver.telegramId) : '',
+      callsign: driver.callsign || '',
     });
     setIsFormOpen(true);
   };
@@ -328,6 +329,10 @@ export default function DriversPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                 <div className="space-y-1.5"><Label>Telegram ID</Label><Input value={formData.telegramId} onChange={e => f('telegramId', e.target.value)} placeholder="123456789" /></div>
+                <div className="space-y-1.5">
+                  <Label>Позывной (3 цифра)</Label>
+                  <Input value={formData.callsign} onChange={e => f('callsign', e.target.value)} placeholder="123" maxLength={3} />
+                </div>
               </div>
             </div>
 

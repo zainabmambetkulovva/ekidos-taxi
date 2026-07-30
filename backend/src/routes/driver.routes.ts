@@ -80,7 +80,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
       passportNumber, passportPhoto, licenseNumber, licensePhoto,
       techPassportNumber, techPassportPhoto, driverPhoto, notes, accountStatus,
       vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber,
-      telegramId,
+      telegramId, callsign,
     } = req.body;
 
     if (!phone) return res.status(400).json({ error: 'Phone number is required' });
@@ -114,6 +114,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
         driverPhoto,
         notes,
         accountStatus: accountStatus || 'PENDING',
+        callsign: callsign || undefined,
         vehicle: vehicleBrand ? {
           create: {
             brand: vehicleBrand,
@@ -151,7 +152,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
       passportNumber, passportPhoto, licenseNumber, licensePhoto,
       techPassportNumber, techPassportPhoto, driverPhoto, notes, accountStatus,
       vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber,
-      telegramId,
+      telegramId, callsign,
     } = req.body;
 
     const driver = await prisma.driver.update({
@@ -173,6 +174,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
         driverPhoto,
         notes,
         accountStatus,
+        callsign: callsign || undefined,
       },
       include: { vehicle: true },
     });

@@ -64,12 +64,12 @@ export default function DriverLoginPage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label>Позывной номер</Label>
+              <Label>Позывной</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  type="tel"
-                  placeholder="+996 XXX XXX XXX"
+                  type="text"
+                  placeholder="Позывной же телефон"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="pl-10"
