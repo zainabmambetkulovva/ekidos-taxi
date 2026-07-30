@@ -144,7 +144,21 @@ app.patch('/api/topup/:id/reject', async (req: Request, res: Response) => {
 });
 // ===== END TOPUP ROUTES =====
 
-// Health check
+// ===== INCOMING CALL WEBHOOK (from Tasker) =====
+// POST /api/incoming-call — Tasker жиберет чалуу болгондо
+app.post('/api/incoming-call', (req: Request, res: Response) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ error: 'phone required' });
+
+  const cleaned = phone.toString().trim();
+  console.log(`📞 Incoming call from: ${cleaned}`);
+
+  // Socket.IO аркылуу бардык диспетчерлерге жибер
+  io.to('admin-room').emit('incoming:call', { phone: cleaned, time: new Date().toISOString() });
+
+  return res.json({ success: true, phone: cleaned });
+});
+// ===== END INCOMING CALL =====
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

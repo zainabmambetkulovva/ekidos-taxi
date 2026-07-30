@@ -19,7 +19,7 @@ export default function DriverLoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone.trim() || !password.trim()) {
-      return toast.error('Телефон жана паролду жазыңыз');
+      return toast.error('Позывной жана паролду жазыңыз');
     }
     setIsLoading(true);
     setErrorMsg('');
@@ -64,7 +64,7 @@ export default function DriverLoginPage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label>Телефон номериңиз</Label>
+              <Label>Позывной номер</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -91,7 +91,7 @@ export default function DriverLoginPage() {
                   required
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Пароль диспетчер тарабынан берилет</p>
+              <p className="text-xs text-muted-foreground">Позывной жана пароль диспетчер тарабынан берилет</p>
             </div>
 
             {errorMsg && (
