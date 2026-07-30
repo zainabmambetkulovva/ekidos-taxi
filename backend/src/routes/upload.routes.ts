@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+import type { Express } from 'express';
 import multer from 'multer';
-import { authenticateToken } from '../middleware/auth.middleware';
+import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
 import { uploadToStorage } from '../lib/supabase';
 import path from 'path';
 import fs from 'fs';
@@ -30,7 +31,7 @@ const upload = multer({
 });
 
 // Upload file — uses Supabase Storage, falls back to local disk
-router.post('/', authenticateToken, upload.single('file'), async (req: Request, res: Response) => {
+router.post('/', authenticateToken, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -65,7 +66,7 @@ router.post('/', authenticateToken, upload.single('file'), async (req: Request, 
 });
 
 // Upload multiple files
-router.post('/multiple', authenticateToken, upload.array('files', 10), async (req: Request, res: Response) => {
+router.post('/multiple', authenticateToken, upload.array('files', 10), async (req: AuthRequest, res: Response) => {
   try {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
