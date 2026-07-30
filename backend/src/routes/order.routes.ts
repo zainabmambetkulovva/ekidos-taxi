@@ -120,7 +120,7 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price } = req.body;
 
-    if (!pickupAddress || !destAddress || !clientName || !clientPhone) {
+    if (!pickupAddress || !clientPhone) {
       return res.status(400).json({ error: 'Заполните все обязательные поля' });
     }
 
