@@ -1,7 +1,6 @@
 {
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm ci --prefer-offline && npx prisma generate && npx tsc --skipLibCheck --force"
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "startCommand": "node dist/server.js",
