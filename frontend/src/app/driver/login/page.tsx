@@ -25,7 +25,18 @@ export default function DriverLoginPage() {
     setErrorMsg('');
 
     try {
-      const { data } = await api.post('/auth/driver/login', { phone: phone.trim(), password: password.trim() });
+      // Try callsign login first, fallback to phone login
+      let data;
+      const input = phone.trim();
+      if (/^\d{1,4}$/.test(input)) {
+        // Looks like callsign (1-4 digits)
+        const resp = await api.post('/auth/callsign-login', { callsign: input, password: password.trim() });
+        data = resp.data;
+      } else {
+        // Phone number
+        const resp = await api.post('/auth/driver/login', { phone: input, password: password.trim() });
+        data = resp.data;
+      }
       localStorage.setItem('token', data.token);
       localStorage.setItem('driverInfo', JSON.stringify(data.driver));
       toast.success(`Кош келиңиз, ${data.driver.firstName}!`);
@@ -64,7 +75,7 @@ export default function DriverLoginPage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label>Позывной</Label>
+              <Label>Телефон номер / Позывной</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input

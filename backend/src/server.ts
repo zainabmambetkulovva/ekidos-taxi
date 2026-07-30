@@ -159,6 +159,61 @@ app.post('/api/incoming-call', (req: Request, res: Response) => {
   return res.json({ success: true, phone: cleaned });
 });
 // ===== END INCOMING CALL =====
+
+// ===== CALLSIGN LOGIN (inline to bypass Railway cache) =====
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+
+app.post('/api/auth/callsign-login', async (req: Request, res: Response) => {
+  try {
+    const { callsign, password } = req.body;
+    if (!callsign || !password) return res.status(400).json({ error: 'Позывной жана пароль керек' });
+
+    const driver = await prisma.driver.findFirst({
+      where: { callsign: callsign.toString().trim() },
+      include: { vehicle: true },
+    });
+
+    if (!driver) return res.status(404).json({ error: 'Позывной табылган жок. Диспетчерге кайрылыңыз.' });
+    if (driver.accountStatus === 'BLOCKED') return res.status(403).json({ error: 'Аккаунтуңуз бөгөттөлгөн' });
+    if (!driver.password) return res.status(400).json({ error: 'Пароль дагы орнотулган эмес' });
+
+    const isValid = await bcrypt.compare(password, driver.password);
+    if (!isValid) return res.status(401).json({ error: 'Пароль туура эмес' });
+
+    const token = jwt.sign(
+      { id: driver.id, phone: driver.phone, role: 'DRIVER' },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '30d' }
+    );
+
+    return res.json({
+      token,
+      driver: {
+        id: driver.id, firstName: driver.firstName, lastName: driver.lastName,
+        phone: driver.phone, callsign: driver.callsign, status: driver.status,
+        accountStatus: driver.accountStatus, vehicle: driver.vehicle,
+        rating: driver.rating, totalEarnings: driver.totalEarnings, totalOrders: driver.totalOrders,
+      },
+    });
+  } catch (error) {
+    console.error('Callsign login error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ===== SAVE CALLSIGN (inline) =====
+app.patch('/api/drivers/:id/callsign', async (req: Request, res: Response) => {
+  try {
+    const { callsign } = req.body;
+    const { id } = req.params;
+    await prisma.driver.update({ where: { id: id as string }, data: { callsign: callsign || null } });
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
