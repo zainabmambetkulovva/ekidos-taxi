@@ -4,9 +4,8 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc --skipLibCheck",
-    "start": "node dist/server.js",
-    "postinstall": "prisma generate"
+    "build": "npx prisma generate && tsc --skipLibCheck",
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
