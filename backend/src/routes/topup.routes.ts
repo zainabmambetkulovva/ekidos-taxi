@@ -80,7 +80,7 @@ router.patch('/:id/approve', authenticateToken, async (req: AuthRequest, res: Re
       return res.status(400).json({ error: 'Valid amount is required' });
     }
 
-    const request = await prisma.topupRequest.findUnique({ where: { id } });
+    const request = await prisma.topupRequest.findUnique({ where: { id: id as string } });
     if (!request) {
       return res.status(404).json({ error: 'Request not found' });
     }
@@ -90,7 +90,7 @@ router.patch('/:id/approve', authenticateToken, async (req: AuthRequest, res: Re
 
     // Update request status
     await prisma.topupRequest.update({
-      where: { id },
+      where: { id: id as string },
       data: { status: 'APPROVED', amount },
     });
 
@@ -118,7 +118,7 @@ router.patch('/:id/reject', authenticateToken, async (req: AuthRequest, res: Res
     const { id } = req.params;
 
     await prisma.topupRequest.update({
-      where: { id },
+      where: { id: id as string },
       data: { status: 'REJECTED' },
     });
 
