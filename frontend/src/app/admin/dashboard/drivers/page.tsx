@@ -51,9 +51,17 @@ export default function DriversPage() {
     mutationFn: async (d: any) => {
       if (editingDriver) {
         const { data } = await api.put(`/drivers/${editingDriver.id}`, d);
+        // Save callsign separately via inline endpoint
+        if (d.callsign !== undefined) {
+          await api.patch(`/drivers/${editingDriver.id}/callsign`, { callsign: d.callsign || null }).catch(() => {});
+        }
         return data;
       }
       const { data } = await api.post('/drivers', d);
+      // Save callsign for new driver too
+      if (d.callsign && data.id) {
+        await api.patch(`/drivers/${data.id}/callsign`, { callsign: d.callsign }).catch(() => {});
+      }
       return data;
     },
     onSuccess: (data) => {
