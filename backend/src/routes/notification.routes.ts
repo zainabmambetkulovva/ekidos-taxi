@@ -25,7 +25,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Mark as read
-router.patch('/:id/read', authenticateToken, async (req: Request, res: Response) => {
+router.patch('/:id/read', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     await prisma.notification.update({
@@ -39,7 +39,7 @@ router.patch('/:id/read', authenticateToken, async (req: Request, res: Response)
 });
 
 // Mark all as read
-router.patch('/read-all', authenticateToken, async (req: Request, res: Response) => {
+router.patch('/read-all', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     await prisma.notification.updateMany({
       where: { isRead: false },

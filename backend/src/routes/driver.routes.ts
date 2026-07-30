@@ -58,7 +58,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Get single driver
-router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const driver = await prisma.driver.findUnique({
@@ -73,7 +73,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // Create driver — auto-generates password, saves hashed + plain
-router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async (req: Request, res: Response) => {
+router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async (req: AuthRequest, res: Response) => {
   try {
     const {
       firstName, lastName, middleName, birthDate, phone, whatsappNumber,
@@ -144,7 +144,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async
 });
 
 // Update driver
-router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
+router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const {
@@ -214,7 +214,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // Delete driver
-router.delete('/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     await prisma.driver.delete({ where: { id } });
@@ -225,7 +225,7 @@ router.delete('/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: Re
 });
 
 // Update driver status
-router.patch('/:id/status', authenticateToken, async (req: Request, res: Response) => {
+router.patch('/:id/status', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const { status } = req.body;
@@ -237,7 +237,7 @@ router.patch('/:id/status', authenticateToken, async (req: Request, res: Respons
 });
 
 // Reset driver password — generates new random password
-router.patch('/:id/reset-password', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async (req: Request, res: Response) => {
+router.patch('/:id/reset-password', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const newPassword = generatePassword();

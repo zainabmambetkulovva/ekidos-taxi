@@ -84,7 +84,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Get driver's orders
-router.get('/driver/:driverId', authenticateToken, async (req: Request, res: Response) => {
+router.get('/driver/:driverId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const driverId = req.params.driverId as string;
     const { status } = req.query;
@@ -116,7 +116,7 @@ router.get('/available', authenticateToken, async (req: AuthRequest, res: Respon
 });
 
 // Create order
-router.post('/', authenticateToken, async (req: Request, res: Response) => {
+router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price } = req.body;
 
@@ -311,7 +311,7 @@ router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Res
 });
 
 // Complete order
-router.patch('/:id/complete', authenticateToken, async (req: Request, res: Response) => {
+router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const order = await prisma.order.update({
@@ -352,7 +352,7 @@ router.patch('/:id/complete', authenticateToken, async (req: Request, res: Respo
 });
 
 // Cancel order — 3-step warning system
-router.patch('/:id/cancel', authenticateToken, async (req: Request, res: Response) => {
+router.patch('/:id/cancel', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const { driverId, cancelStep } = req.body;
@@ -412,7 +412,7 @@ router.patch('/:id/cancel', authenticateToken, async (req: Request, res: Respons
 });
 
 // Unblock driver manually (admin)
-router.patch('/driver/:driverId/unblock', authenticateToken, async (req: Request, res: Response) => {
+router.patch('/driver/:driverId/unblock', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { driverId } = req.params;
     await prisma.driver.update({
