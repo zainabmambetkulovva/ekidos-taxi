@@ -1,7 +1,6 @@
 {
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm ci --include=dev && npx prisma generate && npx tsc"
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "startCommand": "node dist/server.js",
