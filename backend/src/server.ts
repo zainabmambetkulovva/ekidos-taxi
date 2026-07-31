@@ -214,6 +214,62 @@ app.patch('/api/drivers/:id/callsign', async (req: Request, res: Response) => {
   }
 });
 
+// ===== CLIENT AUTH (phone-only, auto-register) =====
+app.post('/api/auth/client/request-otp', async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Телефон номер жазыңыз' });
+
+    // Auto-create client if not exists
+    let client = await prisma.client.findUnique({ where: { phone } });
+    if (!client) {
+      client = await prisma.client.create({ data: { name: phone, phone } });
+    }
+
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await prisma.oTP.create({ data: { phone, code, expiresAt } });
+    console.log(`📱 Client OTP for ${phone}: ${code}`);
+
+    return res.json({ message: 'Код жөнөтүлдү', phone });
+  } catch (error) {
+    console.error('Client OTP error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/auth/client/verify-otp', async (req: Request, res: Response) => {
+  try {
+    const { phone, code } = req.body;
+    if (!phone || !code) return res.status(400).json({ error: 'Телефон жана код керек' });
+
+    const otp = await prisma.oTP.findFirst({
+      where: { phone, code, isUsed: false, expiresAt: { gte: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otp) return res.status(401).json({ error: 'Код туура эмес же мөөнөтү өттү' });
+
+    await prisma.oTP.update({ where: { id: otp.id }, data: { isUsed: true } });
+
+    let client = await prisma.client.findUnique({ where: { phone } });
+    if (!client) client = await prisma.client.create({ data: { name: phone, phone } });
+
+    const token = jwt.sign(
+      { id: client.id, phone: client.phone, role: 'CLIENT' },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '30d' }
+    );
+
+    return res.json({ token, client: { id: client.id, phone: client.phone, name: client.name } });
+  } catch (error) {
+    console.error('Client verify error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// ===== END CLIENT AUTH =====
+
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
