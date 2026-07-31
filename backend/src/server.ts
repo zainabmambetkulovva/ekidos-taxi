@@ -214,25 +214,22 @@ app.patch('/api/drivers/:id/callsign', async (req: Request, res: Response) => {
   }
 });
 
-// ===== CLIENT AUTH (phone-only, auto-register) =====
+// ===== CLIENT AUTH (email + OTP password) =====
 app.post('/api/auth/client/request-otp', async (req: Request, res: Response) => {
   try {
-    const { phone } = req.body;
-    if (!phone) return res.status(400).json({ error: 'Телефон номер жазыңыз' });
+    const { email } = req.body;
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Email туура эмес' });
 
-    // Auto-create client if not exists
-    let client = await prisma.client.findUnique({ where: { phone } });
-    if (!client) {
-      client = await prisma.client.create({ data: { name: phone, phone } });
-    }
-
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    const phone = `email:${email.toLowerCase().trim()}`;
 
     await prisma.oTP.create({ data: { phone, code, expiresAt } });
-    console.log(`📱 Client OTP for ${phone}: ${code}`);
+    console.log(`📧 Client OTP for ${email}: ${code}`);
 
-    return res.json({ message: 'Код жөнөтүлдү', phone });
+    // TODO: Send email via nodemailer/resend in production
+    // For now log to console
+    return res.json({ message: 'Код жөнөтүлдү', email });
   } catch (error) {
     console.error('Client OTP error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -241,9 +238,10 @@ app.post('/api/auth/client/request-otp', async (req: Request, res: Response) => 
 
 app.post('/api/auth/client/verify-otp', async (req: Request, res: Response) => {
   try {
-    const { phone, code } = req.body;
-    if (!phone || !code) return res.status(400).json({ error: 'Телефон жана код керек' });
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Email жана код керек' });
 
+    const phone = `email:${email.toLowerCase().trim()}`;
     const otp = await prisma.oTP.findFirst({
       where: { phone, code, isUsed: false, expiresAt: { gte: new Date() } },
       orderBy: { createdAt: 'desc' },
@@ -254,15 +252,15 @@ app.post('/api/auth/client/verify-otp', async (req: Request, res: Response) => {
     await prisma.oTP.update({ where: { id: otp.id }, data: { isUsed: true } });
 
     let client = await prisma.client.findUnique({ where: { phone } });
-    if (!client) client = await prisma.client.create({ data: { name: phone, phone } });
+    if (!client) client = await prisma.client.create({ data: { name: email, phone } });
 
-    const token = jwt.sign(
+    const token = (await import('jsonwebtoken')).default.sign(
       { id: client.id, phone: client.phone, role: 'CLIENT' },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '30d' }
     );
 
-    return res.json({ token, client: { id: client.id, phone: client.phone, name: client.name } });
+    return res.json({ token, client: { id: client.id, phone: client.phone, name: client.name, email } });
   } catch (error) {
     console.error('Client verify error:', error);
     return res.status(500).json({ error: 'Internal server error' });
