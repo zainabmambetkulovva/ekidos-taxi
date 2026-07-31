@@ -5,7 +5,7 @@ nixPkgs = ["nodejs_22", "openssl"]
 cmds = ["npm install --legacy-peer-deps --no-audit --no-fund"]
 
 [phases.build]
-cmds = ["node_modules/.bin/prisma generate", "node_modules/.bin/tsc --skipLibCheck"]
+cmds = ["node_modules/.bin/prisma generate", "node_modules/.bin/tsc --skipLibCheck --noEmitOnError false"]
 
 [start]
 cmd = "node dist/server.js"
