@@ -116,7 +116,7 @@ router.get('/available', authenticateToken, async (req: AuthRequest, res: Respon
 });
 
 // Create order
-router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price } = req.body;
 
