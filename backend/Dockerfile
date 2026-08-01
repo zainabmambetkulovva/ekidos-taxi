@@ -4,7 +4,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --legacy-peer-deps --no-audit
 COPY . .
-RUN npx prisma generate
-RUN npx tsc --skipLibCheck || true
+RUN npx prisma generate && npx tsc --skipLibCheck || true
 EXPOSE 8080
 CMD ["node", "dist/server.js"]
