@@ -215,9 +215,6 @@ app.patch('/api/drivers/:id/callsign', async (req: Request, res: Response) => {
 });
 
 // ===== CLIENT AUTH (email + OTP password) =====
-import { Resend } from 'resend';
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 app.post('/api/auth/client/request-otp', async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
@@ -230,25 +227,17 @@ app.post('/api/auth/client/request-otp', async (req: Request, res: Response) => 
     await prisma.oTP.create({ data: { phone, code, expiresAt } });
     console.log(`📧 Client OTP for ${email}: ${code}`);
 
-    // Send email via Resend
-    if (process.env.RESEND_API_KEY) {
+    // Send email via Resend (lazy init)
+    const resendKey = process.env.RESEND_API_KEY;
+    if (resendKey) {
       try {
-        await resend.emails.send({
+        const { Resend } = await import('resend');
+        const resendClient = new Resend(resendKey);
+        await resendClient.emails.send({
           from: 'EKIDOS TAXI <onboarding@resend.dev>',
           to: email,
           subject: 'EKIDOS TAXI — Кирүү коду',
-          html: `
-            <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;padding:24px">
-              <h1 style="color:#ef4444;font-size:28px;font-weight:900;margin:0">EKIDOS<span style="color:#111"> TAXI</span></h1>
-              <p style="color:#666;font-size:14px;margin-top:4px">Токтогул</p>
-              <hr style="border:none;border-top:1px solid #eee;margin:20px 0"/>
-              <p style="color:#333;font-size:16px">Кирүү үчүн кодуңуз:</p>
-              <div style="background:#f5f5f5;border-radius:12px;padding:20px;text-align:center;margin:16px 0">
-                <span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#ef4444">${code}</span>
-              </div>
-              <p style="color:#999;font-size:12px">Код 10 мүнөттүн ичинде жараксыз болот.</p>
-            </div>
-          `,
+          html: `<div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;padding:24px"><h1 style="color:#ef4444;font-size:28px;font-weight:900;margin:0">EKIDOS<span style="color:#111"> TAXI</span></h1><p style="color:#666;font-size:14px;margin-top:4px">Токтогул</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0"/><p style="color:#333;font-size:16px">Кирүү үчүн кодуңуз:</p><div style="background:#f5f5f5;border-radius:12px;padding:20px;text-align:center;margin:16px 0"><span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#ef4444">${code}</span></div><p style="color:#999;font-size:12px">Код 10 мүнөттүн ичинде жараксыз болот.</p></div>`,
         });
       } catch (emailErr) {
         console.error('Email send error:', emailErr);
