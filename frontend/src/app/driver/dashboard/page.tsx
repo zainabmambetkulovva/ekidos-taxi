@@ -196,8 +196,9 @@ export default function DriverHomePage() {
 
       {/* Balance circle - top right */}
       {balance !== null && balance > 0 && (
-        <div className="absolute top-4 right-4 z-[1000] w-14 h-14 rounded-full bg-[#0d0d0d] border-2 border-green-500/50 flex items-center justify-center shadow-lg">
-          <span className="text-xs font-bold text-green-400">{balance}</span>
+        <div className="absolute top-4 right-4 z-[1000] w-16 h-16 rounded-full bg-[#0d0d0d] border-2 border-green-500/50 flex flex-col items-center justify-center shadow-lg">
+          <span className="text-sm font-bold text-green-400">{balance}</span>
+          <span className="text-[8px] text-gray-500">баланс</span>
         </div>
       )}
 
