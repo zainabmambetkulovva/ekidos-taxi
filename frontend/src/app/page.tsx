@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ShieldCheck, Car, MapPin } from 'lucide-react';
+import { ShieldCheck, Car } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function WelcomePage() {
@@ -40,7 +40,7 @@ export default function WelcomePage() {
       </div>
 
       {/* Role Selection Cards */}
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl">
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
         {/* Administrator Card */}
         <div
           onClick={() => router.push('/admin/login')}
@@ -79,24 +79,6 @@ export default function WelcomePage() {
           </div>
         </div>
 
-        {/* Client Card */}
-        <div
-          onClick={() => router.push('/client/login')}
-          className="cursor-pointer group transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1 active:scale-[0.98]"
-        >
-          <div className="relative p-8 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm hover:border-red-500/50 hover:bg-red-500/5 transition-all duration-300 h-full">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative flex flex-col items-center text-center space-y-4">
-              <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
-                <MapPin className="w-10 h-10 text-red-400" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">Жолоочу</h2>
-                <p className="text-muted-foreground mt-1 text-sm">Такси заказоо</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Footer */}
