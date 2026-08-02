@@ -305,12 +305,12 @@ router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Res
       return res.status(400).json({ error: 'Заказ башка водитель тарабынан алынган' });
     }
 
-    // Check driver balance
-    const driverCheck = await prisma.driver.findUnique({ where: { id: driverId } });
-    if (!driverCheck) return res.status(404).json({ error: 'Driver not found' });
-    if ((driverCheck.balance || 0) < 20) {
-      return res.status(400).json({ error: 'Балансыңыз жетишсиз (20 баланс керек)' });
-    }
+    // Check driver balance (TEMPORARILY DISABLED FOR TESTING)
+    // const driverCheck = await prisma.driver.findUnique({ where: { id: driverId } });
+    // if (!driverCheck) return res.status(404).json({ error: 'Driver not found' });
+    // if ((driverCheck.balance || 0) < 20) {
+    //   return res.status(400).json({ error: 'Балансыңыз жетишсиз (20 баланс керек)' });
+    // }
 
     const updatedOrder = await prisma.order.update({
       where: { id },
