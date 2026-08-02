@@ -1,8 +1,8 @@
 import { View, StyleSheet, StatusBar } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-// Сенин компьютериңдин IP + Next.js порту
-const APP_URL = 'http://192.168.1.151:3001';
+// Production URL — driver/admin frontend deployed on Vercel
+const APP_URL = process.env.EXPO_PUBLIC_APP_URL || 'https://ekidos-taxi-frontend.vercel.app';
 
 export default function App() {
   return (
