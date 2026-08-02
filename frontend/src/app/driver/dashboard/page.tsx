@@ -139,32 +139,11 @@ export default function DriverHomePage() {
     return () => clearInterval(iv);
   }, []);
 
-  // Block screen if balance is 0
-  if (balance !== null && balance <= 0) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center bg-white px-8 text-center gap-6">
-        <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center">
-          <span className="text-4xl font-black text-red-500">0</span>
-        </div>
-        <h2 className="text-2xl font-bold text-red-600">
-          {t('balanceEmpty') || 'Balance is empty!'}
-        </h2>
-        <p className="text-gray-600 text-sm">
-          {t('balanceEmptyDesc') || 'Top up your balance via Telegram bot to continue accepting orders.'}
-        </p>
-        <div className="text-xs text-gray-400 mt-4">
-          Telegram: @ekidos_bot
-        </div>
-      </div>
-    );
-  }
+  // Block screen if balance is 0 (TEMPORARILY DISABLED)
+  // if (balance !== null && balance <= 0) { ... }
 
   const handleToggleOnline = () => {
     if (!isOnline) {
-      if (balance !== null && balance <= 0) {
-        toast.error('Balance is 0! Top up via Telegram bot.');
-        return;
-      }
       setOnline(true);
       toast.success(t('onLine') + '. ' + t('waitingOrders'));
     } else {
