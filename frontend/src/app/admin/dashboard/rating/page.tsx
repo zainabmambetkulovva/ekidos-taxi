@@ -37,12 +37,12 @@ export default function RatingPage() {
   });
 
   const statCards = [
-    { label: "{t('todayOrders')}", value: stats?.todayOrders || 0, icon: ShoppingCart, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: '{t('monthlyOrders')}', value: stats?.monthlyOrders || 0, icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { label: "{t('todayRevenue')}", value: formatCurrency(stats?.todayRevenue || 0), icon: DollarSign, color: 'text-green-400', bg: 'bg-green-500/10' },
-    { label: '{t('monthlyRevenue')}', value: formatCurrency(stats?.monthlyRevenue || 0), icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: '{t('activeDrivers')}', value: stats?.activeDrivers || 0, icon: Users, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-    { label: '{t('onlineDrivers')}', value: stats?.onlineDrivers || 0, icon: UserCheck, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+    { label: t("todayOrders"), value: stats?.todayOrders || 0, icon: ShoppingCart, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: t("monthlyOrders"), value: stats?.monthlyOrders || 0, icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: t("todayRevenue"), value: formatCurrency(stats?.todayRevenue || 0), icon: DollarSign, color: 'text-green-400', bg: 'bg-green-500/10' },
+    { label: t("monthlyRevenue"), value: formatCurrency(stats?.monthlyRevenue || 0), icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: t("activeDrivers"), value: stats?.activeDrivers || 0, icon: Users, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+    { label: t("onlineDrivers"), value: stats?.onlineDrivers || 0, icon: UserCheck, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
   ];
 
   return (
