@@ -20,15 +20,37 @@ export default function DriverOrdersPage() {
 
   // Play notification sound and show browser notification
   const notifyNewOrder = (count: number) => {
+    // Vibrate (works in PWA without user gesture)
+    if (navigator.vibrate) {
+      navigator.vibrate([300, 100, 300, 100, 300]);
+    }
+    // Try audio
     try {
       const audio = new Audio('/notification.mp3');
-      audio.volume = 0.8;
-      audio.play().catch(() => {});
+      audio.volume = 1.0;
+      const playPromise = audio.play();
+      if (playPromise) {
+        playPromise.catch(() => {
+          // Audio blocked - try with AudioContext
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = 800;
+            osc.connect(ctx.destination);
+            osc.start();
+            setTimeout(() => { osc.stop(); ctx.close(); }, 500);
+          } catch {}
+        });
+      }
     } catch {}
+    // Browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('EKIDOS TAXI', {
         body: t('availableOrders') + ` (${count})`,
         icon: '/icon-192.png',
+        tag: 'new-order',
+        renotify: true,
       });
     }
   };

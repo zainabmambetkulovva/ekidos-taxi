@@ -148,10 +148,23 @@ export default function DriverHomePage() {
     if (driverId) socket.emit('driver:join', driverId);
 
     const handleNewOrder = () => {
+      // Vibrate
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+      // Sound
       try {
         const audio = new Audio('/notification.mp3');
         audio.volume = 1.0;
-        audio.play().catch(() => {});
+        audio.play().catch(() => {
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = 800;
+            osc.connect(ctx.destination);
+            osc.start();
+            setTimeout(() => { osc.stop(); ctx.close(); }, 500);
+          } catch {}
+        });
       } catch {}
     };
     socket.on('order:available', handleNewOrder);
