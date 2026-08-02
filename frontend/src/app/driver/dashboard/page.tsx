@@ -139,6 +139,25 @@ export default function DriverHomePage() {
     return () => clearInterval(iv);
   }, []);
 
+  // Listen for new orders on dashboard (play sound)
+  useEffect(() => {
+    if (!isOnline) return;
+    const socket = connectSocket();
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+    if (driverId) socket.emit('driver:join', driverId);
+
+    const handleNewOrder = () => {
+      try {
+        const audio = new Audio('/notification.mp3');
+        audio.volume = 1.0;
+        audio.play().catch(() => {});
+      } catch {}
+    };
+    socket.on('order:available', handleNewOrder);
+    return () => { socket.off('order:available', handleNewOrder); };
+  }, [isOnline]);
+
   // Block screen if balance is 0 (TEMPORARILY DISABLED)
   // if (balance !== null && balance <= 0) { ... }
 
