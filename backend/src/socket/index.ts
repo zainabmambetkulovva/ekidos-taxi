@@ -93,6 +93,9 @@ export function setupSocketHandlers(io: Server) {
         // Notify all drivers to remove this order
         io.emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
         
+        // Notify client who placed this order (broadcast with order details + driver info)
+        io.emit('order:accepted', order);
+        
         // Notify admin
         io.to('admin-room').emit('order:accepted', order);
         io.to('admin-room').emit('notification', {
