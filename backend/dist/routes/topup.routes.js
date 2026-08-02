@@ -37,16 +37,29 @@ router.get('/', auth_middleware_1.authenticateToken, async (req, res) => {
 // POST /api/topup — create topup request (from bot)
 router.post('/', async (req, res) => {
     try {
-        const { telegramId, driverName, photoUrl } = req.body;
+        const { telegramId, driverName, photoUrl, callsign } = req.body;
         if (!telegramId) {
             return res.status(400).json({ error: 'telegramId is required' });
         }
-        // Find driver by telegramId
-        const driver = await server_1.prisma.driver.findFirst({
+        // Find driver by telegramId OR callsign
+        let driver = await server_1.prisma.driver.findFirst({
             where: { telegramId: BigInt(telegramId) },
         });
+        // If not found by telegramId, try callsign and link telegramId
+        if (!driver && callsign) {
+            driver = await server_1.prisma.driver.findFirst({
+                where: { callsign: callsign },
+            });
+            if (driver) {
+                // Link telegramId to this driver
+                await server_1.prisma.driver.update({
+                    where: { id: driver.id },
+                    data: { telegramId: BigInt(telegramId) },
+                });
+            }
+        }
         if (!driver) {
-            return res.status(404).json({ error: 'Driver not found with this telegramId' });
+            return res.status(404).json({ error: 'Driver not found' });
         }
         const request = await server_1.prisma.topupRequest.create({
             data: {
@@ -57,7 +70,7 @@ router.post('/', async (req, res) => {
                 status: 'PENDING',
             },
         });
-        return res.json({ id: request.id, status: 'PENDING' });
+        return res.json({ id: request.id, status: 'PENDING', driverName: `${driver.firstName} ${driver.lastName}` });
     }
     catch (error) {
         console.error('Create topup request error:', error);

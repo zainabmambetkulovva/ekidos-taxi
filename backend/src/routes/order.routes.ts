@@ -317,7 +317,10 @@ router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Res
 
     await prisma.driver.update({
       where: { id: driverId },
-      data: { status: 'BUSY' },
+      data: {
+        status: 'BUSY',
+        balance: { decrement: 20 },  // -20 balance per order
+      },
     });
 
     // Notify all to remove this order
