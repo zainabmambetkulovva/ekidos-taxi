@@ -116,7 +116,7 @@ export default function DriverOrdersPage() {
         const newOrders = Array.isArray(data) ? data : [];
 
         // Play sound if new orders arrived (from polling)
-        if (newOrders.length > prevOrderCountRef.current && prevOrderCountRef.current > 0) {
+        if (newOrders.length > prevOrderCountRef.current) {
           notifyNewOrder(newOrders.length);
         }
         prevOrderCountRef.current = newOrders.length;

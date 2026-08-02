@@ -68,21 +68,26 @@ export default function ProfilePage() {
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <Card className="cursor-pointer hover:border-blue-500/30 transition-colors" onClick={() => router.push('/driver/dashboard/archive')}>
-          <CardContent className="p-4 text-center">
-            <Award className="w-6 h-6 text-blue-400 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{driver.totalOrders || 0}</p>
-            <p className="text-xs text-muted-foreground">Заказов</p>
-            <p className="text-[9px] text-blue-400 mt-1">Архив →</p>
+          <CardContent className="p-3 text-center">
+            <Award className="w-5 h-5 text-blue-400 mx-auto mb-1" />
+            <p className="text-xl font-bold">{driver.totalOrders || 0}</p>
+            <p className="text-[10px] text-muted-foreground">Архив</p>
           </CardContent>
         </Card>
         <Card className="cursor-pointer hover:border-green-500/30 transition-colors" onClick={() => router.push('/driver/dashboard/balance-history')}>
-          <CardContent className="p-4 text-center">
-            <MapPin className="w-6 h-6 text-green-400 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{Number(driver.balance || 0)}</p>
-            <p className="text-xs text-muted-foreground">Баланс</p>
-            <p className="text-[9px] text-green-400 mt-1">Баланс →</p>
+          <CardContent className="p-3 text-center">
+            <MapPin className="w-5 h-5 text-green-400 mx-auto mb-1" />
+            <p className="text-xl font-bold">{Number(driver.balance || 0)}</p>
+            <p className="text-[10px] text-muted-foreground">Баланс</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <Star className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
+            <p className="text-xl font-bold">{Number(driver.totalEarnings || 0).toLocaleString()}</p>
+            <p className="text-[10px] text-muted-foreground">Тапкан</p>
           </CardContent>
         </Card>
       </div>
