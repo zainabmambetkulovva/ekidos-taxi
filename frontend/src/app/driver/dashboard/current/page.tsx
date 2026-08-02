@@ -5,17 +5,74 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   MapPin, Phone, User, Navigation, CheckCircle2,
-  Clock, Banknote, CreditCard, XCircle,
+  Clock, Banknote, CreditCard, XCircle, Car,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/axios';
+import { connectSocket } from '@/lib/socket';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDriverStore } from '@/store/useDriverStore';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+
+// Step-by-step order flow buttons
+function OrderFlowButtons({ order, onComplete }: { order: any; onComplete: () => void }) {
+  const [step, setStep] = useState<'driving' | 'arrived' | 'client_in_car'>('driving');
+
+  const handleArrived = () => {
+    const socket = connectSocket();
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+    if (driverId && order.id) {
+      socket.emit('driver:arrived', { orderId: order.id, driverId });
+    }
+    setStep('arrived');
+    toast.success('Клиентке кабар берилди!');
+  };
+
+  const handleClientInCar = () => {
+    setStep('client_in_car');
+    toast.success('Жолго!');
+  };
+
+  if (step === 'driving') {
+    return (
+      <div className="flex gap-2 pt-3">
+        <Button variant="outline" className="flex-1 gap-2" onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.pickupAddress)}`, '_blank')}>
+          <Navigation className="w-4 h-4" />
+          Навигация
+        </Button>
+        <Button className="flex-1 gap-2 bg-yellow-500 hover:bg-yellow-600 text-black" onClick={handleArrived}>
+          <MapPin className="w-4 h-4" />
+          Я подъехал
+        </Button>
+      </div>
+    );
+  }
+
+  if (step === 'arrived') {
+    return (
+      <div className="pt-3">
+        <Button className="w-full gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleClientInCar}>
+          <Car className="w-4 h-4" />
+          Клиент в машине
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-3">
+      <Button className="w-full gap-2 bg-green-600 hover:bg-green-700" onClick={onComplete}>
+        <CheckCircle2 className="w-4 h-4" />
+        Завершить заказ
+      </Button>
+    </div>
+  );
+}
 
 export default function CurrentOrderPage() {
   const queryClient = useQueryClient();
@@ -146,27 +203,8 @@ export default function CurrentOrderPage() {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-2 pt-3">
-              <Button
-                variant="outline"
-                className="flex-1 gap-2"
-                onClick={() => {
-                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(currentOrder.destAddress)}`, '_blank');
-                }}
-              >
-                <Navigation className="w-4 h-4" />
-                Navigate
-              </Button>
-              <Button
-                className="flex-1 gap-2"
-                onClick={() => completeMutation.mutate(currentOrder.id)}
-                disabled={completeMutation.isPending}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Complete
-              </Button>
-            </div>
+            {/* Actions - Step by step flow */}
+            <OrderFlowButtons order={currentOrder} onComplete={() => completeMutation.mutate(currentOrder.id)} />
 
             {/* Cancel with 3-step warning */}
             <div className="pt-2">
