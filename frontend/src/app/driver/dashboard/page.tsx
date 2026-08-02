@@ -150,21 +150,20 @@ export default function DriverHomePage() {
     const handleNewOrder = () => {
       // Vibrate
       if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
-      // Sound
+      // Beep sound (no file needed)
       try {
-        const audio = new Audio('/notification.mp3');
-        audio.volume = 1.0;
-        audio.play().catch(() => {
-          try {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.value = 800;
-            osc.connect(ctx.destination);
-            osc.start();
-            setTimeout(() => { osc.stop(); ctx.close(); }, 500);
-          } catch {}
-        });
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = 880;
+          osc.connect(ctx.destination);
+          osc.start();
+          setTimeout(() => { osc.frequency.value = 1100; }, 200);
+          setTimeout(() => { osc.frequency.value = 1320; }, 400);
+          setTimeout(() => { osc.stop(); ctx.close(); }, 600);
+        }
       } catch {}
     };
     socket.on('order:available', handleNewOrder);

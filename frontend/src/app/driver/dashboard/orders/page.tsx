@@ -20,28 +20,46 @@ export default function DriverOrdersPage() {
 
   // Play notification sound and show browser notification
   const notifyNewOrder = (count: number) => {
-    // Vibrate (works in PWA without user gesture)
+    // Vibrate
     if (navigator.vibrate) {
       navigator.vibrate([300, 100, 300, 100, 300]);
     }
-    // Try audio
+    // Generate beep sound programmatically (no file needed)
     try {
-      const audio = new Audio('/notification.mp3');
-      audio.volume = 1.0;
-      const playPromise = audio.play();
-      if (playPromise) {
-        playPromise.catch(() => {
-          // Audio blocked - try with AudioContext
-          try {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.value = 800;
-            osc.connect(ctx.destination);
-            osc.start();
-            setTimeout(() => { osc.stop(); ctx.close(); }, 500);
-          } catch {}
-        });
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        // Beep 1
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.value = 880;
+        gain1.gain.value = 0.5;
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.2);
+        // Beep 2
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.value = 1100;
+        gain2.gain.value = 0.5;
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(ctx.currentTime + 0.25);
+        osc2.stop(ctx.currentTime + 0.45);
+        // Beep 3
+        const osc3 = ctx.createOscillator();
+        const gain3 = ctx.createGain();
+        osc3.type = 'sine';
+        osc3.frequency.value = 1320;
+        gain3.gain.value = 0.5;
+        osc3.connect(gain3);
+        gain3.connect(ctx.destination);
+        osc3.start(ctx.currentTime + 0.5);
+        osc3.stop(ctx.currentTime + 0.7);
+        setTimeout(() => ctx.close(), 1000);
       }
     } catch {}
     // Browser notification
