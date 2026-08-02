@@ -239,6 +239,24 @@ router.delete('/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: Au
   }
 });
 
+// Update driver location (from driver app GPS)
+router.patch('/:id/location', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { latitude, longitude } = req.body;
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({ error: 'latitude and longitude required' });
+    }
+    await prisma.driver.update({
+      where: { id },
+      data: { latitude, longitude, lastLocationUpdate: new Date() },
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Update driver status
 router.patch('/:id/status', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {

@@ -102,6 +102,20 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
         }
 
         map.panTo(newLoc, { animate: true, duration: 0.5 });
+
+        // Send location to backend via HTTP
+        try {
+          const driverInfo = localStorage.getItem('driverInfo');
+          const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+          if (driverId) {
+            const token = localStorage.getItem('token');
+            fetch(`${API_URL}/api/drivers/${driverId}/location`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+              body: JSON.stringify({ latitude: newLoc[0], longitude: newLoc[1] }),
+            }).catch(() => {});
+          }
+        } catch {}
       },
       () => {},
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
