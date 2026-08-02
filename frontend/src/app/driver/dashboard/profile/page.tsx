@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Star, Phone, Car, Calendar, Award, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +10,9 @@ import { useLanguageStore } from '@/store/useLanguageStore';
 import api from '@/lib/axios';
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [driver, setDriver] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showOrders, setShowOrders] = useState(false);
-  const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const { t } = useLanguageStore();
 
   useEffect(() => {
@@ -20,9 +20,6 @@ export default function ProfilePage() {
       try {
         const { data } = await api.get('/auth/me');
         setDriver(data);
-        // Fetch order history
-        const ordersRes = await api.get(`/orders/driver/${data.id}`);
-        setOrderHistory(Array.isArray(ordersRes.data) ? ordersRes.data : []);
       } catch {
         const info = localStorage.getItem('driverInfo');
         if (info) setDriver(JSON.parse(info));
@@ -72,56 +69,23 @@ export default function ProfilePage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="cursor-pointer hover:border-blue-500/30 transition-colors" onClick={() => setShowOrders(!showOrders)}>
+        <Card className="cursor-pointer hover:border-blue-500/30 transition-colors" onClick={() => router.push('/driver/dashboard/archive')}>
           <CardContent className="p-4 text-center">
             <Award className="w-6 h-6 text-blue-400 mx-auto mb-1" />
             <p className="text-2xl font-bold">{driver.totalOrders || 0}</p>
             <p className="text-xs text-muted-foreground">Заказов</p>
+            <p className="text-[9px] text-blue-400 mt-1">Архив →</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:border-green-500/30 transition-colors" onClick={() => router.push('/driver/dashboard/balance-history')}>
           <CardContent className="p-4 text-center">
             <MapPin className="w-6 h-6 text-green-400 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{Number(driver.totalEarnings || 0).toLocaleString('ru-RU')} сом</p>
-            <p className="text-xs text-muted-foreground">Заработано</p>
+            <p className="text-2xl font-bold">{Number(driver.balance || 0)}</p>
+            <p className="text-xs text-muted-foreground">Баланс</p>
+            <p className="text-[9px] text-green-400 mt-1">Баланс →</p>
           </CardContent>
         </Card>
       </div>
-
-      {/* Order History (shown when stats card tapped) */}
-      {showOrders && (
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">История заказов</h4>
-            {orderHistory.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Заказов пока нет</p>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {orderHistory.map((order: any) => (
-                  <div key={order.id} className="bg-white/5 rounded-xl p-3 border border-white/5">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-[10px] text-gray-500">#{order.orderNumber}</span>
-                      <span className="text-sm font-bold text-green-400">{order.price} сом</span>
-                    </div>
-                    <p className="text-xs text-gray-300 truncate">{order.pickupAddress}</p>
-                    <p className="text-xs text-gray-500 truncate">→ {order.destAddress || 'Не указано'}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-gray-600">
-                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('ru-RU') : ''}
-                      </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                        order.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' :
-                        order.status === 'CANCELLED' ? 'bg-red-500/20 text-red-400' :
-                        'bg-yellow-500/20 text-yellow-400'
-                      }`}>{order.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Details */}
       <Card>
