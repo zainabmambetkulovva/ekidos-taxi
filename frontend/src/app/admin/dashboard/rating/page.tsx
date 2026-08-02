@@ -1,5 +1,6 @@
 'use client';
 
+import { useLanguageStore } from '@/store/useLanguageStore';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +17,7 @@ import {
 } from 'recharts';
 
 export default function RatingPage() {
+  const { t } = useLanguageStore();
   const { data: stats, isLoading } = useQuery({
     queryKey: ['rating-stats'],
     queryFn: async () => {
@@ -35,12 +37,12 @@ export default function RatingPage() {
   });
 
   const statCards = [
-    { label: "Today's Orders", value: stats?.todayOrders || 0, icon: ShoppingCart, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Monthly Orders', value: stats?.monthlyOrders || 0, icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { label: "Today's Revenue", value: formatCurrency(stats?.todayRevenue || 0), icon: DollarSign, color: 'text-green-400', bg: 'bg-green-500/10' },
-    { label: 'Monthly Revenue', value: formatCurrency(stats?.monthlyRevenue || 0), icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Active Drivers', value: stats?.activeDrivers || 0, icon: Users, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-    { label: 'Online Drivers', value: stats?.onlineDrivers || 0, icon: UserCheck, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+    { label: "{t('todayOrders')}", value: stats?.todayOrders || 0, icon: ShoppingCart, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: '{t('monthlyOrders')}', value: stats?.monthlyOrders || 0, icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: "{t('todayRevenue')}", value: formatCurrency(stats?.todayRevenue || 0), icon: DollarSign, color: 'text-green-400', bg: 'bg-green-500/10' },
+    { label: '{t('monthlyRevenue')}', value: formatCurrency(stats?.monthlyRevenue || 0), icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: '{t('activeDrivers')}', value: stats?.activeDrivers || 0, icon: Users, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+    { label: '{t('onlineDrivers')}', value: stats?.onlineDrivers || 0, icon: UserCheck, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
   ];
 
   return (
@@ -80,7 +82,7 @@ export default function RatingPage() {
         ))}
       </div>
 
-      {/* Best Driver */}
+      {/* {t('bestDriver')} */}
       {stats?.bestDriver && (
         <Card className="border-yellow-500/30 bg-gradient-to-r from-yellow-500/5 to-transparent">
           <CardContent className="p-6">
@@ -89,10 +91,10 @@ export default function RatingPage() {
                 <Trophy className="w-8 h-8 text-yellow-400" />
               </div>
               <div>
-                <p className="text-sm text-yellow-400 font-medium">Best Driver</p>
+                <p className="text-sm text-yellow-400 font-medium">{t('bestDriver')}</p>
                 <p className="text-xl font-bold">{stats.bestDriver.firstName} {stats.bestDriver.lastName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {stats.bestDriver.totalOrders} orders • Rating: {stats.bestDriver.rating.toFixed(1)}
+                  {stats.bestDriver.totalOrders} {t('orders')} • Rating: {stats.bestDriver.rating.toFixed(1)}
                 </p>
               </div>
             </div>
@@ -104,7 +106,7 @@ export default function RatingPage() {
         {/* Revenue Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Revenue</CardTitle>
+            <CardTitle className="text-base">{t('revenue')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -128,7 +130,7 @@ export default function RatingPage() {
         {/* Orders Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Orders</CardTitle>
+            <CardTitle className="text-base">{t('orders')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>

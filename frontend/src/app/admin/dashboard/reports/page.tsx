@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLanguageStore } from '@/store/useLanguageStore';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -17,6 +18,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export default function ReportsPage() {
+  const { t } = useLanguageStore();
   const [period, setPeriod] = useState<PeriodType>('daily');
 
   const { data: report, isLoading } = useQuery({
@@ -60,7 +62,7 @@ export default function ReportsPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => exportData('csv')} className="gap-2">
             <Download className="w-4 h-4" />
-            Export CSV
+            {t("exportCsv")}
           </Button>
         </div>
       </div>
@@ -92,7 +94,7 @@ export default function ReportsPage() {
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Orders</p>
+                  <p className="text-xs text-muted-foreground">{t("totalOrders")}</p>
                   <p className="text-2xl font-bold mt-1">{report?.totalOrders || 0}</p>
                 </div>
                 <ShoppingCart className="w-8 h-8 text-blue-400 opacity-50" />
@@ -103,7 +105,7 @@ export default function ReportsPage() {
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Completed</p>
+                  <p className="text-xs text-muted-foreground">{t("completedOrders")}</p>
                   <p className="text-2xl font-bold mt-1 text-green-400">{report?.completedOrders || 0}</p>
                 </div>
                 <CheckCircle2 className="w-8 h-8 text-green-400 opacity-50" />
@@ -114,7 +116,7 @@ export default function ReportsPage() {
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Cancelled</p>
+                  <p className="text-xs text-muted-foreground">{t("cancelledOrders")}</p>
                   <p className="text-2xl font-bold mt-1 text-red-400">{report?.cancelledOrders || 0}</p>
                 </div>
                 <XCircle className="w-8 h-8 text-red-400 opacity-50" />
@@ -125,7 +127,7 @@ export default function ReportsPage() {
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Revenue</p>
+                  <p className="text-xs text-muted-foreground">{t("revenue")}</p>
                   <p className="text-2xl font-bold mt-1 text-green-400">{formatCurrency(report?.revenue || 0)}</p>
                 </div>
                 <DollarSign className="w-8 h-8 text-green-400 opacity-50" />
