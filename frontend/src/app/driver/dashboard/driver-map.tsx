@@ -59,9 +59,17 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     mapRef.current = map;
     initedRef.current = true;
 
+    // Listen for center event from location button
+    const handleCenter = (e: Event) => {
+      const { lat, lng } = (e as CustomEvent).detail;
+      map.setView([lat, lng], 16, { animate: true });
+    };
+    window.addEventListener('driverCenterMap', handleCenter);
+
     setTimeout(() => map.invalidateSize(), 200);
 
     return () => {
+      window.removeEventListener('driverCenterMap', handleCenter);
       map.remove();
       mapRef.current = null;
       initedRef.current = false;

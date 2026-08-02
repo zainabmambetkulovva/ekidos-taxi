@@ -11,6 +11,8 @@ import api from '@/lib/axios';
 export default function ProfilePage() {
   const [driver, setDriver] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showOrders, setShowOrders] = useState(false);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const { t } = useLanguageStore();
 
   useEffect(() => {
@@ -18,8 +20,10 @@ export default function ProfilePage() {
       try {
         const { data } = await api.get('/auth/me');
         setDriver(data);
+        // Fetch order history
+        const ordersRes = await api.get(`/orders/driver/${data.id}`);
+        setOrderHistory(Array.isArray(ordersRes.data) ? ordersRes.data : []);
       } catch {
-        // Try from localStorage
         const info = localStorage.getItem('driverInfo');
         if (info) setDriver(JSON.parse(info));
       } finally {
@@ -68,7 +72,7 @@ export default function ProfilePage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <Card>
+        <Card className="cursor-pointer hover:border-blue-500/30 transition-colors" onClick={() => setShowOrders(!showOrders)}>
           <CardContent className="p-4 text-center">
             <Award className="w-6 h-6 text-blue-400 mx-auto mb-1" />
             <p className="text-2xl font-bold">{driver.totalOrders || 0}</p>
@@ -83,6 +87,41 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Order History (shown when stats card tapped) */}
+      {showOrders && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">История заказов</h4>
+            {orderHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Заказов пока нет</p>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {orderHistory.map((order: any) => (
+                  <div key={order.id} className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono text-[10px] text-gray-500">#{order.orderNumber}</span>
+                      <span className="text-sm font-bold text-green-400">{order.price} сом</span>
+                    </div>
+                    <p className="text-xs text-gray-300 truncate">{order.pickupAddress}</p>
+                    <p className="text-xs text-gray-500 truncate">→ {order.destAddress || 'Не указано'}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-gray-600">
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('ru-RU') : ''}
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        order.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' :
+                        order.status === 'CANCELLED' ? 'bg-red-500/20 text-red-400' :
+                        'bg-yellow-500/20 text-yellow-400'
+                      }`}>{order.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )
 
       {/* Details */}
       <Card>
