@@ -64,19 +64,19 @@ export default function LiveMapPage() {
       attribution: '© OpenStreetMap',
     }).addTo(map);
 
-    // Driver markers
+    // Driver markers - car icons
     drivers
       .filter((d: any) => d.latitude && d.longitude)
       .forEach((driver: any) => {
         const color = driver.status === 'ONLINE' ? '#22c55e' : driver.status === 'BUSY' ? '#eab308' : '#6b7280';
         const icon = L.divIcon({
           className: '',
-          html: `<div style="width:32px;height:32px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:11px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${driver.firstName?.[0] || ''}${driver.lastName?.[0] || ''}</div>`,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
+          html: `<div style="display:flex;flex-direction:column;align-items:center"><div style="font-size:24px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))">🚗</div><div style="background:${color};color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:4px;margin-top:-2px;white-space:nowrap">${driver.callsign || driver.firstName?.[0] || ''}</div></div>`,
+          iconSize: [36, 42],
+          iconAnchor: [18, 42],
         });
         L.marker([driver.latitude, driver.longitude], { icon }).addTo(map)
-          .bindPopup(`<div style="font-family:sans-serif"><b>${driver.firstName} ${driver.lastName}</b><br>${driver.phone || ''}<br>${driver.vehicle ? `${driver.vehicle.brand} ${driver.vehicle.plateNumber}` : ''}<br><span style="color:${color};font-weight:700">${driver.status}</span></div>`);
+          .bindPopup(`<div style="font-family:sans-serif;min-width:140px"><b>${driver.firstName} ${driver.lastName}</b>${driver.callsign ? `<br><span style="color:#ef4444;font-weight:700">Позывной: ${driver.callsign}</span>` : ''}<br>${driver.phone || ''}<br>${driver.vehicle ? `${driver.vehicle.brand} ${driver.vehicle.model}<br><b>${driver.vehicle.plateNumber}</b>` : ''}<br><span style="color:${color};font-weight:700">${driver.status}</span></div>`);
       });
 
     setTimeout(() => map.invalidateSize(), 300);
