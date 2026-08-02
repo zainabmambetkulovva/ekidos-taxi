@@ -142,6 +142,47 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
+    // Driver arrived at pickup point - notify client
+    socket.on('driver:arrived', async (data: { orderId: string; driverId: string }) => {
+      try {
+        const order = await prisma.order.findUnique({ where: { id: data.orderId } });
+        const driver = await prisma.driver.findUnique({
+          where: { id: data.driverId },
+          include: { vehicle: true },
+        });
+        if (!order || !driver) return;
+
+        // Update order - mark arrived time for 2-min free wait tracking
+        await prisma.order.update({
+          where: { id: data.orderId },
+          data: { assignedAt: new Date() }, // reuse assignedAt as arrivedAt
+        });
+
+        // Emit to ALL connected clients (they filter by orderId)
+        io.emit('driver:arrived', {
+          orderId: data.orderId,
+          driverName: `${driver.firstName} ${driver.lastName}`,
+          car: driver.vehicle ? `${driver.vehicle.brand} ${driver.vehicle.model}` : '',
+          plate: driver.vehicle?.plateNumber || '',
+          phone: driver.phone,
+          price: order.price,
+        });
+
+        io.to('admin-room').emit('notification', {
+          title: 'Driver Arrived',
+          message: `${driver.firstName} arrived at pickup for #${order.orderNumber}`,
+          type: 'driver_arrived',
+        });
+      } catch (error) {
+        console.error('Driver arrived error:', error);
+      }
+    });
+
+    // Client joins order room
+    socket.on('join-order', (orderId: string) => {
+      socket.join(`order:${orderId}`);
+    });
+
     socket.on('disconnect', () => {
       console.log(`❌ Client disconnected: ${socket.id}`);
     });

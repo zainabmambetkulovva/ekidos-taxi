@@ -7,13 +7,20 @@ import { useLanguageStore } from '@/store/useLanguageStore';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { connectSocket } from '@/lib/socket';
 
 // Active Order Card with step-by-step flow
 function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => void }) {
   const [step, setStep] = useState<'driving' | 'arrived' | 'client_in_car'>('driving');
 
   const handleArrived = () => {
-    // TODO: check if driver actually moved (GPS comparison)
+    // Emit socket event to notify client
+    const socket = connectSocket();
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+    if (driverId && order.id) {
+      socket.emit('driver:arrived', { orderId: order.id, driverId });
+    }
     setStep('arrived');
     toast.success('Клиентке кабар берилди!');
   };

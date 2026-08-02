@@ -335,21 +335,37 @@ router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Res
 router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const order = await prisma.order.update({
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Calculate wait fee: if driver arrived more than 2 minutes ago, add 20 som
+    let waitFee = 0;
+    if (order.assignedAt) {
+      const waitMs = Date.now() - new Date(order.assignedAt).getTime();
+      const waitMinutes = waitMs / 60000;
+      if (waitMinutes > 2) {
+        waitFee = 20; // 20 som per extra wait
+      }
+    }
+
+    const finalPrice = order.price + waitFee;
+
+    const updated = await prisma.order.update({
       where: { id },
       data: {
         status: 'COMPLETED',
         completedAt: new Date(),
+        price: finalPrice,
       },
     });
 
-    if (order.driverId) {
+    if (updated.driverId) {
       await prisma.driver.update({
-        where: { id: order.driverId },
+        where: { id: updated.driverId },
         data: {
           status: 'ONLINE',
           totalOrders: { increment: 1 },
-          totalEarnings: { increment: order.driverEarning || order.price },
+          totalEarnings: { increment: updated.driverEarning || finalPrice },
         },
       });
     }
@@ -357,16 +373,16 @@ router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: R
     // Create payment record
     await prisma.payment.create({
       data: {
-        orderId: order.id,
-        amount: order.price,
-        method: order.paymentMethod,
+        orderId: updated.id,
+        amount: finalPrice,
+        method: updated.paymentMethod,
         status: 'completed',
       },
     });
 
-    io.to('admin-room').emit('order:completed', order);
+    io.to('admin-room').emit('order:completed', updated);
 
-    return res.json(order);
+    return res.json({ ...updated, waitFee });
   } catch (error) {
     return res.status(500).json({ error: 'Internal server error' });
   }
