@@ -6,7 +6,7 @@ import { useDriverStore } from '@/store/useDriverStore';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { connectSocket } from '@/lib/socket';
 
 // Active Order Card with step-by-step flow
@@ -121,9 +121,50 @@ export default function DriverHomePage() {
   const { isOnline, activeOrder, setOnline, setActiveOrder } = useDriverStore();
   const { t } = useLanguageStore();
   const toktogulCenter: [number, number] = [41.8747, 72.9422];
+  const [balance, setBalance] = useState<number | null>(null);
+
+  // Fetch driver balance
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const { data } = await api.get('/auth/me');
+        setBalance(data.balance ?? 0);
+      } catch {
+        const info = localStorage.getItem('driverInfo');
+        if (info) setBalance(JSON.parse(info).balance ?? 0);
+      }
+    };
+    fetchBalance();
+    const iv = setInterval(fetchBalance, 30000); // refresh every 30s
+    return () => clearInterval(iv);
+  }, []);
+
+  // Block screen if balance is 0
+  if (balance !== null && balance <= 0) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-white px-8 text-center gap-6">
+        <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center">
+          <span className="text-4xl font-black text-red-500">0</span>
+        </div>
+        <h2 className="text-2xl font-bold text-red-600">
+          {t('balanceEmpty') || 'Balance is empty!'}
+        </h2>
+        <p className="text-gray-600 text-sm">
+          {t('balanceEmptyDesc') || 'Top up your balance via Telegram bot to continue accepting orders.'}
+        </p>
+        <div className="text-xs text-gray-400 mt-4">
+          Telegram: @ekidos_bot
+        </div>
+      </div>
+    );
+  }
 
   const handleToggleOnline = () => {
     if (!isOnline) {
+      if (balance !== null && balance <= 0) {
+        toast.error('Balance is 0! Top up via Telegram bot.');
+        return;
+      }
       setOnline(true);
       toast.success(t('onLine') + '. ' + t('waitingOrders'));
     } else {
@@ -153,6 +194,13 @@ export default function DriverHomePage() {
         <DriverMap center={toktogulCenter} showMarker={isOnline} />
       </div>
 
+      {/* Balance circle - top right */}
+      {balance !== null && balance > 0 && (
+        <div className="absolute top-4 right-4 z-[1000] w-14 h-14 rounded-full bg-[#0d0d0d] border-2 border-green-500/50 flex items-center justify-center shadow-lg">
+          <span className="text-xs font-bold text-green-400">{balance}</span>
+        </div>
+      )}
+
       {/* Location button */}
       <button
         onClick={() => {
@@ -166,7 +214,7 @@ export default function DriverHomePage() {
             }
           });
         }}
-        className="absolute top-20 right-4 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        className="absolute top-24 right-4 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
         aria-label="My location"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
