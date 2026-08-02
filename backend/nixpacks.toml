@@ -1,0 +1,8 @@
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npx prisma generate && npx tsc --skipLibCheck"]
+
+[start]
+cmd = "node dist/server.js"
