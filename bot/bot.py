@@ -148,6 +148,7 @@ async def handle_photo(message: types.Message):
                 "telegramId": telegram_id,
                 "driverName": f"{driver_name} (#{callsign})",
                 "photoUrl": photo_url,
+                "callsign": callsign,
             }
             async with session.post(f"{BACKEND_URL}/api/topup", json=payload) as resp:
                 if resp.status == 200:
