@@ -146,9 +146,12 @@ router.get('/available', auth_middleware_1.authenticateToken, async (req, res) =
 router.post('/', async (req, res) => {
     try {
         const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price } = req.body;
-        if (!pickupAddress || !clientPhone) {
-            return res.status(400).json({ error: 'Заполните все обязательные поля' });
+        if (!pickupAddress) {
+            return res.status(400).json({ error: 'Откуда жерди жазыңыз (pickupAddress)' });
         }
+        // clientPhone optional — default to unknown
+        const safeClientName = clientName || 'Клиент';
+        const safeClientPhone = clientPhone || '—';
         // Price validation
         const inputPrice = parseFloat(price) || 0;
         if (inputPrice < 0 || inputPrice > 50000) {
@@ -190,13 +193,13 @@ router.post('/', async (req, res) => {
             data: {
                 orderNumber,
                 pickupAddress,
-                destAddress,
+                destAddress: destAddress || 'Не указано',
                 pickupLat: pickupCoords?.lat || null,
                 pickupLng: pickupCoords?.lng || null,
                 destLat: destCoords?.lat || null,
                 destLng: destCoords?.lng || null,
-                clientName,
-                clientPhone,
+                clientName: safeClientName,
+                clientPhone: safeClientPhone,
                 tariff: tariff || 'Standard',
                 comment: comment || null,
                 paymentMethod: paymentMethod || 'CASH',
@@ -209,9 +212,9 @@ router.post('/', async (req, res) => {
         // Create or update client
         try {
             await server_1.prisma.client.upsert({
-                where: { phone: clientPhone },
-                update: { name: clientName, totalOrders: { increment: 1 } },
-                create: { name: clientName, phone: clientPhone, totalOrders: 1 },
+                where: { phone: safeClientPhone },
+                update: { name: safeClientName, totalOrders: { increment: 1 } },
+                create: { name: safeClientName, phone: safeClientPhone, totalOrders: 1 },
             });
         }
         catch (e) {
