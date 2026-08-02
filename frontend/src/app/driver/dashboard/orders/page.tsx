@@ -67,8 +67,6 @@ export default function DriverOrdersPage() {
       new Notification('EKIDOS TAXI', {
         body: t('availableOrders') + ` (${count})`,
         icon: '/icon-192.png',
-        tag: 'new-order',
-        renotify: true,
       });
     }
   };
