@@ -54,6 +54,22 @@ router.get('/', auth_middleware_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
+// Get single driver (public - for client to see accepted driver info)
+router.get('/:id/public', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const driver = await server_1.prisma.driver.findUnique({
+            where: { id },
+            select: { firstName: true, lastName: true, phone: true, vehicle: true },
+        });
+        if (!driver)
+            return res.status(404).json({ error: 'Driver not found' });
+        return res.json(driver);
+    }
+    catch (error) {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
 // Get single driver
 router.get('/:id', auth_middleware_1.authenticateToken, async (req, res) => {
     try {

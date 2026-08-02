@@ -85,6 +85,8 @@ function setupSocketHandlers(io) {
                 });
                 // Notify all drivers to remove this order
                 io.emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
+                // Notify client who placed this order (broadcast with order details + driver info)
+                io.emit('order:accepted', order);
                 // Notify admin
                 io.to('admin-room').emit('order:accepted', order);
                 io.to('admin-room').emit('notification', {
@@ -130,6 +132,44 @@ function setupSocketHandlers(io) {
             catch (error) {
                 console.error('Order complete error:', error);
             }
+        });
+        // Driver arrived at pickup point - notify client
+        socket.on('driver:arrived', async (data) => {
+            try {
+                const order = await server_1.prisma.order.findUnique({ where: { id: data.orderId } });
+                const driver = await server_1.prisma.driver.findUnique({
+                    where: { id: data.driverId },
+                    include: { vehicle: true },
+                });
+                if (!order || !driver)
+                    return;
+                // Update order - mark arrived time for 2-min free wait tracking
+                await server_1.prisma.order.update({
+                    where: { id: data.orderId },
+                    data: { assignedAt: new Date() }, // reuse assignedAt as arrivedAt
+                });
+                // Emit to ALL connected clients (they filter by orderId)
+                io.emit('driver:arrived', {
+                    orderId: data.orderId,
+                    driverName: `${driver.firstName} ${driver.lastName}`,
+                    car: driver.vehicle ? `${driver.vehicle.brand} ${driver.vehicle.model}` : '',
+                    plate: driver.vehicle?.plateNumber || '',
+                    phone: driver.phone,
+                    price: order.price,
+                });
+                io.to('admin-room').emit('notification', {
+                    title: 'Driver Arrived',
+                    message: `${driver.firstName} arrived at pickup for #${order.orderNumber}`,
+                    type: 'driver_arrived',
+                });
+            }
+            catch (error) {
+                console.error('Driver arrived error:', error);
+            }
+        });
+        // Client joins order room
+        socket.on('join-order', (orderId) => {
+            socket.join(`order:${orderId}`);
         });
         socket.on('disconnect', () => {
             console.log(`❌ Client disconnected: ${socket.id}`);
