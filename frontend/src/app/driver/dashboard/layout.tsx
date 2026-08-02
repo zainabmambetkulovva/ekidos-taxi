@@ -9,12 +9,25 @@ import {
 } from 'lucide-react';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import BlockTimer from './block-timer';
+import { connectSocket } from '@/lib/socket';
 
 export default function DriverDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useLanguageStore();
+
+  // Connect socket immediately when driver dashboard loads
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const socket = connectSocket();
+      const driverInfo = localStorage.getItem('driverInfo');
+      const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+      if (driverId) {
+        socket.emit('driver:join', driverId);
+      }
+    }
+  });
 
   const driverMenu = [
     { icon: MapPin, label: t('dashboard'), href: '/driver/dashboard' },
