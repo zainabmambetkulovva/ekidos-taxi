@@ -6,9 +6,9 @@ node_modules/
 # Build
 .next/
 frontend/.next/
-dist/
 build/
 .expo/
+# dist/ intentionally NOT ignored — Railway needs it after npm run build
 
 # Environment
 .env
