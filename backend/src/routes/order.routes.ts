@@ -102,8 +102,26 @@ router.get('/driver/:driverId', authenticateToken, async (req: AuthRequest, res:
   }
 });
 
-// Get available orders for drivers
-router.get('/available', authenticateToken, async (req: AuthRequest, res: Response) => {
+// Get online drivers positions (public - for client map)
+router.get('/online-drivers', async (req: Request, res: Response) => {
+  try {
+    const drivers = await prisma.driver.findMany({
+      where: {
+        status: 'ONLINE',
+        accountStatus: 'ACTIVE',
+        latitude: { not: null },
+        longitude: { not: null },
+      },
+      select: { id: true, firstName: true, latitude: true, longitude: true },
+    });
+    return res.json(drivers.map(d => ({ id: d.id, lat: d.latitude, lng: d.longitude, name: d.firstName })));
+  } catch (error) {
+    return res.json([]);
+  }
+});
+
+// Get available orders for drivers (also returns online driver positions for client map)
+router.get('/available', async (req: Request, res: Response) => {
   try {
     const orders = await prisma.order.findMany({
       where: { status: 'PENDING' },

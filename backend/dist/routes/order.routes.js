@@ -129,8 +129,26 @@ router.get('/driver/:driverId', auth_middleware_1.authenticateToken, async (req,
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
-// Get available orders for drivers
-router.get('/available', auth_middleware_1.authenticateToken, async (req, res) => {
+// Get online drivers positions (public - for client map)
+router.get('/online-drivers', async (req, res) => {
+    try {
+        const drivers = await server_1.prisma.driver.findMany({
+            where: {
+                status: 'ONLINE',
+                accountStatus: 'ACTIVE',
+                latitude: { not: null },
+                longitude: { not: null },
+            },
+            select: { id: true, firstName: true, latitude: true, longitude: true },
+        });
+        return res.json(drivers.map(d => ({ id: d.id, lat: d.latitude, lng: d.longitude, name: d.firstName })));
+    }
+    catch (error) {
+        return res.json([]);
+    }
+});
+// Get available orders for drivers (also returns online driver positions for client map)
+router.get('/available', async (req, res) => {
     try {
         const orders = await server_1.prisma.order.findMany({
             where: { status: 'PENDING' },
