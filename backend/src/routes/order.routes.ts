@@ -3,7 +3,15 @@ import { prisma } from '../server';
 import { io } from '../server';
 import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
 import { calculatePrice, calculateDistance, TARIFFS, COMPANY_COMMISSION } from '../lib/tariff';
-import { sendPushToAllOnlineDrivers } from '../lib/push';
+
+// Safe import — if push module fails, orders still work
+let sendPushToAllOnlineDrivers: any = async () => 0;
+try {
+  const pushModule = require('../lib/push');
+  sendPushToAllOnlineDrivers = pushModule.sendPushToAllOnlineDrivers;
+} catch (e) {
+  console.error('Push module failed to load:', e);
+}
 
 const router = Router();
 

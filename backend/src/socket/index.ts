@@ -1,6 +1,25 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from '../server';
-import { sendPushToAllOnlineDrivers, OrderPushPayload } from '../lib/push';
+
+// Safe import — if push module fails, socket still works
+let sendPushToAllOnlineDrivers: any = async () => 0;
+try {
+  const pushModule = require('../lib/push');
+  sendPushToAllOnlineDrivers = pushModule.sendPushToAllOnlineDrivers;
+} catch (e) {
+  console.error('Push module failed to load in socket:', e);
+}
+
+interface OrderPushPayload {
+  orderId: string;
+  orderNumber: string;
+  pickupAddress: string;
+  destAddress: string;
+  price: number;
+  clientName: string;
+  clientPhone: string;
+  type: 'new_order';
+}
 
 export function setupSocketHandlers(io: Server) {
   io.on('connection', (socket: Socket) => {
