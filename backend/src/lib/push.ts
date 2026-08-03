@@ -9,8 +9,9 @@
  */
 
 import axios from 'axios';
-import { prisma } from '../server';
+import { PrismaClient } from '@prisma/client';
 
+const prisma = new PrismaClient();
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 export interface OrderPushPayload {
