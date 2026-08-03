@@ -209,6 +209,48 @@ export default function DriverHomePage() {
   // Block screen if balance is 0 (TEMPORARILY DISABLED)
   // if (balance !== null && balance <= 0) { ... }
 
+  // GPS location broadcasting when online
+  useEffect(() => {
+    if (!isOnline) return;
+    const socket = connectSocket();
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+    if (!driverId) return;
+
+    let watchId: number | null = null;
+
+    // Send location every position change
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          socket.emit('driver:location', { driverId, lat: latitude, lng: longitude });
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+      );
+    }
+
+    // Also send periodically via API (backup)
+    const iv = setInterval(() => {
+      navigator.geolocation?.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          socket.emit('driver:location', { driverId, lat: latitude, lng: longitude });
+          // Also save to backend directly
+          api.patch(`/drivers/${driverId}/location`, { latitude, longitude }).catch(() => {});
+        },
+        () => {},
+        { enableHighAccuracy: true }
+      );
+    }, 10000); // every 10s
+
+    return () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      clearInterval(iv);
+    };
+  }, [isOnline]);
+
   const handleToggleOnline = () => {
     if (!isOnline) {
       setOnline(true);

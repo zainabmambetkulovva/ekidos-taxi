@@ -283,6 +283,74 @@ app.post('/api/auth/client/verify-otp', async (req: Request, res: Response) => {
 });
 // ===== END CLIENT AUTH =====
 
+// ===== RATING =====
+app.post('/api/orders/:id/rate', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { rating, comment } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating must be 1-5' });
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: id as string } });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (!order.driverId) return res.status(400).json({ error: 'No driver assigned' });
+
+    // Save rating to order
+    await prisma.order.update({
+      where: { id: id as string },
+      data: { rating: rating, comment: comment || null },
+    });
+
+    // Update driver average rating
+    const driverOrders = await prisma.order.findMany({
+      where: { driverId: order.driverId, rating: { not: null } },
+      select: { rating: true },
+    });
+
+    const avgRating = driverOrders.reduce((sum, o) => sum + (o.rating || 0), 0) / driverOrders.length;
+
+    await prisma.driver.update({
+      where: { id: order.driverId },
+      data: { rating: Math.round(avgRating * 10) / 10 },
+    });
+
+    return res.json({ success: true, averageRating: avgRating });
+  } catch (error) {
+    console.error('Rating error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// ===== END RATING =====
+
+// ===== TARIFF MANAGEMENT =====
+app.get('/api/tariffs', (req: Request, res: Response) => {
+  const { TARIFFS, COMPANY_COMMISSION } = require('./lib/tariff');
+  return res.json({ tariffs: TARIFFS, commission: COMPANY_COMMISSION });
+});
+
+app.put('/api/tariffs', async (req: Request, res: Response) => {
+  try {
+    const { tariffs, commission } = req.body;
+    // Save to settings
+    let settings = await prisma.settings.findFirst();
+    if (!settings) {
+      settings = await prisma.settings.create({ data: { tariffs: JSON.stringify(tariffs), commission: commission } });
+    } else {
+      await prisma.settings.update({
+        where: { id: settings.id },
+        data: { tariffs: JSON.stringify(tariffs), commission: commission },
+      });
+    }
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Tariff update error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// ===== END TARIFF MANAGEMENT =====
+
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
