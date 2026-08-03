@@ -243,24 +243,33 @@ router.post('/', async (req: Request, res: Response) => {
           // Random selection from nearby drivers
           const selected = nearby[Math.floor(Math.random() * nearby.length)];
 
-          // Assign order to selected driver
-          await prisma.order.update({
-            where: { id: order.id },
-            data: { driverId: selected.id, status: 'ASSIGNED', assignedAt: new Date() },
-          });
-          await prisma.driver.update({
-            where: { id: selected.id },
-            data: { status: 'BUSY' },
-          });
+          // Send order to selected driver only (not assign yet - give 20sec to accept)
+          io.to(`driver:${selected.id}`).emit('order:available', order);
+          io.to(`driver:${selected.id}`).emit('order:assigned', { ...order, driverId: selected.id });
 
-          // Notify the selected driver
-          io.to(`driver:${selected.id}`).emit('order:assigned', { ...order, driverId: selected.id, status: 'ASSIGNED' });
+          // 20 second timeout - if not accepted, send to next nearest
+          setTimeout(async () => {
+            try {
+              const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
+              if (freshOrder && freshOrder.status === 'PENDING') {
+                // Not accepted - try next driver or broadcast
+                const remaining = nearby.filter(d => d.id !== selected.id);
+                if (remaining.length > 0) {
+                  const next = remaining[Math.floor(Math.random() * remaining.length)];
+                  io.to(`driver:${next.id}`).emit('order:available', order);
+                } else {
+                  // No more nearby - broadcast to all
+                  io.emit('order:available', order);
+                }
+              }
+            } catch {}
+          }, 20000);
+
           io.to('admin-room').emit('notification', {
-            title: 'Auto-Assigned',
-            message: `Order #${orderNumber} assigned to ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}m)`,
+            title: 'Order Sent',
+            message: `#${orderNumber} sent to ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}m) - 20s to accept`,
             type: 'auto_assigned',
           });
-          console.log(`✅ Auto-assigned #${orderNumber} to ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}m)`);
         } else {
           // No nearby drivers — broadcast to all
           io.emit('order:available', order);

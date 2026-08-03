@@ -12,6 +12,26 @@ import { connectSocket } from '@/lib/socket';
 // Active Order Card with step-by-step flow
 function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => void }) {
   const [step, setStep] = useState<'driving' | 'arrived' | 'client_in_car'>('driving');
+  const [countdown, setCountdown] = useState(120); // 2 minutes in seconds
+  const [extraCharge, setExtraCharge] = useState(0);
+
+  // Countdown timer when arrived
+  useEffect(() => {
+    if (step !== 'arrived') return;
+    setCountdown(120);
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          // Time's up - add 50 som
+          setExtraCharge(50);
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step]);
 
   const handleArrived = () => {
     // Emit socket event to notify client
@@ -39,7 +59,7 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
           {step === 'arrived' && 'На месте'}
           {step === 'client_in_car' && 'В пути'}
         </span>
-        <span className="text-xl font-black text-green-400">{order.price} сом</span>
+        <span className="text-xl font-black text-green-400">{order.price + extraCharge} сом</span>
       </div>
 
       {/* Route */}
@@ -86,13 +106,29 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
       )}
 
       {step === 'arrived' && (
-        <button
-          onClick={handleClientInCar}
-          className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all"
-        >
-          <Car className="w-5 h-5" />
-          Клиент в машине
-        </button>
+        <div className="space-y-2">
+          {/* Countdown timer */}
+          <div className="text-center py-2">
+            <span className={`text-lg font-bold ${countdown > 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+              {countdown > 0 ? `${Math.floor(countdown/60)}:${(countdown%60).toString().padStart(2,'0')}` : '+50 сом'}
+            </span>
+            <p className="text-[10px] text-gray-500">
+              {countdown > 0 ? 'Бесплатно күтүү' : 'Кошумча акы кошулду'}
+            </p>
+          </div>
+          {extraCharge > 0 && (
+            <div className="text-center text-xs text-red-400 font-medium">
+              Кошумча: +{extraCharge} сом (жалпы: {order.price + extraCharge} сом)
+            </div>
+          )}
+          <button
+            onClick={handleClientInCar}
+            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all"
+          >
+            <Car className="w-5 h-5" />
+            Клиент в машине
+          </button>
+        </div>
       )}
 
       {step === 'client_in_car' && (
