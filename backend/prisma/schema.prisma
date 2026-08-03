@@ -50,7 +50,6 @@ model Driver {
   totalOrders           Int       @default(0)
   rating                Float     @default(5.0)
   balance               Float     @default(0)
-  pushToken             String?
   telegramId            BigInt?   @unique
   blockedUntil          DateTime?
   callsign              String?   @unique
@@ -98,7 +97,6 @@ model Order {
   clientPhone     String
   tariff          String    @default("Standard")
   comment         String?
-  rating          Int?
   paymentMethod   String    @default("CASH")
   price           Float     @default(0)
   driverEarning   Float     @default(0)
@@ -224,8 +222,6 @@ model Settings {
   theme        String   @default("dark")
   language     String   @default("ru")
   currency     String   @default("KGS")
-  tariffs      String?
-  commission   Float?   @default(0.15)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

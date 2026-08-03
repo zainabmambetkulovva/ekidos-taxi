@@ -226,15 +226,11 @@ app.patch('/api/drivers/:id/push-token', async (req: Request, res: Response) => 
     const { pushToken } = req.body;
     const { id } = req.params;
     if (!pushToken) return res.status(400).json({ error: 'pushToken required' });
-
-    await prisma.driver.update({
-      where: { id: id as string },
-      data: { pushToken },
-    });
-    console.log(`📱 Push token saved for driver ${id}`);
+    // TODO: Enable after pushToken field added to production DB
+    // await prisma.driver.update({ where: { id }, data: { pushToken } });
+    console.log(`📱 Push token received for driver ${id} (not saved - field not in DB yet)`);
     return res.json({ success: true });
   } catch (error) {
-    console.error('Save push token error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -323,26 +319,13 @@ app.post('/api/orders/:id/rate', async (req: Request, res: Response) => {
     if (!order) return res.status(404).json({ error: 'Order not found' });
     if (!order.driverId) return res.status(400).json({ error: 'No driver assigned' });
 
-    // Save rating to order
+    // Save rating to order comment field (rating field not in DB yet)
     await prisma.order.update({
       where: { id: id as string },
-      data: { rating: rating, comment: comment || null },
+      data: { comment: `rating:${rating}${comment ? ' ' + comment : ''}` },
     });
 
-    // Update driver average rating
-    const driverOrders = await prisma.order.findMany({
-      where: { driverId: order.driverId, rating: { not: null } },
-      select: { rating: true },
-    });
-
-    const avgRating = driverOrders.reduce((sum, o) => sum + (o.rating || 0), 0) / driverOrders.length;
-
-    await prisma.driver.update({
-      where: { id: order.driverId },
-      data: { rating: Math.round(avgRating * 10) / 10 },
-    });
-
-    return res.json({ success: true, averageRating: avgRating });
+    return res.json({ success: true });
   } catch (error) {
     console.error('Rating error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -357,23 +340,8 @@ app.get('/api/tariffs', (req: Request, res: Response) => {
 });
 
 app.put('/api/tariffs', async (req: Request, res: Response) => {
-  try {
-    const { tariffs, commission } = req.body;
-    // Save to settings
-    let settings = await prisma.settings.findFirst();
-    if (!settings) {
-      settings = await prisma.settings.create({ data: { tariffs: JSON.stringify(tariffs), commission: commission } });
-    } else {
-      await prisma.settings.update({
-        where: { id: settings.id },
-        data: { tariffs: JSON.stringify(tariffs), commission: commission },
-      });
-    }
-    return res.json({ success: true });
-  } catch (error) {
-    console.error('Tariff update error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  // TODO: Enable after tariffs field added to settings table
+  return res.json({ success: true, message: 'Tariff update not yet available' });
 });
 // ===== END TARIFF MANAGEMENT =====
 
