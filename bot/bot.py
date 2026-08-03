@@ -16,14 +16,6 @@ BACKEND_URL = "https://ekidos-taxi-production-587e.up.railway.app"
 # Required recipient name on the check
 REQUIRED_RECIPIENT = "Нурияз,М"
 
-# Pricing table: payment -> balance
-PRICING = {
-    700: 500,
-    500: 300,
-    300: 150,
-    100: 100,
-}
-
 
 # ===== FSM States =====
 class Registration(StatesGroup):
@@ -118,12 +110,9 @@ async def cmd_start(message: types.Message, state: FSMContext):
         await message.answer(
             f"👋 Салам! Сиз катталгансыз.\n"
             f"🆔 Позывной: {callsign}\n\n"
-            f"💰 Баланс толуктоо тарифтары:\n"
-            f"   700 сом = 500 баланс\n"
-            f"   500 сом = 300 баланс\n"
-            f"   300 сом = 150 баланс\n"
-            f"   100 сом = 100 баланс\n\n"
-            f"📸 Чектин СҮРӨТҮН жана ТЕКСТИН жөнөтүңүз.\n"
+            f"💰 Баланс толуктоо:\n"
+            f"Канча сом салсаңыз = ошончо баланс.\n\n"
+            f"📸 Чектин СҮРӨТҮН жөнөтүңүз.\n"
             f"⚠️ Чек '{REQUIRED_RECIPIENT}' атына жана бүгүнкү датада болуш керек!\n\n"
             f"🔄 /reset — позывной өзгөртүү"
         )
@@ -150,11 +139,8 @@ async def process_callsign(message: types.Message, state: FSMContext):
 
     await message.answer(
         f"✅ Позывной: {callsign} сакталды!\n\n"
-        f"💰 Баланс толуктоо тарифтары:\n"
-        f"   700 сом = 500 баланс\n"
-        f"   500 сом = 300 баланс\n"
-        f"   300 сом = 150 баланс\n"
-        f"   100 сом = 100 баланс\n\n"
+        f"💰 Баланс толуктоо:\n"
+        f"Канча сом салсаңыз = ошончо баланс.\n\n"
         f"📸 Чектин СҮРӨТҮН жөнөтүңүз.\n"
         f"⚠️ Чек '{REQUIRED_RECIPIENT}' атына жана бүгүнкү датада болуш керек!\n\n"
         f"💡 Сүрөттүн caption'уна же жооп кат менен чектеги текстти жазыңыз."
@@ -379,11 +365,7 @@ async def handle_other(message: types.Message):
             f"  • Чек '{REQUIRED_RECIPIENT}' атына болуш керек\n"
             f"  • Дата бүгүнкү болуш керек\n"
             f"  • Бир чекти 1 гана жолу жөнөтүүгө болот\n\n"
-            f"💰 Тарифтар:\n"
-            f"   700 сом = 500 баланс\n"
-            f"   500 сом = 300 баланс\n"
-            f"   300 сом = 150 баланс\n"
-            f"   100 сом = 100 баланс"
+            f"💰 Канча сом салсаңыз = ошончо баланс."
         )
 
 

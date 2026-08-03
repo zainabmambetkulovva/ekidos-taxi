@@ -176,6 +176,7 @@ export function setupSocketHandlers(io: Server) {
             status: 'ONLINE',
             totalOrders: { increment: 1 },
             totalEarnings: { increment: order.price },
+            balance: { decrement: 12 }, // -12 баланс за каждый заказ
           },
         });
 

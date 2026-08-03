@@ -456,6 +456,7 @@ router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: R
           status: 'ONLINE',
           totalOrders: { increment: 1 },
           totalEarnings: { increment: updated.driverEarning || finalPrice },
+          balance: { decrement: 12 }, // -12 баланс за каждый заказ
         },
       });
     }

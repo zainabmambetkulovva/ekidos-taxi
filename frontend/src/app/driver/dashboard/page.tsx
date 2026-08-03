@@ -247,8 +247,33 @@ export default function DriverHomePage() {
     };
   }, [isOnline]);
 
-  // Block screen if balance is 0 (TEMPORARILY DISABLED)
-  // if (balance !== null && balance <= 0) { ... }
+  // Block screen if balance is 0 or below
+  if (balance !== null && balance <= 0 && !incomingOrder && !activeOrder) {
+    return (
+      <div className="relative h-[calc(100vh-120px)] flex flex-col items-center justify-center bg-black p-6">
+        {/* Red circle with balance */}
+        <div className="w-32 h-32 rounded-full border-4 border-red-500 flex flex-col items-center justify-center mb-6">
+          <span className="text-3xl font-black text-red-500">{balance}</span>
+          <span className="text-xs text-gray-500">баланс</span>
+        </div>
+
+        <h1 className="text-2xl font-black text-white mb-2 text-center">Баланс толуктаңыз!</h1>
+        <p className="text-gray-400 text-sm text-center mb-8 max-w-xs">
+          Балансыңыз түгөндү. Заказ кабыл алуу үчүн балансыңызды толуктаңыз.
+        </p>
+
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 w-full max-w-xs space-y-3">
+          <p className="text-sm text-gray-300 text-center font-medium">Толуктоо:</p>
+          <p className="text-xs text-gray-500 text-center">
+            Telegram ботко чекти жөнөтүңүз.
+          </p>
+          <p className="text-xs text-gray-500 text-center">
+            Канча сом салсаңыз — ошончо баланс болот.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // GPS location broadcasting when online
   useEffect(() => {
