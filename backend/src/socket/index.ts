@@ -51,6 +51,9 @@ export function setupSocketHandlers(io: Server) {
         // Broadcast to admin room
         io.to('admin-room').emit('driver:location-updated', data);
         
+        // Broadcast to ALL connected clients (other drivers see each other)
+        io.emit('driver:location-updated', data);
+        
         // Broadcast to all clients watching this driver (via active order)
         io.emit('driver:location-live', { driverId: data.driverId, lat: data.lat, lng: data.lng });
       } catch (error) {
