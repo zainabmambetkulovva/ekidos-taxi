@@ -101,7 +101,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
           markerRef.current = L.marker(newLoc, { icon }).addTo(map);
         }
 
-        map.panTo(newLoc, { animate: true, duration: 0.5 });
+        // Don't auto-pan - only pan when location button is pressed
 
         // Send location to backend via HTTP
         try {
