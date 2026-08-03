@@ -8,8 +8,7 @@ interface DriverMapProps {
   showMarker: boolean;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5000` : 'http://localhost:5000');
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ekidos-taxi-production-587e.up.railway.app';
 
 export default function DriverMap({ center, showMarker }: DriverMapProps) {
   const [mapReady, setMapReady] = useState(false);
