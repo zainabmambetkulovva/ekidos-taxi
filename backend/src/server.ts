@@ -169,10 +169,16 @@ app.post('/api/auth/callsign-login', async (req: Request, res: Response) => {
     const { callsign, password } = req.body;
     if (!callsign || !password) return res.status(400).json({ error: 'Позывной жана пароль керек' });
 
-    const driver = await prisma.driver.findFirst({
-      where: { callsign: callsign.toString().trim() },
-      include: { vehicle: true },
-    });
+    let driver;
+    try {
+      driver = await prisma.driver.findFirst({
+        where: { callsign: callsign.toString().trim() },
+        include: { vehicle: true },
+      });
+    } catch (dbErr: any) {
+      console.error('DB query error in callsign-login:', dbErr.message);
+      return res.status(500).json({ error: 'Database error', detail: dbErr.message });
+    }
 
     if (!driver) return res.status(404).json({ error: 'Позывной табылган жок. Диспетчерге кайрылыңыз.' });
     if (driver.accountStatus === 'BLOCKED') return res.status(403).json({ error: 'Аккаунтуңуз бөгөттөлгөн' });
@@ -196,9 +202,9 @@ app.post('/api/auth/callsign-login', async (req: Request, res: Response) => {
         rating: driver.rating, totalEarnings: driver.totalEarnings, totalOrders: driver.totalOrders,
       },
     });
-  } catch (error) {
-    console.error('Callsign login error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Callsign login error:', error.message, error.stack);
+    return res.status(500).json({ error: 'Internal server error', detail: error.message });
   }
 });
 
