@@ -57,6 +57,40 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Search drivers by callsign (for admin balance topup)
+router.get('/search/callsign', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { q } = req.query;
+    if (!q || (q as string).trim().length === 0) {
+      return res.json([]);
+    }
+
+    const drivers = await prisma.driver.findMany({
+      where: {
+        OR: [
+          { callsign: { contains: q as string, mode: 'insensitive' } },
+          { firstName: { contains: q as string, mode: 'insensitive' } },
+          { lastName: { contains: q as string, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        callsign: true,
+        phone: true,
+        balance: true,
+      },
+      take: 10,
+    });
+
+    return res.json(drivers);
+  } catch (error) {
+    console.error('Search drivers error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get single driver (public - for client to see accepted driver info)
 router.get('/:id/public', async (req: Request, res: Response) => {
   try {
@@ -287,6 +321,34 @@ router.patch('/:id/reset-password', authenticateToken, authorizeRoles('ADMIN', '
     return res.json({ password: newPassword, message: 'Пароль успешно сброшен' });
   } catch (error) {
     console.error('Reset password error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Direct balance topup by admin (no topup request needed)
+router.patch('/:id/balance', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Valid amount is required' });
+    }
+
+    const driver = await prisma.driver.update({
+      where: { id },
+      data: { balance: { increment: amount } },
+    });
+
+    return res.json({
+      success: true,
+      driverName: `${driver.firstName} ${driver.lastName}`,
+      callsign: driver.callsign,
+      newBalance: driver.balance,
+      amount,
+    });
+  } catch (error) {
+    console.error('Direct balance topup error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

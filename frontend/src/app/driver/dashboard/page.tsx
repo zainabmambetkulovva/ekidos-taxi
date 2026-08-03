@@ -240,11 +240,57 @@ export default function DriverHomePage() {
         <DriverMap center={toktogulCenter} showMarker={isOnline} />
       </div>
 
-      {/* Balance circle - top right */}
-      {balance !== null && balance > 0 && (
-        <div className="absolute top-4 right-4 z-[1000] w-16 h-16 rounded-full bg-[#0d0d0d] border-2 border-green-500/50 flex flex-col items-center justify-center shadow-lg">
-          <span className="text-sm font-bold text-green-400">{balance}</span>
-          <span className="text-[8px] text-gray-500">баланс</span>
+      {/* Balance gauge - top right - ALWAYS visible */}
+      {balance !== null && (
+        <div className="absolute top-4 right-4 z-[1000]">
+          <div className="relative w-20 h-20">
+            {/* Background circle */}
+            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+              {/* Track (gray background arc) */}
+              <circle
+                cx="50" cy="50" r="42"
+                fill="none"
+                stroke="rgba(255,255,255,0.1)"
+                strokeWidth="8"
+                strokeDasharray={`${Math.PI * 84 * 0.75} ${Math.PI * 84 * 0.25}`}
+                strokeLinecap="round"
+              />
+              {/* Filled arc based on balance (max 1000 for full) */}
+              <circle
+                cx="50" cy="50" r="42"
+                fill="none"
+                stroke={balance > 200 ? '#22c55e' : balance > 50 ? '#eab308' : '#ef4444'}
+                strokeWidth="8"
+                strokeDasharray={`${Math.PI * 84 * 0.75 * Math.min(balance / 1000, 1)} ${Math.PI * 84}`}
+                strokeLinecap="round"
+                className="transition-all duration-1000"
+              />
+            </svg>
+            {/* Center content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className={`text-base font-black ${balance > 200 ? 'text-green-400' : balance > 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                {balance}
+              </span>
+              <span className="text-[7px] text-gray-500 font-medium">баланс</span>
+            </div>
+            {/* Needle/arrow indicator */}
+            <div
+              className="absolute top-1/2 left-1/2 origin-bottom transition-transform duration-1000"
+              style={{
+                width: '2px',
+                height: '18px',
+                marginLeft: '-1px',
+                marginTop: '-18px',
+                transform: `rotate(${-135 + (270 * Math.min(balance / 1000, 1))}deg)`,
+              }}
+            >
+              <div
+                className={`w-0 h-0 border-l-[3px] border-r-[3px] border-b-[8px] border-l-transparent border-r-transparent ${
+                  balance > 200 ? 'border-b-green-400' : balance > 50 ? 'border-b-yellow-400' : 'border-b-red-400'
+                }`}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -257,7 +303,7 @@ export default function DriverHomePage() {
             }));
           }, () => {}, { enableHighAccuracy: true });
         }}
-        className="absolute top-24 right-4 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        className="absolute top-28 right-4 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
         aria-label="My location"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e53935" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
