@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { ServiceWorkerRegister } from '@/components/sw-register';
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'] });
 
@@ -24,8 +25,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="EKIDOS Driver" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className={`${inter.className} antialiased`}>
+        <ServiceWorkerRegister />
         <Providers>{children}</Providers>
       </body>
     </html>
