@@ -3,6 +3,7 @@ import { prisma } from '../server';
 import { io } from '../server';
 import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
 import { calculatePrice, calculateDistance, TARIFFS, COMPANY_COMMISSION } from '../lib/tariff';
+import { sendPushToAllOnlineDrivers } from '../lib/push';
 
 const router = Router();
 
@@ -290,6 +291,18 @@ router.post('/', async (req: Request, res: Response) => {
       message: `Order #${orderNumber} - ${clientName}`,
       type: 'new_order',
     });
+
+    // PUSH NOTIFICATION to all online drivers (works even when app killed)
+    sendPushToAllOnlineDrivers({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      pickupAddress: order.pickupAddress,
+      destAddress: order.destAddress,
+      price: order.price,
+      clientName: order.clientName,
+      clientPhone: order.clientPhone,
+      type: 'new_order',
+    }).catch(err => console.error('Push error:', err));
 
     return res.status(201).json(order);
   } catch (error) {

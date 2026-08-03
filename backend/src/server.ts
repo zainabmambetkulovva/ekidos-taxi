@@ -214,6 +214,26 @@ app.patch('/api/drivers/:id/callsign', async (req: Request, res: Response) => {
   }
 });
 
+// ===== SAVE PUSH TOKEN =====
+app.patch('/api/drivers/:id/push-token', async (req: Request, res: Response) => {
+  try {
+    const { pushToken } = req.body;
+    const { id } = req.params;
+    if (!pushToken) return res.status(400).json({ error: 'pushToken required' });
+
+    await prisma.driver.update({
+      where: { id: id as string },
+      data: { pushToken },
+    });
+    console.log(`📱 Push token saved for driver ${id}`);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Save push token error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// ===== END PUSH TOKEN =====
+
 // ===== CLIENT AUTH (email + OTP password) =====
 app.post('/api/auth/client/request-otp', async (req: Request, res: Response) => {
   try {

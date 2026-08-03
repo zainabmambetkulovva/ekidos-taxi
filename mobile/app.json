@@ -2,7 +2,7 @@
   "expo": {
     "name": "EKIDOS Driver",
     "slug": "ekidos-driver",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -17,9 +17,14 @@
         "backgroundColor": "#000000"
       },
       "package": "com.ekidos.driver",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "POST_NOTIFICATIONS"
       ]
     },
     "ios": {
@@ -32,7 +37,16 @@
       "expo-location",
       "expo-asset",
       "expo-font",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ef4444",
+          "defaultChannel": "orders",
+          "sounds": ["./assets/order-alert.wav"]
+        }
+      ]
     ]
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Phone, Lock, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,34 @@ export default function DriverLoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [checking, setChecking] = useState(true);
+
+  // AUTO-REDIRECT: if already logged in, go to dashboard
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const driverInfo = localStorage.getItem('driverInfo');
+    if (token && driverInfo) {
+      // Verify token is still valid
+      api.get('/auth/me')
+        .then(() => {
+          router.replace('/driver/dashboard');
+        })
+        .catch(() => {
+          // Token expired — clear and show login
+          setChecking(false);
+        });
+    } else {
+      setChecking(false);
+    }
+  }, [router]);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

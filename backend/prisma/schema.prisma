@@ -50,6 +50,7 @@ model Driver {
   totalOrders           Int       @default(0)
   rating                Float     @default(5.0)
   balance               Float     @default(0)
+  pushToken             String?
   telegramId            BigInt?   @unique
   blockedUntil          DateTime?
   callsign              String?   @unique

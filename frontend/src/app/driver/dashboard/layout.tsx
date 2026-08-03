@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   MapPin, List, Navigation,
   UserCircle, Settings, LogOut, Menu, X,
-  Star, Car,
+  Star, Car, Loader2,
 } from 'lucide-react';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import BlockTimer from './block-timer';
@@ -16,6 +16,18 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useLanguageStore();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // AUTH GUARD: check token exists, redirect to login if not
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const driverInfo = localStorage.getItem('driverInfo');
+    if (!token || !driverInfo) {
+      router.replace('/driver/login');
+      return;
+    }
+    setAuthChecked(true);
+  }, [router]);
 
   // Connect socket immediately when driver dashboard loads
   useState(() => {
@@ -28,6 +40,21 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       }
     }
   });
+
+  // Handle logout — ONLY when driver explicitly taps logout
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('driverInfo');
+    router.replace('/driver/login');
+  };
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+      </div>
+    );
+  }
 
   const driverMenu = [
     { icon: MapPin, label: t('dashboard'), href: '/driver/dashboard' },
@@ -120,7 +147,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
             {/* Footer */}
             <div className="p-3 border-t border-white/10">
               <button
-                onClick={() => { router.push('/'); setMobileOpen(false); }}
+                onClick={() => { handleLogout(); setMobileOpen(false); }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/5 transition-all"
               >
                 <LogOut className="w-5 h-5" />

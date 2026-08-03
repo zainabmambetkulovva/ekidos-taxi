@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from '../server';
+import { sendPushToAllOnlineDrivers, OrderPushPayload } from '../lib/push';
 
 export function setupSocketHandlers(io: Server) {
   io.on('connection', (socket: Socket) => {
@@ -66,12 +67,27 @@ export function setupSocketHandlers(io: Server) {
 
     // New order broadcast
     socket.on('order:new', (order: any) => {
-      // Send to all online drivers
+      // Send to all online drivers via socket
       io.emit('order:available', order);
       io.to('admin-room').emit('notification', {
         title: 'New Order',
         message: `New order #${order.orderNumber} created`,
         type: 'new_order',
+      });
+
+      // Send PUSH notification to all online drivers (background/killed state)
+      const pushPayload: OrderPushPayload = {
+        orderId: order.id || order.orderId || '',
+        orderNumber: order.orderNumber || '',
+        pickupAddress: order.pickupAddress || '',
+        destAddress: order.destAddress || '',
+        price: order.price || 0,
+        clientName: order.clientName || 'Клиент',
+        clientPhone: order.clientPhone || '',
+        type: 'new_order',
+      };
+      sendPushToAllOnlineDrivers(pushPayload).catch(err => {
+        console.error('Push notification error:', err);
       });
     });
 

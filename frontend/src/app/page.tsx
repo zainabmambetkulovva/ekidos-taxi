@@ -10,7 +10,15 @@ export default function WelcomePage() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    
+    // AUTO-REDIRECT: if driver is already logged in, skip welcome page
+    const token = localStorage.getItem('token');
+    const driverInfo = localStorage.getItem('driverInfo');
+    if (token && driverInfo) {
+      router.replace('/driver/dashboard');
+      return;
+    }
+  }, [router]);
 
   if (!mounted) {
     return (
