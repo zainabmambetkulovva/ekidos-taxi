@@ -330,7 +330,7 @@ export default function DriverHomePage() {
       });
     }, 1000);
     return () => clearInterval(iv);
-  }, [incomingOrder, incomingTimer > 0]);
+  }, [incomingOrder]);
 
   const handleAcceptIncoming = async () => {
     if (!incomingOrder) return;
