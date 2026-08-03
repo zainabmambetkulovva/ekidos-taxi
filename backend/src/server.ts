@@ -371,8 +371,23 @@ app.put('/api/tariffs', async (req: Request, res: Response) => {
 });
 // ===== END TARIFF MANAGEMENT =====
 
-app.get('/api/health', (_, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (_, res) => {
+  try {
+    // Test database connection
+    const driverCount = await prisma.driver.count();
+    const orderCount = await prisma.order.count();
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      db: { drivers: driverCount, orders: orderCount },
+    });
+  } catch (dbError: any) {
+    res.json({ 
+      status: 'db_error', 
+      timestamp: new Date().toISOString(),
+      error: dbError.message,
+    });
+  }
 });
 
 // Socket.IO
