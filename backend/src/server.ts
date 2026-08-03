@@ -369,12 +369,12 @@ setupSocketHandlers(io);
 
 const PORT: number = parseInt(process.env.PORT || '5000', 10);
 
-// Fix negative balances and set all to 100 for testing
+// Fix balances and set all drivers ONLINE for testing
 prisma.driver.updateMany({
   where: {},
-  data: { balance: 100 },
+  data: { balance: 100, status: 'ONLINE' },
 }).then((result) => {
-  console.log(`💰 All ${result.count} drivers balance set to 100 (testing)`);
+  console.log(`💰 All ${result.count} drivers: balance=100, status=ONLINE (testing)`);
 }).catch(() => {});
 
 // @ts-ignore

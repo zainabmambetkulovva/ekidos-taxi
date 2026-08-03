@@ -322,12 +322,24 @@ export default function DriverHomePage() {
   };
 
   const handleToggleOnline = () => {
+    const socket = connectSocket();
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+
     if (!isOnline) {
       setOnline(true);
+      // Save ONLINE status to database via socket
+      if (driverId) {
+        socket.emit('driver:status', { driverId, status: 'ONLINE' });
+      }
       toast.success(t('onLine') + '. ' + t('waitingOrders'));
     } else {
       setOnline(false);
       setActiveOrder(null);
+      // Save OFFLINE status to database via socket
+      if (driverId) {
+        socket.emit('driver:status', { driverId, status: 'OFFLINE' });
+      }
       toast(t('endShift'));
     }
   };
