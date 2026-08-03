@@ -350,8 +350,17 @@ router.post('/', async (req: Request, res: Response) => {
         console.error('Auto-assign error:', e);
       }
     } else {
-      // No coordinates — broadcast to all
-      io.emit('order:available', order);
+      // No coordinates — still try random assignment from ALL online drivers
+      try {
+        const allOnline = await prisma.driver.findMany({
+          where: { status: 'ONLINE', accountStatus: 'ACTIVE' },
+          select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
+        });
+        if (allOnline.length > 0) {
+          const candidates = allOnline.map(d => ({ ...d, distance: 0 }));
+          startOrderAssignment(order, candidates, io);
+        }
+      } catch {}
     }
     
     // Notify admin room
@@ -406,7 +415,6 @@ router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Res
       where: { id: driverId },
       data: {
         status: 'BUSY',
-        balance: { decrement: 20 },  // -20 balance per order
       },
     });
 

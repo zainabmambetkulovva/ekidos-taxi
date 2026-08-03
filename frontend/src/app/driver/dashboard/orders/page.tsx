@@ -83,10 +83,11 @@ export default function DriverOrdersPage() {
       socket.emit('driver:join', driverId);
     }
 
-    // New order arrives in real-time
-    socket.on('order:available', (order: any) => {
+    // New order arrives — ONLY if assigned to THIS driver
+    socket.on('order:incoming', (order: any) => {
+      if (order.assignedDriverId !== driverId) return;
       setOrders(prev => {
-        const exists = prev.find(o => o.id === order.id);
+        const exists = prev.find((o: any) => o.id === order.id);
         if (exists) return prev;
         notifyNewOrder(prev.length + 1);
         return [order, ...prev];
@@ -99,7 +100,7 @@ export default function DriverOrdersPage() {
     });
 
     return () => {
-      socket.off('order:available');
+      socket.off('order:incoming');
       socket.off('order:taken');
     };
   }, [isOnline]);
