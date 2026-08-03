@@ -252,14 +252,10 @@ export default function DriverHomePage() {
       <button
         onClick={() => {
           navigator.geolocation?.getCurrentPosition((pos) => {
-            const map = document.querySelector('[class*="leaflet"]');
-            if (map && (window as any).L) {
-              // Dispatch via custom event
-              window.dispatchEvent(new CustomEvent('driverCenterMap', {
-                detail: { lat: pos.coords.latitude, lng: pos.coords.longitude }
-              }));
-            }
-          });
+            window.dispatchEvent(new CustomEvent('driverCenterMap', {
+              detail: { lat: pos.coords.latitude, lng: pos.coords.longitude }
+            }));
+          }, () => {}, { enableHighAccuracy: true });
         }}
         className="absolute top-24 right-4 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
         aria-label="My location"

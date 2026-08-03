@@ -62,7 +62,9 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     // Listen for center event from location button
     const handleCenter = (e: Event) => {
       const { lat, lng } = (e as CustomEvent).detail;
-      map.setView([lat, lng], 16, { animate: true });
+      if (mapRef.current) {
+        mapRef.current.setView([lat, lng], 16, { animate: true });
+      }
     };
     window.addEventListener('driverCenterMap', handleCenter);
 
