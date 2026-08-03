@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "358654352245",
+    "project_id": "ekidos-driver-7d022",
+    "storage_bucket": "ekidos-driver-7d022.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:358654352245:android:b656e6f36e947a7f28913c",
+        "android_client_info": {
+          "package_name": "com.ekidos.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxA2j5drbXAWEAJF_7T9mQ_BWpUOhfOEA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

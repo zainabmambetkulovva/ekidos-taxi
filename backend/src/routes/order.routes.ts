@@ -15,6 +15,79 @@ try {
 
 const router = Router();
 
+// ===== ORDER ASSIGNMENT ENGINE =====
+// Picks a random driver from nearby list, sends fullscreen order
+// If not accepted in 60s → picks next random driver
+// Repeats until all candidates exhausted
+
+function startOrderAssignment(order: any, candidates: any[], ioServer: any) {
+  const triedDrivers: string[] = [];
+  let currentTimeout: NodeJS.Timeout | null = null;
+
+  function assignToNext() {
+    // Filter out already tried drivers
+    const remaining = candidates.filter(d => !triedDrivers.includes(d.id));
+    
+    if (remaining.length === 0) {
+      // All candidates exhausted — notify admin
+      ioServer.to('admin-room').emit('notification', {
+        title: 'Водитель табылган жок',
+        message: `#${order.orderNumber} — бардык жакын водительдер четке кагышты`,
+        type: 'no_drivers',
+      });
+      return;
+    }
+
+    // Pick random from remaining
+    const selected = remaining[Math.floor(Math.random() * remaining.length)];
+    triedDrivers.push(selected.id);
+
+    console.log(`🎯 Order #${order.orderNumber} → Driver ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}m)`);
+
+    // Send FULLSCREEN order to this specific driver only
+    ioServer.to(`driver:${selected.id}`).emit('order:incoming', {
+      ...order,
+      assignedDriverId: selected.id,
+      distanceMeters: Math.round(selected.distance * 1000),
+      timeoutSeconds: 60,
+    });
+
+    // Notify admin
+    ioServer.to('admin-room').emit('notification', {
+      title: 'Заказ жөнөтүлдү',
+      message: `#${order.orderNumber} → ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}м) — 60 сек`,
+      type: 'auto_assigned',
+    });
+
+    // 60 second timeout — if not accepted, try next
+    currentTimeout = setTimeout(async () => {
+      try {
+        const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
+        if (freshOrder && freshOrder.status === 'PENDING') {
+          // Not accepted — notify this driver that time expired
+          ioServer.to(`driver:${selected.id}`).emit('order:expired', { orderId: order.id });
+          // Try next driver
+          assignToNext();
+        }
+      } catch {}
+    }, 60000);
+  }
+
+  // Start the chain
+  assignToNext();
+
+  // Listen for acceptance (cancel the timeout)
+  ioServer.on('connection', (socket: any) => {
+    socket.on('order:accept', (data: any) => {
+      if (data.orderId === order.id && currentTimeout) {
+        clearTimeout(currentTimeout);
+        currentTimeout = null;
+      }
+    });
+  });
+}
+// ===== END ORDER ASSIGNMENT ENGINE =====
+
 // Generate order number
 function generateOrderNumber(): string {
   const date = new Date();
@@ -246,46 +319,35 @@ router.post('/', async (req: Request, res: Response) => {
             ...d,
             distance: calculateDistance(pickupCoords.lat, pickupCoords.lng, d.latitude!, d.longitude!),
           }))
-          .filter(d => d.distance <= 0.5);
+          .filter(d => d.distance <= 0.5)
+          .sort((a, b) => a.distance - b.distance);
 
         if (nearby.length > 0) {
-          // Random selection from nearby drivers
-          const selected = nearby[Math.floor(Math.random() * nearby.length)];
-
-          // Send order to selected driver only (not assign yet - give 20sec to accept)
-          io.to(`driver:${selected.id}`).emit('order:available', order);
-          io.to(`driver:${selected.id}`).emit('order:assigned', { ...order, driverId: selected.id });
-
-          // 20 second timeout - if not accepted, send to next nearest
-          setTimeout(async () => {
-            try {
-              const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
-              if (freshOrder && freshOrder.status === 'PENDING') {
-                // Not accepted - try next driver or broadcast
-                const remaining = nearby.filter(d => d.id !== selected.id);
-                if (remaining.length > 0) {
-                  const next = remaining[Math.floor(Math.random() * remaining.length)];
-                  io.to(`driver:${next.id}`).emit('order:available', order);
-                } else {
-                  // No more nearby - broadcast to all
-                  io.emit('order:available', order);
-                }
-              }
-            } catch {}
-          }, 20000);
-
-          io.to('admin-room').emit('notification', {
-            title: 'Order Sent',
-            message: `#${orderNumber} sent to ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}m) - 20s to accept`,
-            type: 'auto_assigned',
-          });
+          // Start the assignment chain: pick random driver, give 60s, then next
+          startOrderAssignment(order, nearby, io);
         } else {
-          // No nearby drivers — broadcast to all
-          io.emit('order:available', order);
+          // No nearby drivers — try all online drivers sorted by distance
+          const allSorted = onlineDrivers
+            .map(d => ({
+              ...d,
+              distance: calculateDistance(pickupCoords.lat, pickupCoords.lng, d.latitude!, d.longitude!),
+            }))
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 5); // Max 5 attempts
+
+          if (allSorted.length > 0) {
+            startOrderAssignment(order, allSorted, io);
+          } else {
+            // No online drivers at all
+            io.to('admin-room').emit('notification', {
+              title: 'Водитель жок',
+              message: `#${orderNumber} — онлайн водитель табылган жок`,
+              type: 'no_drivers',
+            });
+          }
         }
       } catch (e) {
-        // Auto-assign failed — fallback to broadcast
-        io.emit('order:available', order);
+        console.error('Auto-assign error:', e);
       }
     } else {
       // No coordinates — broadcast to all
@@ -299,18 +361,6 @@ router.post('/', async (req: Request, res: Response) => {
       message: `Order #${orderNumber} - ${clientName}`,
       type: 'new_order',
     });
-
-    // PUSH NOTIFICATION to all online drivers (works even when app killed)
-    sendPushToAllOnlineDrivers({
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      pickupAddress: order.pickupAddress,
-      destAddress: order.destAddress,
-      price: order.price,
-      clientName: order.clientName,
-      clientPhone: order.clientPhone,
-      type: 'new_order',
-    }).catch(err => console.error('Push error:', err));
 
     return res.status(201).json(order);
   } catch (error) {
