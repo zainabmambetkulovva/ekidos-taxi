@@ -37,6 +37,10 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
       if (driverId) {
         socket.emit('driver:join', driverId);
+        // Re-join on reconnect
+        socket.on('connect', () => {
+          socket.emit('driver:join', driverId);
+        });
       }
     }
   });

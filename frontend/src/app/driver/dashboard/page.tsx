@@ -177,36 +177,16 @@ export default function DriverHomePage() {
     return () => clearInterval(iv);
   }, []);
 
-  // Listen for new orders on dashboard (play sound)
+  // Listen for INCOMING ORDER (fullscreen) — ALWAYS active when logged in
   useEffect(() => {
-    if (!isOnline) return;
     const socket = connectSocket();
     const driverInfo = localStorage.getItem('driverInfo');
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
-    if (driverId) socket.emit('driver:join', driverId);
+    if (!driverId) return;
 
-    const handleNewOrder = () => {
-      // Vibrate
-      if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
-      // Beep sound (no file needed)
-      try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          const osc = ctx.createOscillator();
-          osc.type = 'sine';
-          osc.frequency.value = 880;
-          osc.connect(ctx.destination);
-          osc.start();
-          setTimeout(() => { osc.frequency.value = 1100; }, 200);
-          setTimeout(() => { osc.frequency.value = 1320; }, 400);
-          setTimeout(() => { osc.stop(); ctx.close(); }, 600);
-        }
-      } catch {}
-    };
-    socket.on('order:available', handleNewOrder);
+    // Make sure we're in the room
+    socket.emit('driver:join', driverId);
 
-    // INCOMING ORDER — fullscreen, assigned specifically to this driver
     const handleIncomingOrder = (order: any) => {
       if (order.assignedDriverId !== driverId) return;
       setIncomingOrder(order);
@@ -231,20 +211,34 @@ export default function DriverHomePage() {
         }
       } catch {}
     };
-    socket.on('order:incoming', handleIncomingOrder);
 
-    // Order expired (60s passed, server moved to next driver)
     const handleExpired = () => {
       setIncomingOrder(null);
       setIncomingTimer(0);
     };
+
+    socket.on('order:incoming', handleIncomingOrder);
     socket.on('order:expired', handleExpired);
 
     return () => {
-      socket.off('order:available', handleNewOrder);
       socket.off('order:incoming', handleIncomingOrder);
       socket.off('order:expired', handleExpired);
     };
+  }, []);
+
+  // Listen for new orders on dashboard (play sound)
+  useEffect(() => {
+    if (!isOnline) return;
+    const socket = connectSocket();
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+    if (driverId) socket.emit('driver:join', driverId);
+
+    const handleNewOrder = () => {
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+    };
+    socket.on('order:available', handleNewOrder);
+    return () => { socket.off('order:available', handleNewOrder); };
   }, [isOnline]);
 
   // GPS location broadcasting when online

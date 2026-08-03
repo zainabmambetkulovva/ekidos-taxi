@@ -300,67 +300,35 @@ router.post('/', async (req: Request, res: Response) => {
       // Client creation may fail if phone format issue, non-critical
     }
 
-    // Auto-assign nearest driver within 500m
-    if (pickupCoords) {
-      try {
-        const onlineDrivers = await prisma.driver.findMany({
-          where: {
-            status: 'ONLINE',
-            accountStatus: 'ACTIVE',
-            latitude: { not: null },
-            longitude: { not: null },
-          },
-          select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
+    // Auto-assign: pick random online driver
+    try {
+      const onlineDrivers = await prisma.driver.findMany({
+        where: {
+          status: 'ONLINE',
+          accountStatus: 'ACTIVE',
+        },
+        select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
+      });
+
+      if (onlineDrivers.length > 0) {
+        // Calculate distance if coords available, otherwise distance=0
+        const candidates = onlineDrivers.map(d => ({
+          ...d,
+          distance: (pickupCoords && d.latitude && d.longitude)
+            ? calculateDistance(pickupCoords.lat, pickupCoords.lng, d.latitude, d.longitude)
+            : 0,
+        }));
+
+        startOrderAssignment(order, candidates, io);
+      } else {
+        io.to('admin-room').emit('notification', {
+          title: 'Водитель жок',
+          message: `#${orderNumber} — онлайн водитель табылган жок`,
+          type: 'no_drivers',
         });
-
-        // Filter drivers within 500m (0.5 km)
-        const nearby = onlineDrivers
-          .map(d => ({
-            ...d,
-            distance: calculateDistance(pickupCoords.lat, pickupCoords.lng, d.latitude!, d.longitude!),
-          }))
-          .filter(d => d.distance <= 0.5)
-          .sort((a, b) => a.distance - b.distance);
-
-        if (nearby.length > 0) {
-          // Start the assignment chain: pick random driver, give 60s, then next
-          startOrderAssignment(order, nearby, io);
-        } else {
-          // No nearby drivers — try all online drivers sorted by distance
-          const allSorted = onlineDrivers
-            .map(d => ({
-              ...d,
-              distance: calculateDistance(pickupCoords.lat, pickupCoords.lng, d.latitude!, d.longitude!),
-            }))
-            .sort((a, b) => a.distance - b.distance)
-            .slice(0, 5); // Max 5 attempts
-
-          if (allSorted.length > 0) {
-            startOrderAssignment(order, allSorted, io);
-          } else {
-            // No online drivers at all
-            io.to('admin-room').emit('notification', {
-              title: 'Водитель жок',
-              message: `#${orderNumber} — онлайн водитель табылган жок`,
-              type: 'no_drivers',
-            });
-          }
-        }
-      } catch (e) {
-        console.error('Auto-assign error:', e);
       }
-    } else {
-      // No coordinates — still try random assignment from ALL online drivers
-      try {
-        const allOnline = await prisma.driver.findMany({
-          where: { status: 'ONLINE', accountStatus: 'ACTIVE' },
-          select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
-        });
-        if (allOnline.length > 0) {
-          const candidates = allOnline.map(d => ({ ...d, distance: 0 }));
-          startOrderAssignment(order, candidates, io);
-        }
-      } catch {}
+    } catch (e) {
+      console.error('Auto-assign error:', e);
     }
     
     // Notify admin room
