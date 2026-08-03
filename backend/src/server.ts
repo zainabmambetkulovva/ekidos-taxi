@@ -369,14 +369,6 @@ setupSocketHandlers(io);
 
 const PORT: number = parseInt(process.env.PORT || '5000', 10);
 
-// Fix balances and set all drivers ONLINE for testing
-prisma.driver.updateMany({
-  where: {},
-  data: { balance: 100, status: 'ONLINE' },
-}).then((result) => {
-  console.log(`💰 All ${result.count} drivers: balance=100, status=ONLINE (testing)`);
-}).catch(() => {});
-
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);
