@@ -166,14 +166,23 @@ export default function DriverHomePage() {
     const fetchBalance = async () => {
       try {
         const { data } = await api.get('/auth/me');
-        setBalance(data.balance ?? 0);
+        const b = data.balance;
+        if (typeof b === 'number') {
+          setBalance(b);
+          // Update localStorage with fresh balance
+          const info = localStorage.getItem('driverInfo');
+          if (info) {
+            const parsed = JSON.parse(info);
+            parsed.balance = b;
+            localStorage.setItem('driverInfo', JSON.stringify(parsed));
+          }
+        }
       } catch {
-        const info = localStorage.getItem('driverInfo');
-        if (info) setBalance(JSON.parse(info).balance ?? 0);
+        // Don't set balance to 0 on error - keep null (loading)
       }
     };
     fetchBalance();
-    const iv = setInterval(fetchBalance, 30000); // refresh every 30s
+    const iv = setInterval(fetchBalance, 30000);
     return () => clearInterval(iv);
   }, []);
 
@@ -359,7 +368,7 @@ export default function DriverHomePage() {
 
   return (
     <div className="relative h-[calc(100vh-120px)]">
-      {/* BALANCE BLOCK SCREEN */}
+      {/* BALANCE BLOCK SCREEN - only when balance confirmed 0 from server */}
       {balance !== null && balance <= 0 && !incomingOrder && !activeOrder && (
         <div className="absolute inset-0 z-[9998] bg-black flex flex-col items-center justify-center p-6">
           <div className="w-32 h-32 rounded-full border-4 border-red-500 flex flex-col items-center justify-center mb-6">

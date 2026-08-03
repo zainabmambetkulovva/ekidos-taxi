@@ -105,56 +105,15 @@ export default function DriverOrdersPage() {
     };
   }, [isOnline]);
 
-  // Fetch available orders from backend (polling as backup)
+  // NO polling — orders come ONLY via socket (order:incoming to assigned driver)
   useEffect(() => {
     if (!isOnline) { setOrders([]); setLoading(false); return; }
-
-    const fetchOrders = async () => {
-      try {
-        const { data } = await api.get('/orders/available');
-        const newOrders = Array.isArray(data) ? data : [];
-
-        // Play sound if new orders arrived (from polling)
-        if (newOrders.length > prevOrderCountRef.current) {
-          // Vibrate
-          if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
-          // Show alert-style notification inside the app
-          toast.success(`Жаңы заказ! ${newOrders[0]?.price || ''} сом`, {
-            duration: 5000,
-          });
-          notifyNewOrder(newOrders.length);
-        }
-        prevOrderCountRef.current = newOrders.length;
-        setOrders(newOrders);
-      } catch {
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // First fetch - just set count, don't notify
-    const firstFetch = async () => {
-      try {
-        const { data } = await api.get('/orders/available');
-        const newOrders = Array.isArray(data) ? data : [];
-        prevOrderCountRef.current = newOrders.length;
-        setOrders(newOrders);
-      } catch {
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(false);
 
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-
-    firstFetch();
-    const interval = setInterval(fetchOrders, 8000);
-    return () => clearInterval(interval);
   }, [isOnline]);
 
   const handleAccept = async (order: any) => {
