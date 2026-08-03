@@ -369,6 +369,14 @@ setupSocketHandlers(io);
 
 const PORT: number = parseInt(process.env.PORT || '5000', 10);
 
+// Fix negative balances (one-time cleanup)
+prisma.driver.updateMany({
+  where: { balance: { lt: 0 } },
+  data: { balance: 0 },
+}).then((result) => {
+  if (result.count > 0) console.log(`🔧 Fixed ${result.count} drivers with negative balance → 0`);
+}).catch(() => {});
+
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);

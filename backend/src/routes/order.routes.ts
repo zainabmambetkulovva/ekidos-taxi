@@ -450,13 +450,17 @@ router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: R
     });
 
     if (updated.driverId) {
+      // Deduct 12 from balance, but never go below 0
+      const driver = await prisma.driver.findUnique({ where: { id: updated.driverId } });
+      const newBalance = Math.max(0, (driver?.balance || 0) - 12);
+
       await prisma.driver.update({
         where: { id: updated.driverId },
         data: {
           status: 'ONLINE',
           totalOrders: { increment: 1 },
           totalEarnings: { increment: updated.driverEarning || finalPrice },
-          balance: { decrement: 12 }, // -12 баланс за каждый заказ
+          balance: newBalance,
         },
       });
     }

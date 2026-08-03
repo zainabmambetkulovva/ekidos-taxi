@@ -170,13 +170,17 @@ export function setupSocketHandlers(io: Server) {
           },
         });
 
+        // Deduct 12, never below 0
+        const driverData = await prisma.driver.findUnique({ where: { id: data.driverId } });
+        const newBalance = Math.max(0, (driverData?.balance || 0) - 12);
+
         await prisma.driver.update({
           where: { id: data.driverId },
           data: {
             status: 'ONLINE',
             totalOrders: { increment: 1 },
             totalEarnings: { increment: order.price },
-            balance: { decrement: 12 }, // -12 баланс за каждый заказ
+            balance: newBalance,
           },
         });
 

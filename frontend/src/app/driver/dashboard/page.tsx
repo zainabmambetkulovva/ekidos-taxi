@@ -474,7 +474,7 @@ export default function DriverHomePage() {
                 fill="none"
                 stroke={balance > 200 ? '#22c55e' : balance > 50 ? '#eab308' : '#ef4444'}
                 strokeWidth="8"
-                strokeDasharray={`${Math.PI * 84 * 0.75 * Math.min(balance / 1000, 1)} ${Math.PI * 84}`}
+                strokeDasharray={`${Math.PI * 84 * 0.75 * Math.max(0, Math.min(balance / 1000, 1))} ${Math.PI * 84}`}
                 strokeLinecap="round"
                 className="transition-all duration-1000"
               />
@@ -494,7 +494,7 @@ export default function DriverHomePage() {
                 height: '18px',
                 marginLeft: '-1px',
                 marginTop: '-18px',
-                transform: `rotate(${-135 + (270 * Math.min(balance / 1000, 1))}deg)`,
+                transform: `rotate(${-135 + (270 * Math.max(0, Math.min(balance / 1000, 1)))}deg)`,
               }}
             >
               <div
