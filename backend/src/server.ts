@@ -377,6 +377,14 @@ prisma.driver.updateMany({
   if (result.count > 0) console.log(`🔧 Fixed ${result.count} drivers with negative balance → 0`);
 }).catch(() => {});
 
+// Set driver 003 balance to 100
+prisma.driver.updateMany({
+  where: { callsign: '003' },
+  data: { balance: 100 },
+}).then((result) => {
+  if (result.count > 0) console.log(`💰 Driver 003 balance set to 100`);
+}).catch(() => {});
+
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);
