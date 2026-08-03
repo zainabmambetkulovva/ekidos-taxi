@@ -369,20 +369,12 @@ setupSocketHandlers(io);
 
 const PORT: number = parseInt(process.env.PORT || '5000', 10);
 
-// Fix negative balances (one-time cleanup)
+// Fix negative balances and set all to 100 for testing
 prisma.driver.updateMany({
-  where: { balance: { lt: 0 } },
-  data: { balance: 0 },
-}).then((result) => {
-  if (result.count > 0) console.log(`🔧 Fixed ${result.count} drivers with negative balance → 0`);
-}).catch(() => {});
-
-// Set driver 003 balance to 100
-prisma.driver.updateMany({
-  where: { callsign: '003' },
+  where: {},
   data: { balance: 100 },
 }).then((result) => {
-  if (result.count > 0) console.log(`💰 Driver 003 balance set to 100`);
+  console.log(`💰 All ${result.count} drivers balance set to 100 (testing)`);
 }).catch(() => {});
 
 // @ts-ignore
