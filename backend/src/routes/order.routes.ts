@@ -218,7 +218,7 @@ router.get('/available', async (req: Request, res: Response) => {
 // Create order
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price } = req.body;
+    const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price, pickupLat, pickupLng, destLat, destLng } = req.body;
 
     if (!pickupAddress) {
       return res.status(400).json({ error: 'Откуда жерди жазыңыз (pickupAddress)' });
@@ -235,35 +235,13 @@ router.post('/', async (req: Request, res: Response) => {
 
     const orderNumber = generateOrderNumber();
 
-    // Geocode addresses
-    const { geocodeAddress } = await import('../lib/geocode');
-    const [pickupCoords, destCoords] = await Promise.all([
-      geocodeAddress(pickupAddress),
-      geocodeAddress(destAddress),
-    ]);
-
-    // Calculate price automatically if coordinates available
+    // Skip geocoding for speed — assign order IMMEDIATELY
     let orderPrice = inputPrice;
     let driverEarning = 0;
     let companyCommission = 0;
     let distance = 0;
 
-    if (pickupCoords && destCoords) {
-      const dist = calculateDistance(pickupCoords.lat, pickupCoords.lng, destCoords.lat, destCoords.lng);
-      distance = Math.round(dist * 1.4 * 10) / 10; // road distance estimate
-      
-      if (orderPrice === 0) {
-        // Auto-calculate if no manual price given
-        const pricing = calculatePrice(distance, tariff || 'Standard');
-        orderPrice = pricing.total;
-        driverEarning = pricing.driverEarning;
-        companyCommission = pricing.companyCommission;
-      } else {
-        // Manual price — still calculate commission
-        companyCommission = Math.round(orderPrice * 0.15);
-        driverEarning = orderPrice - companyCommission;
-      }
-    } else if (orderPrice > 0) {
+    if (orderPrice > 0) {
       companyCommission = Math.round(orderPrice * 0.15);
       driverEarning = orderPrice - companyCommission;
     }
@@ -273,10 +251,10 @@ router.post('/', async (req: Request, res: Response) => {
         orderNumber,
         pickupAddress,
         destAddress: destAddress || 'Не указано',
-        pickupLat: pickupCoords?.lat || null,
-        pickupLng: pickupCoords?.lng || null,
-        destLat: destCoords?.lat || null,
-        destLng: destCoords?.lng || null,
+        pickupLat: pickupLat ? parseFloat(pickupLat) : null,
+        pickupLng: pickupLng ? parseFloat(pickupLng) : null,
+        destLat: destLat ? parseFloat(destLat) : null,
+        destLng: destLng ? parseFloat(destLng) : null,
         clientName: safeClientName,
         clientPhone: safeClientPhone,
         tariff: tariff || 'Standard',
@@ -314,9 +292,7 @@ router.post('/', async (req: Request, res: Response) => {
         // Calculate distance if coords available, otherwise distance=0
         const candidates = onlineDrivers.map(d => ({
           ...d,
-          distance: (pickupCoords && d.latitude && d.longitude)
-            ? calculateDistance(pickupCoords.lat, pickupCoords.lng, d.latitude, d.longitude)
-            : 0,
+          distance: 0,
         }));
 
         startOrderAssignment(order, candidates, io);

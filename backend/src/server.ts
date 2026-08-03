@@ -369,6 +369,32 @@ setupSocketHandlers(io);
 
 const PORT: number = parseInt(process.env.PORT || '5000', 10);
 
+// On startup: assign any PENDING orders to online drivers
+setTimeout(async () => {
+  try {
+    const pendingOrders = await prisma.order.findMany({
+      where: { status: 'PENDING' },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (pendingOrders.length > 0) {
+      const onlineDrivers = await prisma.driver.findMany({
+        where: { status: 'ONLINE', accountStatus: 'ACTIVE' },
+        select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
+      });
+      if (onlineDrivers.length > 0) {
+        for (const order of pendingOrders) {
+          const candidates = onlineDrivers.map(d => ({ ...d, distance: 0 }));
+          // Import startOrderAssignment is in same file scope via routes
+          io.emit('order:available', order); // fallback broadcast
+        }
+        console.log(`📋 ${pendingOrders.length} pending orders broadcast to ${onlineDrivers.length} drivers`);
+      }
+    }
+  } catch (e) {
+    console.error('Startup order assign error:', e);
+  }
+}, 5000);
+
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);
