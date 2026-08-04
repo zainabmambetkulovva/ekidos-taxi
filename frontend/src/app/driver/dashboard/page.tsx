@@ -521,16 +521,7 @@ export default function DriverHomePage() {
           </div>
         )}
 
-        {/* Waiting state */}
-        {lineStatus === 'ONLINE' && !activeOrder && (
-          <div className="px-3 pb-2">
-            <div className="bg-[#111]/90 border border-white/10 rounded-2xl p-3 text-center backdrop-blur-sm">
-              <Clock className="w-5 h-5 text-gray-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-400">{t('waitingOrders')}</p>
-              <p className="text-[10px] text-gray-600 mt-0.5">{t('availableOrders')}</p>
-            </div>
-          </div>
-        )}
+        {/* Waiting state — removed, status indicator is enough */}
 
         {/* BUSY_PERSONAL state */}
         {lineStatus === 'BUSY_PERSONAL' && !activeOrder && (
