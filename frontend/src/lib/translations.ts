@@ -9,8 +9,10 @@ const t: Record<Lang, Record<string, string>> = {
     tables: 'Таблицы',
     balance: 'Баланс',
     dispatcher: 'Диспетчер',
+    chat: 'Чат',
     liveMap: 'Карта',
     reports: 'Отчёты',
+    archive: 'Архив',
     settings: 'Настройки',
     logout: 'Выход',
 
@@ -180,8 +182,10 @@ const t: Record<Lang, Record<string, string>> = {
     tables: 'Таблицалар',
     balance: 'Баланс',
     dispatcher: 'Диспетчер',
+    chat: 'Чат',
     liveMap: 'Карта',
     reports: 'Отчёттор',
+    archive: 'Архив',
     settings: 'Жөндөөлөр',
     logout: 'Чыгуу',
 
@@ -351,8 +355,10 @@ const t: Record<Lang, Record<string, string>> = {
     tables: 'Tables',
     balance: 'Balance',
     dispatcher: 'Dispatcher',
+    chat: 'Chat',
     liveMap: 'Live Map',
     reports: 'Reports',
+    archive: 'Archive',
     settings: 'Settings',
     logout: 'Logout',
 
@@ -429,7 +435,7 @@ const t: Record<Lang, Record<string, string>> = {
     paymentMethod: 'Payment Method',
     cash: 'Cash',
     card: 'Card',
-    price: 'Price (som)',
+    price: 'Price (сом)',
     noOrdersYet: 'No orders yet',
 
     // Status

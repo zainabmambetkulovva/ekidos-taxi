@@ -5,7 +5,7 @@ import { useLanguageStore } from '@/store/useLanguageStore';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
-  FileText, Download, Calendar, DollarSign,
+  FileText, Download, Calendar,
   ShoppingCart, XCircle, CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -130,7 +130,9 @@ export default function ReportsPage() {
                   <p className="text-xs text-muted-foreground">{t("revenue")}</p>
                   <p className="text-2xl font-bold mt-1 text-green-400">{formatCurrency(report?.revenue || 0)}</p>
                 </div>
-                <DollarSign className="w-8 h-8 text-green-400 opacity-50" />
+                <div className="w-8 h-8 rounded-full bg-green-400/10 flex items-center justify-center">
+                  <span className="text-green-400 text-lg font-black">С</span>
+                </div>
               </div>
             </CardContent>
           </Card>

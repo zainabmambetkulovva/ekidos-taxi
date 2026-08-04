@@ -17,6 +17,7 @@ import uploadRoutes from './routes/upload.routes';
 import reportRoutes from './routes/report.routes';
 import notificationRoutes from './routes/notification.routes';
 import adminRoutes from './routes/admin.routes';
+import chatRoutes from './routes/chat.routes';
 import { setupSocketHandlers } from './socket';
 
 dotenv.config();
@@ -67,6 +68,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admins', adminRoutes);
+app.use('/api/chat', chatRoutes);
 
 // ===== INLINE TOPUP ROUTES =====
 // POST /api/topup — from bot

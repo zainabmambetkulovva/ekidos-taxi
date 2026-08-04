@@ -22,12 +22,28 @@ interface OrderPushPayload {
 }
 
 export function setupSocketHandlers(io: Server) {
+  // Track socket → driverId mapping for auto-offline on disconnect
+  const socketToDriver: Map<string, string> = new Map();
+  // Track disconnect timeouts so we can cancel if they reconnect quickly
+  const disconnectTimeouts: Map<string, NodeJS.Timeout> = new Map();
+
   io.on('connection', (socket: Socket) => {
     console.log(`🔌 Client connected: ${socket.id}`);
 
     // Driver joins their room
     socket.on('driver:join', (driverId: string) => {
       socket.join(`driver:${driverId}`);
+      
+      // Map this socket to the driver
+      socketToDriver.set(socket.id, driverId);
+      
+      // Cancel any pending auto-offline timeout (driver reconnected)
+      const existingTimeout = disconnectTimeouts.get(driverId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        disconnectTimeouts.delete(driverId);
+        console.log(`🔄 Driver ${driverId} reconnected — cancelled auto-offline`);
+      }
       console.log(`🚖 Driver ${driverId} joined`);
     });
 
@@ -48,11 +64,25 @@ export function setupSocketHandlers(io: Server) {
             lastLocationUpdate: new Date(),
           },
         });
+        
+        // Fetch driver status/name for broadcast
+        const driver = await prisma.driver.findUnique({
+          where: { id: data.driverId },
+          select: { status: true, firstName: true, lastName: true, callsign: true },
+        });
+        
+        const broadcastData = {
+          ...data,
+          status: driver?.status || 'ONLINE',
+          name: driver ? `${driver.firstName} ${driver.lastName}` : '',
+          callsign: driver?.callsign || '',
+        };
+        
         // Broadcast to admin room
-        io.to('admin-room').emit('driver:location-updated', data);
+        io.to('admin-room').emit('driver:location-updated', broadcastData);
         
         // Broadcast to ALL connected clients (other drivers see each other)
-        io.emit('driver:location-updated', data);
+        io.emit('driver:location-updated', broadcastData);
         
         // Broadcast to all clients watching this driver (via active order)
         io.emit('driver:location-live', { driverId: data.driverId, lat: data.lat, lng: data.lng });
@@ -64,22 +94,30 @@ export function setupSocketHandlers(io: Server) {
     // Driver status change
     socket.on('driver:status', async (data: { driverId: string; status: string }) => {
       try {
+        // Map BUSY_PERSONAL to BUSY_PERSONAL in DB, rest as before
+        const validStatuses = ['ONLINE', 'OFFLINE', 'BUSY', 'BUSY_PERSONAL'];
+        const status = validStatuses.includes(data.status) ? data.status : 'OFFLINE';
+        
         await prisma.driver.update({
           where: { id: data.driverId },
-          data: { status: data.status as any },
+          data: { status: status as any },
         });
         
         await prisma.driverStatusLog.create({
           data: {
             driverId: data.driverId,
-            status: data.status as any,
+            status: status as any,
           },
         });
 
-        io.to('admin-room').emit('driver:status-changed', data);
+        io.to('admin-room').emit('driver:status-changed', { ...data, status });
+        // Broadcast to all drivers so they see updated status on map
+        io.emit('driver:status-changed', { ...data, status });
         io.to('admin-room').emit('notification', {
-          title: data.status === 'ONLINE' ? 'Driver Online' : 'Driver Offline',
-          message: `Driver status changed to ${data.status}`,
+          title: status === 'ONLINE' ? 'Линияга чыкты' : 
+                 status === 'BUSY_PERSONAL' ? 'По делам' :
+                 status === 'OFFLINE' ? 'Линияны бүтүрдү' : 'Статус өзгөрдү',
+          message: `Driver status: ${status}`,
           type: 'driver_status',
         });
       } catch (error) {
@@ -232,8 +270,96 @@ export function setupSocketHandlers(io: Server) {
       socket.join(`order:${orderId}`);
     });
 
+    // ===== CHAT =====
+    // Real-time chat message via socket (alternative to REST)
+    socket.on('chat:send', async (data: { text: string; senderType: string; senderId: string; senderName: string }) => {
+      try {
+        if (!data.text || !data.text.trim()) return;
+        
+        const message = await prisma.chatMessage.create({
+          data: {
+            text: data.text.trim(),
+            senderType: data.senderType,
+            senderId: data.senderId,
+            senderName: data.senderName,
+          },
+        });
+
+        // Broadcast to everyone
+        io.emit('chat:message', message);
+      } catch (error) {
+        console.error('Chat socket error:', error);
+      }
+    });
+
+    // Join chat room
+    socket.on('chat:join', () => {
+      socket.join('chat-room');
+    });
+    // ===== END CHAT =====
+
     socket.on('disconnect', () => {
       console.log(`❌ Client disconnected: ${socket.id}`);
+      
+      // Check if this socket was a driver
+      const driverId = socketToDriver.get(socket.id);
+      socketToDriver.delete(socket.id);
+      
+      if (driverId) {
+        // Check if driver has other active sockets (multiple tabs/devices)
+        const driverRoom = io.sockets.adapter.rooms.get(`driver:${driverId}`);
+        if (driverRoom && driverRoom.size > 0) {
+          // Driver still connected on another socket — don't auto-offline
+          return;
+        }
+
+        // Set 30-second timeout before going offline
+        // If driver reconnects within 30 sec, the timeout gets cancelled
+        const timeout = setTimeout(async () => {
+          disconnectTimeouts.delete(driverId);
+          
+          try {
+            // Check current status — only auto-offline if ONLINE or BUSY_PERSONAL
+            const driver = await prisma.driver.findUnique({
+              where: { id: driverId },
+              select: { status: true },
+            });
+            
+            if (!driver) return;
+            
+            // Don't auto-offline if driver is BUSY (executing an order)
+            if (driver.status === 'BUSY') return;
+            
+            // Only auto-offline if currently ONLINE or BUSY_PERSONAL
+            if (driver.status === 'ONLINE' || driver.status === 'BUSY_PERSONAL') {
+              await prisma.driver.update({
+                where: { id: driverId },
+                data: { status: 'OFFLINE' },
+              });
+
+              await prisma.driverStatusLog.create({
+                data: { driverId, status: 'OFFLINE' },
+              });
+
+              // Notify admin and other drivers
+              io.to('admin-room').emit('driver:status-changed', { driverId, status: 'OFFLINE' });
+              io.emit('driver:status-changed', { driverId, status: 'OFFLINE' });
+              io.to('admin-room').emit('notification', {
+                title: 'Автоматтык оффлайн',
+                message: `Водитель приложениядан чыкты — линиядан алынды`,
+                type: 'driver_status',
+              });
+
+              console.log(`⏰ Driver ${driverId} auto-offline (disconnected 30s ago)`);
+            }
+          } catch (error) {
+            console.error('Auto-offline error:', error);
+          }
+        }, 30000); // 30 seconds
+
+        disconnectTimeouts.set(driverId, timeout);
+        console.log(`⏳ Driver ${driverId} disconnected — 30s auto-offline timer started`);
+      }
     });
   });
 }

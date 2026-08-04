@@ -5,11 +5,77 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   MapPin, List, Navigation,
   UserCircle, Settings, LogOut, Menu, X,
-  Star, Car, Loader2,
+  Star, Car, Loader2, Radio, Power, Coffee, MessageCircle,
 } from 'lucide-react';
 import { useLanguageStore } from '@/store/useLanguageStore';
+import { useDriverStore } from '@/store/useDriverStore';
 import BlockTimer from './block-timer';
 import { connectSocket } from '@/lib/socket';
+import { toast } from 'sonner';
+
+// Line Status Button component
+function LineStatusButton({ status }: { status: 'ONLINE' | 'OFFLINE' | 'BUSY_PERSONAL' }) {
+  const { lineStatus, setLineStatus } = useDriverStore();
+  const isActive = lineStatus === status;
+
+  const config = {
+    ONLINE: {
+      label: 'Выйти на линию',
+      icon: Radio,
+      color: 'green',
+      activeClass: 'bg-green-500/15 text-green-400 border border-green-500/30',
+    },
+    BUSY_PERSONAL: {
+      label: 'По делам',
+      icon: Coffee,
+      color: 'orange',
+      activeClass: 'bg-orange-500/15 text-orange-400 border border-orange-500/30',
+    },
+    OFFLINE: {
+      label: 'Завершить линию',
+      icon: Power,
+      color: 'red',
+      activeClass: 'bg-red-500/15 text-red-400 border border-red-500/30',
+    },
+  }[status];
+
+  const handlePress = () => {
+    const socket = connectSocket();
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+
+    setLineStatus(status);
+
+    if (driverId) {
+      socket.emit('driver:status', { driverId, status });
+    }
+
+    if (status === 'ONLINE') {
+      toast.success('Линияга чыктыңыз! Заказдар келет.');
+    } else if (status === 'BUSY_PERSONAL') {
+      toast('По делам. Заказдар келбейт.', { icon: '☕' });
+    } else {
+      toast('Линия бүттү.', { icon: '🔴' });
+    }
+  };
+
+  return (
+    <button
+      onClick={handlePress}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+        isActive
+          ? config.activeClass
+          : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+      }`}
+    >
+      <config.icon className="w-5 h-5" />
+      <span className="text-sm font-medium">{config.label}</span>
+      {isActive && (
+        <span className="ml-auto w-2 h-2 rounded-full bg-current animate-pulse" />
+      )}
+    </button>
+  );
+}
 
 export default function DriverDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -62,7 +128,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
 
   const driverMenu = [
     { icon: MapPin, label: t('dashboard'), href: '/driver/dashboard' },
-    { icon: List, label: t('availableOrders'), href: '/driver/dashboard/orders' },
+    { icon: MessageCircle, label: 'Чат', href: '/driver/dashboard/chat' },
     { icon: Navigation, label: t('currentOrder'), href: '/driver/dashboard/current' },
     { icon: UserCircle, label: t('profile'), href: '/driver/dashboard/profile' },
     { icon: Settings, label: t('settings'), href: '/driver/dashboard/settings' },
@@ -124,6 +190,16 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Line Status Buttons */}
+            <div className="px-3 mb-4">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider px-4 mb-2 font-semibold">Линия статусу</p>
+              <div className="space-y-1.5">
+                <LineStatusButton status="ONLINE" />
+                <LineStatusButton status="BUSY_PERSONAL" />
+                <LineStatusButton status="OFFLINE" />
               </div>
             </div>
 

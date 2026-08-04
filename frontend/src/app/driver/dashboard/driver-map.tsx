@@ -184,7 +184,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     };
   }, [showMarker, activeOrder, mapReady]);
 
-  // Show OTHER online drivers on map (real-time via socket)
+  // Show OTHER online drivers on map (real-time via socket) with color-coded status
   useEffect(() => {
     if (!showMarker || !mapReady) return;
     const L = (window as any).L;
@@ -196,46 +196,136 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     const driverInfo = localStorage.getItem('driverInfo');
     const myDriverId = driverInfo ? JSON.parse(driverInfo).id : null;
 
-    // Store other driver markers: { driverId: marker }
-    const otherDriverMarkers: Record<string, any> = {};
+    // Store other driver markers and their status: { driverId: { marker, status, name, callsign } }
+    const otherDrivers: Record<string, { marker: any; status: string; name: string; callsign: string }> = {};
+
+    // Color based on status
+    const getDriverColor = (status: string) => {
+      switch (status) {
+        case 'BUSY': return '#ef4444'; // red
+        case 'ONLINE': return '#22c55e'; // green
+        case 'BUSY_PERSONAL': return '#f97316'; // orange
+        default: return '#6b7280'; // gray
+      }
+    };
+
+    const getStatusLabel = (status: string) => {
+      switch (status) {
+        case 'BUSY': return 'Заказда';
+        case 'ONLINE': return 'Бош';
+        case 'BUSY_PERSONAL': return 'По делам';
+        default: return status;
+      }
+    };
+
+    // Create or update marker for a driver
+    const createOrUpdateMarker = (driverId: string, lat: number, lng: number, status?: string, name?: string, callsign?: string) => {
+      if (driverId === myDriverId) return;
+      if (!lat || !lng) return;
+
+      const existing = otherDrivers[driverId];
+      const driverStatus = status || existing?.status || 'ONLINE';
+      const driverName = name || existing?.name || '';
+      const driverCallsign = callsign || existing?.callsign || '';
+      const color = getDriverColor(driverStatus);
+
+      if (existing?.marker) {
+        // Update position
+        existing.marker.setLatLng([lat, lng]);
+        // Update icon if status changed
+        if (status && status !== existing.status) {
+          const newIcon = L.divIcon({
+            className: '',
+            html: `<div style="width:28px;height:28px;background:${color};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg></div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+          });
+          existing.marker.setIcon(newIcon);
+          // Update popup
+          existing.marker.setPopupContent(
+            `<div style="font-family:sans-serif;min-width:120px">` +
+            `<b>${driverName}</b>` +
+            `${driverCallsign ? `<br><span style="color:#ef4444;font-weight:700">№${driverCallsign}</span>` : ''}` +
+            `<br><span style="color:${color};font-weight:600">${getStatusLabel(driverStatus)}</span>` +
+            `</div>`
+          );
+          existing.status = driverStatus;
+          if (name) existing.name = name;
+          if (callsign) existing.callsign = callsign;
+        }
+      } else {
+        // Create new marker
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:28px;height:28px;background:${color};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg></div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+        const marker = L.marker([lat, lng], { icon }).addTo(map)
+          .bindPopup(
+            `<div style="font-family:sans-serif;min-width:120px">` +
+            `<b>${driverName}</b>` +
+            `${driverCallsign ? `<br><span style="color:#ef4444;font-weight:700">№${driverCallsign}</span>` : ''}` +
+            `<br><span style="color:${color};font-weight:600">${getStatusLabel(driverStatus)}</span>` +
+            `</div>`
+          );
+        otherDrivers[driverId] = { marker, status: driverStatus, name: driverName, callsign: driverCallsign };
+      }
+    };
+
+    // Fetch initial driver positions from API
+    const fetchDrivers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/api/drivers/online-with-status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const drivers = await res.json();
+          drivers.forEach((d: any) => {
+            if (d.id !== myDriverId && d.lat && d.lng) {
+              createOrUpdateMarker(d.id, d.lat, d.lng, d.status, d.name, d.callsign);
+            }
+          });
+        }
+      } catch {}
+    };
+    fetchDrivers();
+    const fetchIv = setInterval(fetchDrivers, 30000);
 
     // Listen for location updates from other drivers
     const handleDriverLocation = (data: { driverId: string; lat: number; lng: number }) => {
-      // Skip own marker
-      if (data.driverId === myDriverId) return;
-      if (!data.lat || !data.lng) return;
-
-      if (otherDriverMarkers[data.driverId]) {
-        // Move existing marker
-        otherDriverMarkers[data.driverId].setLatLng([data.lat, data.lng]);
-      } else {
-        // Create new marker for this driver (green car)
-        const icon = L.divIcon({
-          className: '',
-          html: `<div style="width:24px;height:24px;background:#22c55e;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg></div>`,
-          iconSize: [24, 24],
-          iconAnchor: [12, 12],
-        });
-        otherDriverMarkers[data.driverId] = L.marker([data.lat, data.lng], { icon }).addTo(map);
-      }
+      createOrUpdateMarker(data.driverId, data.lat, data.lng);
     };
 
     socket.on('driver:location-updated', handleDriverLocation);
 
-    // Also remove markers for drivers who go offline
+    // Handle status changes — update color or remove if OFFLINE
     const handleStatusChange = (data: { driverId: string; status: string }) => {
-      if (data.status !== 'ONLINE' && otherDriverMarkers[data.driverId]) {
-        map.removeLayer(otherDriverMarkers[data.driverId]);
-        delete otherDriverMarkers[data.driverId];
+      if (data.driverId === myDriverId) return;
+      
+      if (data.status === 'OFFLINE') {
+        // Remove marker
+        if (otherDrivers[data.driverId]) {
+          map.removeLayer(otherDrivers[data.driverId].marker);
+          delete otherDrivers[data.driverId];
+        }
+      } else {
+        // Update marker color
+        const existing = otherDrivers[data.driverId];
+        if (existing) {
+          createOrUpdateMarker(data.driverId, existing.marker.getLatLng().lat, existing.marker.getLatLng().lng, data.status);
+        }
       }
     };
     socket.on('driver:status-changed', handleStatusChange);
 
     return () => {
+      clearInterval(fetchIv);
       socket.off('driver:location-updated', handleDriverLocation);
       socket.off('driver:status-changed', handleStatusChange);
       // Clean up all other driver markers
-      Object.values(otherDriverMarkers).forEach((m: any) => map?.removeLayer(m));
+      Object.values(otherDrivers).forEach((d: any) => map?.removeLayer(d.marker));
     };
   }, [showMarker, mapReady]);
 

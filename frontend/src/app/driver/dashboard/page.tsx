@@ -154,7 +154,7 @@ const DriverMap = dynamic(() => import('./driver-map'), {
 });
 
 export default function DriverHomePage() {
-  const { isOnline, activeOrder, setOnline, setActiveOrder } = useDriverStore();
+  const { isOnline, activeOrder, lineStatus, setLineStatus, setActiveOrder } = useDriverStore();
   const { t } = useLanguageStore();
   const toktogulCenter: [number, number] = [41.8747, 72.9422];
   const [balance, setBalance] = useState<number | null>(null);
@@ -198,8 +198,12 @@ export default function DriverHomePage() {
 
     const handleIncomingOrder = (order: any) => {
       if (order.assignedDriverId !== driverId) return;
+      // Don't accept orders when BUSY_PERSONAL
+      const currentStatus = localStorage.getItem('ekidos-driver-line-status');
+      if (currentStatus === 'BUSY_PERSONAL') return;
+      
       setIncomingOrder(order);
-      setIncomingTimer(60);
+      setIncomingTimer(25);
       // Aggressive vibrate
       if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
       // Alarm sound
@@ -237,7 +241,7 @@ export default function DriverHomePage() {
 
   // Listen for new orders on dashboard (play sound)
   useEffect(() => {
-    if (!isOnline) return;
+    if (lineStatus !== 'ONLINE') return;
     const socket = connectSocket();
     const driverInfo = localStorage.getItem('driverInfo');
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
@@ -248,11 +252,11 @@ export default function DriverHomePage() {
     };
     socket.on('order:available', handleNewOrder);
     return () => { socket.off('order:available', handleNewOrder); };
-  }, [isOnline]);
+  }, [lineStatus]);
 
-  // GPS location broadcasting when online
+  // GPS location broadcasting when online or busy_personal
   useEffect(() => {
-    if (!isOnline) return;
+    if (lineStatus === 'OFFLINE') return;
     const socket = connectSocket();
     const driverInfo = localStorage.getItem('driverInfo');
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
@@ -290,7 +294,7 @@ export default function DriverHomePage() {
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       clearInterval(iv);
     };
-  }, [isOnline]);
+  }, [lineStatus]);
 
   // Countdown timer for incoming order
   useEffect(() => {
@@ -328,29 +332,6 @@ export default function DriverHomePage() {
     setIncomingOrder(null);
     setIncomingTimer(0);
     // Server will auto-timeout and send to next driver
-  };
-
-  const handleToggleOnline = () => {
-    const socket = connectSocket();
-    const driverInfo = localStorage.getItem('driverInfo');
-    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
-
-    if (!isOnline) {
-      setOnline(true);
-      // Save ONLINE status to database via socket
-      if (driverId) {
-        socket.emit('driver:status', { driverId, status: 'ONLINE' });
-      }
-      toast.success(t('onLine') + '. ' + t('waitingOrders'));
-    } else {
-      setOnline(false);
-      setActiveOrder(null);
-      // Save OFFLINE status to database via socket
-      if (driverId) {
-        socket.emit('driver:status', { driverId, status: 'OFFLINE' });
-      }
-      toast(t('endShift'));
-    }
   };
 
   const handleCompleteOrder = async () => {
@@ -395,7 +376,7 @@ export default function DriverHomePage() {
             <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
               <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
               <circle cx="50" cy="50" r="44" fill="none" stroke="#ef4444" strokeWidth="6"
-                strokeDasharray={`${Math.PI * 88 * (incomingTimer / 60)} ${Math.PI * 88}`}
+                strokeDasharray={`${Math.PI * 88 * (incomingTimer / 25)} ${Math.PI * 88}`}
                 strokeLinecap="round" className="transition-all duration-1000" />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
@@ -456,7 +437,7 @@ export default function DriverHomePage() {
 
       {/* Map */}
       <div className="absolute inset-0" style={{ minHeight: '400px' }}>
-        <DriverMap center={toktogulCenter} showMarker={isOnline} />
+        <DriverMap center={toktogulCenter} showMarker={lineStatus !== 'OFFLINE'} />
       </div>
 
       {/* Balance gauge - top right - ALWAYS visible */}
@@ -541,7 +522,7 @@ export default function DriverHomePage() {
         )}
 
         {/* Waiting state */}
-        {isOnline && !activeOrder && (
+        {lineStatus === 'ONLINE' && !activeOrder && (
           <div className="px-3 pb-2">
             <div className="bg-[#111]/90 border border-white/10 rounded-2xl p-3 text-center backdrop-blur-sm">
               <Clock className="w-5 h-5 text-gray-500 mx-auto mb-1" />
@@ -551,18 +532,36 @@ export default function DriverHomePage() {
           </div>
         )}
 
-        {/* Toggle button */}
+        {/* BUSY_PERSONAL state */}
+        {lineStatus === 'BUSY_PERSONAL' && !activeOrder && (
+          <div className="px-3 pb-2">
+            <div className="bg-[#111]/90 border border-orange-500/30 rounded-2xl p-3 text-center backdrop-blur-sm">
+              <span className="text-lg">☕</span>
+              <p className="text-xs text-orange-400 font-medium mt-1">По делам</p>
+              <p className="text-[10px] text-gray-600 mt-0.5">Заказдар келбейт</p>
+            </div>
+          </div>
+        )}
+
+        {/* Status indicator bar */}
         <div className="flex justify-center py-3 px-4">
-          <button
-            onClick={handleToggleOnline}
-            className={`px-8 py-3 rounded-full text-sm font-bold shadow-xl transition-all active:scale-95 ${
-              isOnline
-                ? 'bg-red-500 text-white shadow-red-500/30'
-                : 'bg-yellow-400 text-black shadow-yellow-400/30'
-            }`}
-          >
-            {isOnline ? t('endShift') : t('goOnline')}
-          </button>
+          <div className={`px-6 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 ${
+            lineStatus === 'ONLINE' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+            lineStatus === 'BUSY_PERSONAL' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+            lineStatus === 'BUSY' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+            'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${
+              lineStatus === 'ONLINE' ? 'bg-green-400 animate-pulse' :
+              lineStatus === 'BUSY_PERSONAL' ? 'bg-orange-400' :
+              lineStatus === 'BUSY' ? 'bg-red-400 animate-pulse' :
+              'bg-gray-400'
+            }`} />
+            {lineStatus === 'ONLINE' && 'Линияда'}
+            {lineStatus === 'BUSY_PERSONAL' && 'По делам'}
+            {lineStatus === 'BUSY' && 'Заказ аткарууда'}
+            {lineStatus === 'OFFLINE' && 'Оффлайн'}
+          </div>
         </div>
       </div>
     </div>

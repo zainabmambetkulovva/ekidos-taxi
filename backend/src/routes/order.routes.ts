@@ -17,7 +17,7 @@ const router = Router();
 
 // ===== ORDER ASSIGNMENT ENGINE =====
 // Picks a random driver from nearby list, sends fullscreen order
-// If not accepted in 60s → picks next random driver
+// If not accepted in 25s → picks next random driver
 // Repeats until all candidates exhausted
 
 function startOrderAssignment(order: any, candidates: any[], ioServer: any) {
@@ -49,17 +49,17 @@ function startOrderAssignment(order: any, candidates: any[], ioServer: any) {
       ...order,
       assignedDriverId: selected.id,
       distanceMeters: Math.round(selected.distance * 1000),
-      timeoutSeconds: 60,
+      timeoutSeconds: 25,
     });
 
     // Notify admin
     ioServer.to('admin-room').emit('notification', {
       title: 'Заказ жөнөтүлдү',
-      message: `#${order.orderNumber} → ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}м) — 60 сек`,
+      message: `#${order.orderNumber} → ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}м) — 25 сек`,
       type: 'auto_assigned',
     });
 
-    // 60 second timeout — if not accepted, try next
+    // 25 second timeout — if not accepted, try next
     currentTimeout = setTimeout(async () => {
       try {
         const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
@@ -70,7 +70,7 @@ function startOrderAssignment(order: any, candidates: any[], ioServer: any) {
           assignToNext();
         }
       } catch {}
-    }, 60000);
+    }, 25000);
   }
 
   // Start the chain
@@ -202,6 +202,37 @@ router.get('/online-drivers', async (req: Request, res: Response) => {
   }
 });
 
+// Get order status (public — for client tracking)
+router.get('/:id/status', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        driver: {
+          include: { vehicle: true },
+        },
+      },
+    });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    return res.json({
+      status: order.status,
+      driver: order.driver ? {
+        id: order.driver.id,
+        firstName: order.driver.firstName,
+        lastName: order.driver.lastName,
+        phone: order.driver.phone,
+        latitude: order.driver.latitude,
+        longitude: order.driver.longitude,
+        vehicle: order.driver.vehicle,
+      } : null,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get available orders for drivers (also returns online driver positions for client map)
 router.get('/available', async (req: Request, res: Response) => {
   try {
@@ -218,9 +249,20 @@ router.get('/available', async (req: Request, res: Response) => {
 // Create order
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price, pickupLat, pickupLng, destLat, destLng } = req.body;
+    const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price, pickupLat, pickupLng, destLat, destLng,
+      // Client app sends these alternative field names:
+      from, to, addressFrom, addressTo,
+    } = req.body;
 
-    if (!pickupAddress) {
+    // Support client app format: from={lat,lng}, addressFrom="..."
+    const finalPickupAddress = pickupAddress || addressFrom || '';
+    const finalDestAddress = destAddress || addressTo || 'Не указано';
+    const finalPickupLat = pickupLat || (from?.lat ? parseFloat(from.lat) : null);
+    const finalPickupLng = pickupLng || (from?.lng ? parseFloat(from.lng) : null);
+    const finalDestLat = destLat || (to?.lat ? parseFloat(to.lat) : null);
+    const finalDestLng = destLng || (to?.lng ? parseFloat(to.lng) : null);
+
+    if (!finalPickupAddress && !finalPickupLat) {
       return res.status(400).json({ error: 'Откуда жерди жазыңыз (pickupAddress)' });
     }
     // clientPhone optional — default to unknown
@@ -249,12 +291,12 @@ router.post('/', async (req: Request, res: Response) => {
     const order = await prisma.order.create({
       data: {
         orderNumber,
-        pickupAddress,
-        destAddress: destAddress || 'Не указано',
-        pickupLat: pickupLat ? parseFloat(pickupLat) : null,
-        pickupLng: pickupLng ? parseFloat(pickupLng) : null,
-        destLat: destLat ? parseFloat(destLat) : null,
-        destLng: destLng ? parseFloat(destLng) : null,
+        pickupAddress: finalPickupAddress || `${finalPickupLat}, ${finalPickupLng}`,
+        destAddress: finalDestAddress,
+        pickupLat: finalPickupLat,
+        pickupLng: finalPickupLng,
+        destLat: finalDestLat,
+        destLng: finalDestLng,
         clientName: safeClientName,
         clientPhone: safeClientPhone,
         tariff: tariff || 'Standard',
@@ -278,7 +320,7 @@ router.post('/', async (req: Request, res: Response) => {
       // Client creation may fail if phone format issue, non-critical
     }
 
-    // Auto-assign: pick random online driver
+    // Auto-assign: pick random online driver (exclude BUSY_PERSONAL and BUSY)
     try {
       const onlineDrivers = await prisma.driver.findMany({
         where: {
@@ -338,12 +380,12 @@ router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Res
       return res.status(400).json({ error: 'Заказ башка водитель тарабынан алынган' });
     }
 
-    // Check driver balance (TEMPORARILY DISABLED FOR TESTING)
-    // const driverCheck = await prisma.driver.findUnique({ where: { id: driverId } });
-    // if (!driverCheck) return res.status(404).json({ error: 'Driver not found' });
-    // if ((driverCheck.balance || 0) < 20) {
-    //   return res.status(400).json({ error: 'Балансыңыз жетишсиз (20 баланс керек)' });
-    // }
+    // Check driver balance before accepting
+    const driverCheck = await prisma.driver.findUnique({ where: { id: driverId } });
+    if (!driverCheck) return res.status(404).json({ error: 'Driver not found' });
+    if ((driverCheck.balance || 0) < 20) {
+      return res.status(400).json({ error: 'Балансыңыз жетишсиз (20 баланс керек)' });
+    }
 
     const updatedOrder = await prisma.order.update({
       where: { id },
@@ -431,6 +473,49 @@ router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: R
 
     return res.json({ ...updated, waitFee });
   } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Cancel order by CLIENT — only within 14 seconds of creation
+router.patch('/:id/client-cancel', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Check if within 14 seconds
+    const elapsed = Date.now() - new Date(order.createdAt).getTime();
+    if (elapsed > 14000) {
+      return res.status(400).json({ error: 'Отмена мөөнөтү өттү (14 секунд)', expired: true });
+    }
+
+    // Cancel the order
+    await prisma.order.update({
+      where: { id },
+      data: { status: 'CANCELLED', cancelledAt: new Date() },
+    });
+
+    // If driver was assigned, free them
+    if (order.driverId) {
+      await prisma.driver.update({
+        where: { id: order.driverId },
+        data: { status: 'ONLINE' },
+      });
+      io.to(`driver:${order.driverId}`).emit('order:cancelled-by-client', { orderId: id });
+    }
+
+    // Notify everyone
+    io.emit('order:cancelled', { orderId: id });
+    io.to('admin-room').emit('notification', {
+      title: 'Клиент отмена кылды',
+      message: `#${order.orderNumber} клиент тарабынан отмена болду`,
+      type: 'order_cancelled',
+    });
+
+    return res.json({ success: true, message: 'Заказ отмена кылынды' });
+  } catch (error) {
+    console.error('Client cancel error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

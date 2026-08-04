@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, StatusBar, Platform, AppState, Vibration } from 'react-native';
+import { View, StyleSheet, StatusBar, Platform, AppState, Vibration, Text, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -36,6 +36,7 @@ export default function App() {
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
   const [expoPushToken, setExpoPushToken] = useState<string>('');
+  const [webViewLoaded, setWebViewLoaded] = useState(false);
 
   useEffect(() => {
     // 1. Setup notification channel (Android)
@@ -121,6 +122,7 @@ export default function App() {
 
   // Inject push token into WebView after it loads
   const handleWebViewLoad = () => {
+    setWebViewLoaded(true);
     if (webviewRef.current && expoPushToken) {
       webviewRef.current.injectJavaScript(`
         window.__expoPushToken = '${expoPushToken}';
@@ -132,19 +134,54 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
+      
+      {/* Branded Splash Screen while WebView loads */}
+      {!webViewLoaded && (
+        <View style={styles.splash}>
+          <Text style={styles.splashLogo}>EKIDOS</Text>
+          <Text style={styles.splashSub}>Driver</Text>
+          <ActivityIndicator color="#ef4444" size="large" style={styles.splashSpinner} />
+        </View>
+      )}
+
       <WebView
         ref={webviewRef}
         source={{ uri: APP_URL }}
-        style={styles.webview}
+        style={[styles.webview, !webViewLoaded && { opacity: 0 }]}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        startInLoadingState={true}
+        startInLoadingState={false}
         allowsBackForwardNavigationGestures={true}
         mediaPlaybackRequiresUserAction={false}
         geolocationEnabled={true}
         userAgent="EKIDOS-Driver-App/1.0"
         onMessage={handleWebViewMessage}
         onLoad={handleWebViewLoad}
+        // ===== SPEED OPTIMIZATIONS =====
+        cacheEnabled={true}
+        cacheMode="LOAD_CACHE_ELSE_NETWORK"
+        thirdPartyCookiesEnabled={true}
+        sharedCookiesEnabled={true}
+        originWhitelist={['*']}
+        mixedContentMode="compatibility"
+        // Reduce memory/rendering overhead
+        overScrollMode="never"
+        textZoom={100}
+        setSupportMultipleWindows={false}
+        // Preconnect to backend for faster API calls
+        injectedJavaScriptBeforeContentLoaded={`
+          // Preconnect to backend
+          var link = document.createElement('link');
+          link.rel = 'preconnect';
+          link.href = '${BACKEND_URL}';
+          document.head.appendChild(link);
+          // Preconnect to map tiles
+          var link2 = document.createElement('link');
+          link2.rel = 'preconnect';
+          link2.href = 'https://tile.openstreetmap.org';
+          document.head.appendChild(link2);
+          true;
+        `}
       />
     </View>
   );
@@ -246,5 +283,27 @@ const styles = StyleSheet.create({
   webview: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  splash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  splashLogo: {
+    fontSize: 42,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 2,
+  },
+  splashSub: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ef4444',
+    marginTop: 4,
+  },
+  splashSpinner: {
+    marginTop: 32,
   },
 });

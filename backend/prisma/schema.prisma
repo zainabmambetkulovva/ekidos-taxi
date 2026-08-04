@@ -243,3 +243,14 @@ model TopupRequest {
 
   @@map("topup_requests")
 }
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  text        String
+  senderType  String   // "DRIVER" | "DISPATCHER"
+  senderId    String   // driver.id or admin.id
+  senderName  String   // Display name
+  createdAt   DateTime @default(now())
+
+  @@map("chat_messages")
+}

@@ -23,7 +23,12 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 
     const where: any = {};
     if (status) where.status = status;
-    if (accountStatus) where.accountStatus = accountStatus;
+    if (accountStatus) {
+      where.accountStatus = accountStatus;
+    } else {
+      // By default, exclude archived drivers from main list
+      where.accountStatus = { not: 'ARCHIVED' };
+    }
     if (search) {
       where.OR = [
         { firstName: { contains: search as string, mode: 'insensitive' } },
@@ -91,13 +96,46 @@ router.get('/search/callsign', authenticateToken, async (req: AuthRequest, res: 
   }
 });
 
+// Get all online/busy drivers with status info (for driver map — see other drivers)
+router.get('/online-with-status', async (req: Request, res: Response) => {
+  try {
+    const drivers = await prisma.driver.findMany({
+      where: {
+        status: { in: ['ONLINE', 'BUSY', 'BUSY_PERSONAL'] },
+        accountStatus: 'ACTIVE',
+        latitude: { not: null },
+        longitude: { not: null },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        callsign: true,
+        status: true,
+        latitude: true,
+        longitude: true,
+      },
+    });
+    return res.json(drivers.map(d => ({
+      id: d.id,
+      lat: d.latitude,
+      lng: d.longitude,
+      status: d.status,
+      name: `${d.firstName} ${d.lastName}`,
+      callsign: d.callsign || '',
+    })));
+  } catch (error) {
+    return res.json([]);
+  }
+});
+
 // Get single driver (public - for client to see accepted driver info)
 router.get('/:id/public', async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
     const driver = await prisma.driver.findUnique({
       where: { id },
-      select: { firstName: true, lastName: true, phone: true, vehicle: true },
+      select: { firstName: true, lastName: true, phone: true, latitude: true, longitude: true, vehicle: true },
     });
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
     return res.json(driver);
@@ -262,12 +300,67 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
   }
 });
 
-// Delete driver
+// Delete driver (soft delete — archive, not permanent)
 router.delete('/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
+    await prisma.driver.update({
+      where: { id },
+      data: {
+        accountStatus: 'ARCHIVED',
+        status: 'OFFLINE',
+      },
+    });
+    return res.json({ message: 'Driver archived successfully' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get archived (deleted) drivers
+router.get('/archived/list', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthRequest, res: Response) => {
+  try {
+    const drivers = await prisma.driver.findMany({
+      where: { accountStatus: 'ARCHIVED' },
+      include: { vehicle: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const serialize = (obj: any): any => JSON.parse(
+      JSON.stringify(obj, (_, v) => typeof v === 'bigint' ? v.toString() : v)
+    );
+
+    return res.json({ drivers: serialize(drivers), total: drivers.length });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Restore archived driver
+router.patch('/:id/restore', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    await prisma.driver.update({
+      where: { id },
+      data: { accountStatus: 'ACTIVE', status: 'OFFLINE' },
+    });
+    return res.json({ message: 'Driver restored successfully' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Permanently delete archived driver (only for ARCHIVED drivers)
+router.delete('/:id/permanent', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const driver = await prisma.driver.findUnique({ where: { id } });
+    if (!driver) return res.status(404).json({ error: 'Driver not found' });
+    if (driver.accountStatus !== 'ARCHIVED') {
+      return res.status(400).json({ error: 'Алгач архивдеп, анан гана толук өчүрүңүз' });
+    }
     await prisma.driver.delete({ where: { id } });
-    return res.json({ message: 'Driver deleted successfully' });
+    return res.json({ message: 'Driver permanently deleted' });
   } catch (error) {
     return res.status(500).json({ error: 'Internal server error' });
   }
