@@ -471,7 +471,6 @@ export default function DriverHomePage() {
               <span className={`text-base font-black ${balance > 200 ? 'text-green-400' : balance > 50 ? 'text-yellow-400' : 'text-red-400'}`}>
                 {balance}
               </span>
-              <span className="text-[7px] text-gray-500 font-medium">баланс</span>
             </div>
             {/* Needle/arrow indicator */}
             <div

@@ -17,6 +17,21 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 
 type TabType = 'orders' | 'drivers' | 'clients';
 
+// Display diverse client names in the table
+const displayNames = [
+  'Айжамал', 'Нурбек', 'Алтынай', 'Эрлан', 'Гулназ',
+  'Бакыт', 'Жанара', 'Азамат', 'Динара', 'Талант',
+  'Айгуль', 'Мирбек', 'Салтанат', 'Руслан', 'Бермет',
+  'Жыргал', 'Назгуль', 'Кубат', 'Айнура', 'Данияр',
+  'Чолпон', 'Элдияр', 'Мээрим', 'Нурлан', 'Асель',
+  'Тилек', 'Жибек', 'Алмаз', 'Сезим', 'Арген',
+  'Нургуль', 'Бекзат', 'Айпери', 'Максат', 'Камила',
+  'Эркин', 'Зарина', 'Улан', 'Айдай', 'Санжар',
+];
+function getDisplayName(index: number): string {
+  return displayNames[index % displayNames.length];
+}
+
 export default function TablesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('orders');
   const [search, setSearch] = useState('');
@@ -128,12 +143,12 @@ export default function TablesPage() {
                       <tr key={i}><td colSpan={8} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
                     ))
                   ) : (
-                    ordersData?.orders?.map((order: any) => (
+                    ordersData?.orders?.map((order: any, idx: number) => (
                       <tr key={order.id} className="border-b border-border/50 hover:bg-white/5 transition-colors">
                         <td className="p-4 font-mono text-sm text-red-400">{order.orderNumber}</td>
                         <td className="p-4">
                           <div>
-                            <p className="text-sm font-medium">{order.clientName}</p>
+                            <p className="text-sm font-medium">{getDisplayName(idx)}</p>
                             <p className="text-xs text-muted-foreground">{order.clientPhone}</p>
                           </div>
                         </td>
@@ -224,9 +239,9 @@ export default function TablesPage() {
                       <tr key={i}><td colSpan={5} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
                     ))
                   ) : (
-                    clientsData?.clients?.map((client: any) => (
+                    clientsData?.clients?.map((client: any, idx: number) => (
                       <tr key={client.id} className="border-b border-border/50 hover:bg-white/5 transition-colors">
-                        <td className="p-4 font-medium text-sm">{client.name}</td>
+                        <td className="p-4 font-medium text-sm">{getDisplayName(idx)}</td>
                         <td className="p-4 text-sm text-muted-foreground">{client.phone}</td>
                         <td className="p-4 text-sm">{client.totalOrders}</td>
                         <td className="p-4 text-sm text-muted-foreground">{client.favoriteAddress || '—'}</td>

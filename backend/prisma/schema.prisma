@@ -254,3 +254,21 @@ model ChatMessage {
 
   @@map("chat_messages")
 }
+
+model DirectMessage {
+  id             String   @id @default(uuid())
+  text           String
+  senderId       String
+  senderName     String
+  senderType     String   // "DRIVER" | "DISPATCHER"
+  receiverId     String
+  receiverName   String
+  receiverType   String   // "DRIVER" | "DISPATCHER"
+  conversationId String   // sorted pair: "id1_id2"
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([receiverId, isRead])
+  @@map("direct_messages")
+}

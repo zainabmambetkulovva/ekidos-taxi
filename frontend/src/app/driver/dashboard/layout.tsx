@@ -15,36 +15,6 @@ import { toast } from 'sonner';
 
 import api from '@/lib/axios';
 
-// Header Balance component
-function DriverHeaderBalance() {
-  const [balance, setBalance] = useState<number | null>(null);
-
-  useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        const { data } = await api.get('/auth/me');
-        if (typeof data.balance === 'number') setBalance(data.balance);
-      } catch {}
-    };
-    fetchBalance();
-    const iv = setInterval(fetchBalance, 30000);
-    return () => clearInterval(iv);
-  }, []);
-
-  if (balance === null) return null;
-
-  return (
-    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-      balance > 200 ? 'bg-green-500/15 text-green-400' :
-      balance > 50 ? 'bg-yellow-500/15 text-yellow-400' :
-      'bg-red-500/15 text-red-400'
-    }`}>
-      <span>{balance}</span>
-      <span className="text-[10px] opacity-70">сом</span>
-    </div>
-  );
-}
-
 // Line Status Button component
 function LineStatusButton({ status }: { status: 'ONLINE' | 'OFFLINE' | 'BUSY_PERSONAL' }) {
   const { lineStatus, setLineStatus } = useDriverStore();
@@ -182,8 +152,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
               <span className="text-red-500"> Driver</span>
             </h1>
           </div>
-          {/* Balance in header */}
-          <DriverHeaderBalance />
+          {/* Balance in header removed */}
         </div>
       </header>
 

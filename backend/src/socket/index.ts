@@ -298,6 +298,70 @@ export function setupSocketHandlers(io: Server) {
     });
     // ===== END CHAT =====
 
+    // ===== DIRECT MESSAGES =====
+    // User joins their personal DM room
+    socket.on('dm:join', (userId: string) => {
+      socket.join(`user:${userId}`);
+      console.log(`💬 User ${userId} joined DM room`);
+    });
+
+    // Send a direct message via socket
+    socket.on('dm:send', async (data: {
+      text: string;
+      senderId: string;
+      senderName: string;
+      senderType: string;
+      receiverId: string;
+      receiverName: string;
+      receiverType: string;
+    }) => {
+      try {
+        if (!data.text || !data.text.trim()) return;
+        if (!data.senderId || !data.receiverId) return;
+
+        const conversationId = [data.senderId, data.receiverId].sort().join('_');
+
+        const message = await prisma.directMessage.create({
+          data: {
+            text: data.text.trim(),
+            senderId: data.senderId,
+            senderName: data.senderName,
+            senderType: data.senderType,
+            receiverId: data.receiverId,
+            receiverName: data.receiverName,
+            receiverType: data.receiverType,
+            conversationId,
+          },
+        });
+
+        // Send to receiver's room
+        io.to(`user:${data.receiverId}`).emit('dm:message', message);
+        // Send to sender's room (other tabs/devices)
+        io.to(`user:${data.senderId}`).emit('dm:message', message);
+      } catch (error) {
+        console.error('DM socket error:', error);
+      }
+    });
+
+    // Mark DM as read via socket
+    socket.on('dm:read', async (data: { conversationId: string; userId: string }) => {
+      try {
+        await prisma.directMessage.updateMany({
+          where: {
+            conversationId: data.conversationId,
+            receiverId: data.userId,
+            isRead: false,
+          },
+          data: { isRead: true },
+        });
+        // Notify the sender that messages were read
+        io.to(`user:${data.userId}`).emit('dm:read-confirmed', { conversationId: data.conversationId });
+      } catch (error) {
+        console.error('DM read socket error:', error);
+      }
+    });
+    // ===== END DIRECT MESSAGES =====
+
     socket.on('disconnect', () => {
       console.log(`❌ Client disconnected: ${socket.id}`);
       
