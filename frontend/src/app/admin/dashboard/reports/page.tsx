@@ -8,6 +8,7 @@ import {
   FileText, Download, Calendar,
   ShoppingCart, XCircle, CheckCircle2,
 } from 'lucide-react';
+import { getClientDisplayName } from '@/lib/display-names';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -164,7 +165,7 @@ export default function ReportsPage() {
                 {report?.orders?.map((order: any) => (
                   <tr key={order.id} className="border-b border-border/50 hover:bg-white/5">
                     <td className="p-4 font-mono text-sm text-red-400">{order.orderNumber}</td>
-                    <td className="p-4 text-sm">{order.clientName}</td>
+                    <td className="p-4 text-sm">{getClientDisplayName(order.id)}</td>
                     <td className="p-4 text-sm">{order.driver ? `${order.driver.firstName} ${order.driver.lastName}` : '—'}</td>
                     <td className="p-4">
                       <Badge variant={order.status === 'COMPLETED' ? 'success' : order.status === 'CANCELLED' ? 'destructive' : 'secondary'}>

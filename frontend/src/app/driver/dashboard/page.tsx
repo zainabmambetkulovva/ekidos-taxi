@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Clock, CheckCircle2, Navigation, Phone, MapPin as MapPinIcon, Car } from 'lucide-react';
 import { useDriverStore } from '@/store/useDriverStore';
+import { getClientDisplayName } from '@/lib/display-names';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
@@ -77,7 +78,7 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
 
       {/* Client info */}
       <div className="flex items-center justify-between mb-3 bg-white/5 rounded-xl px-3 py-2">
-        <span className="text-xs text-gray-400">Клиент: <span className="text-white font-medium">{order.clientName}</span></span>
+        <span className="text-xs text-gray-400">Клиент: <span className="text-white font-medium">{getClientDisplayName(order.id)}</span></span>
         {order.clientPhone && (
           <a href={`tel:${order.clientPhone}`} className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center">
             <Phone className="w-3.5 h-3.5 text-blue-400" />
@@ -412,7 +413,7 @@ export default function DriverHomePage() {
             {/* Client */}
             <div className="bg-white/5 rounded-xl px-4 py-2">
               <span className="text-xs text-gray-400">Клиент: </span>
-              <span className="text-sm text-white font-medium">{incomingOrder.clientName}</span>
+              <span className="text-sm text-white font-medium">{getClientDisplayName(incomingOrder.id)}</span>
             </div>
           </div>
 

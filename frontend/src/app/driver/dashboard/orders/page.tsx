@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Clock, Banknote, CreditCard, CheckCircle2, XCircle, Phone } from 'lucide-react';
+import { getClientDisplayName } from '@/lib/display-names';
 import { useDriverStore } from '@/store/useDriverStore';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
@@ -192,7 +193,7 @@ export default function DriverOrdersPage() {
 
               <div className="px-4 pb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">{order.clientName}</span>
+                  <span className="text-xs text-gray-400">{getClientDisplayName(order.id)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-gray-400">{order.tariff}</span>

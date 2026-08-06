@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { getClientDisplayName } from '@/lib/display-names';
 import {
   MapPin, Phone, User, Navigation, CheckCircle2,
   Clock, Banknote, CreditCard, XCircle, Car,
@@ -172,7 +173,7 @@ export default function CurrentOrderPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">{currentOrder.clientName}</span>
+                <span className="text-sm">{getClientDisplayName(currentOrder.id)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-muted-foreground" />
