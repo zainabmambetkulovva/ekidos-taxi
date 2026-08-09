@@ -95,25 +95,24 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   return (
     <div className="min-h-screen bg-background flex relative">
-      {/* Background - Ethno dark */}
-      <div className="fixed inset-0 ethno-bg -z-10" />
+      {/* Background */}
+      <div className="fixed inset-0 bg-[#0d0d0d] -z-10" />
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col fixed left-0 top-0 h-full ethno-sidebar z-40 transition-all duration-300 ${
+        className={`hidden lg:flex flex-col fixed left-0 top-0 h-full bg-[#0a0a0a] border-r border-white/10 z-40 transition-all duration-300 ${
           sidebarOpen ? 'w-64' : 'w-20'
         }`}
       >
         {/* Logo */}
-        <div className="p-5 border-b" style={{ borderColor: 'var(--ethno-border)' }}>
+        <div className="p-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)' }}>
-              <Car className="w-5 h-5" style={{ color: 'var(--ethno-gold)' }} />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-500/10 border border-red-500/20">
+              <Car className="w-5 h-5 text-red-400" />
             </div>
             {sidebarOpen && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <h2 className="ethno-sidebar-logo text-lg">
-                  EKIDOS <span className="accent" style={{ color: 'var(--ethno-gold)' }}>Admin</span>
+                <h2 className="text-lg font-extrabold tracking-wide">
+                  <span className="text-white">EKIDOS</span> <span className="text-red-500">Admin</span>
                 </h2>
               </motion.div>
             )}
@@ -128,7 +127,11 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
               <button
                 key={item.href}
                 onClick={() => router.push(item.href)}
-                className={`ethno-nav-item w-full flex items-center gap-3 px-3 py-2.5 ${isActive ? 'active' : ''}`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                  isActive
+                    ? 'bg-red-500/10 text-red-400 border border-red-500/25'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                }`}
               >
                 <item.icon className="w-4 h-4 flex-shrink-0" />
                 {sidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
@@ -138,10 +141,10 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         </nav>
 
         {/* Logout */}
-        <div className="p-3 ethno-sidebar-footer">
+        <div className="p-3 border-t border-white/10">
           <button
             onClick={handleLogout}
-            className="ethno-nav-item w-full flex items-center gap-3 px-3 py-2.5"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/5 transition-all"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
             {sidebarOpen && <span className="text-sm font-medium">{t('logout')}</span>}
@@ -207,7 +210,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       {/* Main Content */}
       <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-xl border-b border-border px-6 py-4">
+        <header className="sticky top-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/10 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button

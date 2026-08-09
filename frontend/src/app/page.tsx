@@ -42,7 +42,7 @@ export default function WelcomePage() {
             <span className="text-red-500 neon-text"> TAXI</span>
           </h1>
           <p className="text-muted-foreground mt-3 text-lg tracking-widest uppercase">
-            Dispatch Management System
+            Диспетчердик башкаруу системасы
           </p>
         </div>
       </div>
@@ -61,8 +61,8 @@ export default function WelcomePage() {
                 <ShieldCheck className="w-10 h-10 text-red-400" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Administrator</h2>
-                <p className="text-muted-foreground mt-1 text-sm">Manage fleet & dispatch</p>
+                <h2 className="text-2xl font-bold text-white">Администратор</h2>
+                <p className="text-muted-foreground mt-1 text-sm">Автопаркты жана заказдарды башкаруу</p>
               </div>
             </div>
           </div>
@@ -80,8 +80,8 @@ export default function WelcomePage() {
                 <Car className="w-10 h-10 text-red-400" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Driver</h2>
-                <p className="text-muted-foreground mt-1 text-sm">Accept & complete orders</p>
+                <h2 className="text-2xl font-bold text-white">Водитель</h2>
+                <p className="text-muted-foreground mt-1 text-sm">Заказ кабыл алуу жана аткаруу</p>
               </div>
             </div>
           </div>
@@ -91,7 +91,7 @@ export default function WelcomePage() {
 
       {/* Footer */}
       <p className="relative z-10 mt-12 text-muted-foreground/50 text-sm">
-        &copy; {new Date().getFullYear()} EKIDOS TAXI. All rights reserved.
+        &copy; {new Date().getFullYear()} EKIDOS TAXI. Бардык укуктар корголгон.
       </p>
     </div>
   );

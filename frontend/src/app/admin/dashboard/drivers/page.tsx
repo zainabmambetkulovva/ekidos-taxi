@@ -206,12 +206,12 @@ export default function DriversPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Поиск..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder="Поиск..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 w-full" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[170px]">
+          <SelectTrigger className="w-[170px] flex-shrink-0">
             <Filter className="w-4 h-4 mr-2" />
             <SelectValue placeholder="Все статусы" />
           </SelectTrigger>
@@ -360,6 +360,8 @@ export default function DriversPage() {
                 <div className="space-y-1.5"><Label>Марка</Label><Input value={formData.vehicleBrand} onChange={e => f('vehicleBrand', e.target.value)} placeholder="Toyota" /></div>
                 <div className="space-y-1.5"><Label>Модель</Label><Input value={formData.vehicleModel} onChange={e => f('vehicleModel', e.target.value)} placeholder="Camry" /></div>
                 <div className="space-y-1.5"><Label>Год</Label><Input value={formData.vehicleYear} onChange={e => f('vehicleYear', e.target.value)} placeholder="2020" /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                 <div className="space-y-1.5"><Label>Цвет</Label><Input value={formData.vehicleColor} onChange={e => f('vehicleColor', e.target.value)} placeholder="Белый" /></div>
                 <div className="space-y-1.5"><Label>Гос. номер</Label><Input value={formData.plateNumber} onChange={e => f('plateNumber', e.target.value)} placeholder="01KG123AAA" /></div>
               </div>

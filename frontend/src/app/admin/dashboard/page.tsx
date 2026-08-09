@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -17,6 +18,7 @@ import {
 } from 'recharts';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { t } = useLanguageStore();
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -63,7 +65,7 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
           >
-            <Card className="hover:border-white/20 transition-colors">
+            <Card className="hover:border-white/20 transition-colors bg-[#111111] border-white/5">
               <CardContent className="p-5">
                 {statsLoading ? (
                   <div className="space-y-3">
@@ -90,7 +92,7 @@ export default function DashboardPage() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Daily Orders */}
-        <Card>
+        <Card className="bg-[#111111] border-white/5">
           <CardHeader>
             <CardTitle className="text-base">{t('dailyOrders')}</CardTitle>
           </CardHeader>
@@ -112,8 +114,9 @@ export default function DashboardPage() {
                   <Tooltip
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }}
                     labelStyle={{ color: '#fff' }}
+                    formatter={(value: any) => [value, 'Заказы']}
                   />
-                  <Area type="monotone" dataKey="orders" stroke="#ef4444" fill="url(#orderGradient)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="orders" name="Заказы" stroke="#ef4444" fill="url(#orderGradient)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -121,7 +124,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Weekly Revenue */}
-        <Card>
+        <Card className="bg-[#111111] border-white/5">
           <CardHeader>
             <CardTitle className="text-base">{t('weeklyRevenue')}</CardTitle>
           </CardHeader>
@@ -137,8 +140,9 @@ export default function DashboardPage() {
                   <Tooltip
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }}
                     labelStyle={{ color: '#fff' }}
+                    formatter={(value: any) => [value, 'Доход']}
                   />
-                  <Bar dataKey="revenue" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="revenue" name="Доход" fill="#ef4444" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -146,7 +150,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Monthly Revenue */}
-        <Card>
+        <Card className="bg-[#111111] border-white/5">
           <CardHeader>
             <CardTitle className="text-base">{t('monthlyRevenueChart')}</CardTitle>
           </CardHeader>
@@ -162,9 +166,10 @@ export default function DashboardPage() {
                   <Tooltip
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }}
                     labelStyle={{ color: '#fff' }}
+                    formatter={(value: any, name: string) => [value, name === 'revenue' ? 'Доход' : 'Заказы']}
                   />
-                  <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981' }} />
-                  <Line type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} />
+                  <Line type="monotone" dataKey="revenue" name="Доход" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981' }} />
+                  <Line type="monotone" dataKey="orders" name="Заказы" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -172,7 +177,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Driver Activity */}
-        <Card>
+        <Card className="bg-[#111111] border-white/5">
           <CardHeader>
             <CardTitle className="text-base">{t('driverActivity')}</CardTitle>
           </CardHeader>
@@ -182,12 +187,16 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {(charts?.topDrivers || []).slice(0, 5).map((driver: any, idx: number) => (
-                  <div key={driver.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                  <div
+                    key={driver.id}
+                    onClick={() => router.push('/admin/dashboard/drivers')}
+                    className="flex items-center justify-between p-3 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                  >
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-bold text-muted-foreground w-6">#{idx + 1}</span>
                       <div>
                         <p className="text-sm font-medium">{driver.firstName} {driver.lastName}</p>
-                        <p className="text-xs text-muted-foreground">{driver.totalOrders} orders</p>
+                        <p className="text-xs text-muted-foreground">{driver.totalOrders} заказов</p>
                       </div>
                     </div>
                     <span className="text-sm font-semibold text-green-400">

@@ -77,7 +77,7 @@ router.get('/charts', authenticateToken, async (req: Request, res: Response) => 
       });
 
       dailyOrders.push({
-        date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        date: date.toLocaleDateString('ru-RU', { weekday: 'short' }),
         orders: count,
         revenue: revenue._sum.price || 0,
       });
@@ -99,7 +99,7 @@ router.get('/charts', authenticateToken, async (req: Request, res: Response) => 
       });
 
       monthlyRevenue.push({
-        month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
+        month: monthStart.toLocaleDateString('ru-RU', { month: 'short' }),
         revenue: revenue._sum.price || 0,
         orders,
       });
