@@ -144,7 +144,7 @@ export default function DispatcherPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {ordersData?.orders?.map((order: any, index: number) => (
+            {ordersData?.orders?.filter((order: any) => order.status !== 'COMPLETED' && order.status !== 'CANCELLED').map((order: any, index: number) => (
               <motion.div key={order.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}>
                 <Card className="hover:border-white/20 transition-all">
                   <CardContent className="p-4">

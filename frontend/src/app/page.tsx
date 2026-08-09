@@ -1,18 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ShieldCheck, Car, Mountain, Waves, TreePine, Flower2, Castle, Sun, Landmark } from 'lucide-react';
+import { ShieldCheck, Car, Sun } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-const regions = [
-  { name: 'Чүй', landmark: 'Бишкек — борбор калаа', icon: Landmark, color: 'from-red-500/20 to-red-900/10' },
-  { name: 'Ош', landmark: 'Сулайман-Тоо', icon: Mountain, color: 'from-amber-500/20 to-amber-900/10' },
-  { name: 'Жалал-Абад', landmark: 'Арсланбап токою', icon: TreePine, color: 'from-green-500/20 to-green-900/10' },
-  { name: 'Баткен', landmark: 'Айгүл гүлү', icon: Flower2, color: 'from-pink-500/20 to-pink-900/10' },
-  { name: 'Нарын', landmark: 'Тоо кыркалары', icon: Mountain, color: 'from-blue-500/20 to-blue-900/10' },
-  { name: 'Талас', landmark: 'Манастын күмбөзү', icon: Castle, color: 'from-purple-500/20 to-purple-900/10' },
-  { name: 'Ысык-Көл', landmark: 'Ысык-Көл — бейиш көлү', icon: Waves, color: 'from-cyan-500/20 to-cyan-900/10' },
-];
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -104,28 +94,6 @@ export default function WelcomePage() {
             <Sun className="w-4 h-4 text-red-500" />
           </div>
           <div className="flex-1 h-px bg-gradient-to-l from-transparent to-white/20" />
-        </div>
-      </div>
-
-      {/* 7 Regions of Kyrgyzstan */}
-      <div className="relative z-10 w-full max-w-4xl mb-12">
-        <h3 className="text-center text-lg font-bold text-white mb-6">
-          7 областтын <span className="text-red-400">сулуулугу</span>
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {regions.map((region, idx) => (
-            <div
-              key={region.name}
-              className="group p-4 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300"
-              style={{ animationDelay: `${idx * 100}ms` }}
-            >
-              <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${region.color} flex items-center justify-center mb-3`}>
-                <region.icon className="w-5 h-5 text-white/80" />
-              </div>
-              <h4 className="text-sm font-bold text-white">{region.name}</h4>
-              <p className="text-[11px] text-gray-500 mt-0.5 leading-tight">{region.landmark}</p>
-            </div>
-          ))}
         </div>
       </div>
 
