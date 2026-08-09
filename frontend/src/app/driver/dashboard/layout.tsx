@@ -137,19 +137,19 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[#001D39] flex flex-col">
       {/* Block Timer Overlay */}
       <BlockTimer />
       {/* Top Nav */}
-      <header className="sticky top-0 z-[5000] bg-card/90 backdrop-blur-xl border-b border-border px-4 py-3">
+      <header className="sticky top-0 z-[5000] bg-[#0A4174]/95 backdrop-blur-xl border-b border-[#7BBDE8]/20 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 hover:bg-white/5 rounded-lg">
-              <Menu className="w-5 h-5" />
+            <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 hover:bg-white/10 rounded-lg">
+              <Menu className="w-5 h-5 text-white" />
             </button>
             <h1 className="font-bold text-lg">
               <span className="text-white">EKIDOS</span>
-              <span className="text-red-500"> Driver</span>
+              <span className="text-[#7BBDE8]"> Driver</span>
             </h1>
           </div>
           {/* Balance in header removed */}
@@ -163,26 +163,26 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
             className="fixed inset-0 bg-black/70 z-[9998] backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="fixed left-0 top-0 h-full w-72 bg-[#0a0a0a] border-r border-white/10 z-[9999] flex flex-col shadow-2xl shadow-black/50">
+          <aside className="fixed left-0 top-0 h-full w-72 bg-[#0A4174] border-r border-[#7BBDE8]/20 z-[9999] flex flex-col shadow-2xl shadow-black/50">
             {/* Header */}
-            <div className="p-5 border-b border-white/10 flex items-center justify-between">
+            <div className="p-5 border-b border-[#7BBDE8]/20 flex items-center justify-between">
               <h2 className="font-bold text-lg">
                 <span className="text-white">EKIDOS</span>
-                <span className="text-red-500"> Driver</span>
+                <span className="text-[#7BBDE8]"> Driver</span>
               </h2>
               <button
                 onClick={() => setMobileOpen(false)}
-                className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+                className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 text-white" />
               </button>
             </div>
 
             {/* Driver info card */}
             <div className="p-4">
-              <div className="bg-gradient-to-r from-red-500/10 to-transparent rounded-2xl p-4 border border-red-500/20">
+              <div className="bg-gradient-to-r from-[#7BBDE8]/10 to-transparent rounded-2xl p-4 border border-[#7BBDE8]/20">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0A4174] to-[#7BBDE8] flex items-center justify-center">
                     <Car className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -216,8 +216,8 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                     onClick={() => { router.push(item.href); setMobileOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                       isActive
-                        ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-[#7BBDE8]/15 text-[#7BBDE8] border border-[#7BBDE8]/30'
+                        : 'text-gray-300 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     <item.icon className="w-5 h-5" />
@@ -228,10 +228,10 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
             </nav>
 
             {/* Footer */}
-            <div className="p-3 border-t border-white/10">
+            <div className="p-3 border-t border-[#7BBDE8]/20">
               <button
                 onClick={() => { handleLogout(); setMobileOpen(false); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/5 transition-all"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:text-[#7BBDE8] hover:bg-[#7BBDE8]/5 transition-all"
               >
                 <LogOut className="w-5 h-5" />
                 <span className="text-sm font-medium">{t('logout')}</span>
@@ -242,7 +242,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       )}
 
       {/* Bottom Tab Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-[5000] bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 px-1 py-1.5">
+      <div className="fixed bottom-0 left-0 right-0 z-[5000] bg-[#0A4174]/95 backdrop-blur-xl border-t border-[#7BBDE8]/20 px-1 py-1.5">
         <div className="flex items-center justify-around max-w-md mx-auto">
           {driverMenu.slice(0, 4).map((item) => {
             const isActive = pathname === item.href;
@@ -251,10 +251,10 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                 key={item.href}
                 onClick={() => router.push(item.href)}
                 className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${
-                  isActive ? 'text-red-400' : 'text-gray-500'
+                  isActive ? 'text-[#7BBDE8]' : 'text-gray-400'
                 }`}
               >
-                <item.icon className={`w-5 h-5 ${isActive ? 'text-red-400' : ''}`} />
+                <item.icon className={`w-5 h-5 ${isActive ? 'text-[#7BBDE8]' : ''}`} />
                 <span className="text-[9px] font-medium">{item.label}</span>
               </button>
             );

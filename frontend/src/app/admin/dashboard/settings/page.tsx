@@ -21,7 +21,7 @@ import { Lang } from '@/lib/translations';
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const { lang, setLang } = useLanguageStore();
+  const { lang, setLang, t } = useLanguageStore();
   const [companyName, setCompanyName] = useState('');
   const [language, setLanguage] = useState(lang);
   const [oldPassword, setOldPassword] = useState('');
@@ -104,8 +104,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Настройки</h1>
-        <p className="text-muted-foreground">Настройка системы</p>
+        <h1 className="text-2xl font-bold">{t('settingsTitle')}</h1>
+        <p className="text-muted-foreground">{t('settingsDesc')}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -114,17 +114,17 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Building2 className="w-5 h-5 text-red-400" />
-              Компания
+              {t('company')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Название компании</Label>
+              <Label>{t('companyName')}</Label>
               <Input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="EKIDOS TAXI" />
             </div>
             <Button onClick={() => updateMutation.mutate({ companyName, language })} disabled={updateMutation.isPending} className="gap-2">
               {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Сохранить
+              {t('saveChanges')}
             </Button>
           </CardContent>
         </Card>
@@ -133,13 +133,13 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Globe className="w-5 h-5 text-blue-400" />
-              Язык
+              <Globe className="w-5 h-5 text-red-400" />
+              {t('language')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Язык интерфейса</Label>
+              <Label>{t('language')}</Label>
               <Select value={language} onValueChange={(v) => { setLanguage(v as 'ru' | 'kg' | 'en'); setLang(v as Lang); }}>
                 <SelectTrigger>
                   <SelectValue />
@@ -153,7 +153,7 @@ export default function SettingsPage() {
             </div>
             <Button onClick={() => updateMutation.mutate({ companyName, language })} disabled={updateMutation.isPending} className="gap-2">
               {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Применить
+              {t('saveChanges')}
             </Button>
           </CardContent>
         </Card>
@@ -162,22 +162,22 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Lock className="w-5 h-5 text-yellow-400" />
-              Безопасность
+              <Lock className="w-5 h-5 text-red-400" />
+              {t('security')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Текущий пароль</Label>
-              <Input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} placeholder="Введите текущий пароль" />
+              <Label>{t('currentPassword')}</Label>
+              <Input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Новый пароль</Label>
-              <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Введите новый пароль" />
+              <Label>{t('newPassword')}</Label>
+              <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
             </div>
             <Button variant="outline" className="gap-2">
               <Lock className="w-4 h-4" />
-              Сменить пароль
+              {t('changePassword')}
             </Button>
           </CardContent>
         </Card>
@@ -186,8 +186,8 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-400" />
-              Аккаунты администраторов
+              <Users className="w-5 h-5 text-red-400" />
+              {t('adminAccounts')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -220,7 +220,7 @@ export default function SettingsPage() {
 
             <Button variant="outline" className="w-full gap-2 mt-2" onClick={() => setIsAddAdminOpen(true)}>
               <Plus className="w-4 h-4" />
-              Добавить аккаунт
+              {t('addAdmin')}
             </Button>
           </CardContent>
         </Card>
