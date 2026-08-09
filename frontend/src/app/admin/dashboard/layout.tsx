@@ -94,20 +94,18 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-background flex relative">
-      {/* Background */}
-      <div className="fixed inset-0 bg-[#0d0d0d] -z-10" />
+    <div className="min-h-screen bg-white flex relative">
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col fixed left-0 top-0 h-full bg-[#0a0a0a] border-r border-white/10 z-40 transition-all duration-300 ${
+        className={`hidden lg:flex flex-col fixed left-0 top-0 h-full bg-[#1a1a1a] z-40 transition-all duration-300 ${
           sidebarOpen ? 'w-64' : 'w-20'
         }`}
       >
         {/* Logo */}
         <div className="p-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-500/10 border border-red-500/20">
-              <Car className="w-5 h-5 text-red-400" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-600">
+              <Car className="w-5 h-5 text-white" />
             </div>
             {sidebarOpen && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -129,8 +127,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                 onClick={() => router.push(item.href)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                   isActive
-                    ? 'bg-red-500/10 text-red-400 border border-red-500/25'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                    ? 'bg-red-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-white/10'
                 }`}
               >
                 <item.icon className="w-4 h-4 flex-shrink-0" />
@@ -144,7 +142,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         <div className="p-3 border-t border-white/10">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/5 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-white/5 transition-all"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
             {sidebarOpen && <span className="text-sm font-medium">{t('logout')}</span>}
@@ -168,15 +166,15 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border z-[9999] lg:hidden flex flex-col"
+              className="fixed left-0 top-0 h-full w-64 bg-[#1a1a1a] z-[9999] lg:hidden flex flex-col"
             >
-              <div className="p-6 border-b border-border flex items-center justify-between">
+              <div className="p-6 border-b border-white/10 flex items-center justify-between">
                 <h2 className="font-bold text-lg">
                   <span className="text-white">EKIDOS</span>
                   <span className="text-red-500"> Admin</span>
                 </h2>
                 <button onClick={() => setMobileOpen(false)}>
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 text-white" />
                 </button>
               </div>
               <nav className="flex-1 p-4 space-y-1">
@@ -187,7 +185,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                       key={item.href}
                       onClick={() => { router.push(item.href); setMobileOpen(false); }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                        isActive ? 'bg-red-500/10 text-red-400' : 'text-muted-foreground hover:text-white hover:bg-white/5'
+                        isActive ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'
                       }`}
                     >
                       <item.icon className="w-5 h-5" />
@@ -196,8 +194,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                   );
                 })}
               </nav>
-              <div className="p-4 border-t border-border">
-                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-red-400 transition-all">
+              <div className="p-4 border-t border-white/10">
+                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-red-400 transition-all">
                   <LogOut className="w-5 h-5" />
                   <span className="text-sm font-medium">Выход</span>
                 </button>
@@ -210,7 +208,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       {/* Main Content */}
       <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/10 px-6 py-4">
+        <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
