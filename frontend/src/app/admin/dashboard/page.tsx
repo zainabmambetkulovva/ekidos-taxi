@@ -156,13 +156,13 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {chartsLoading ? (
-              <Skeleton className="h-[250px] w-full" />
+              <Skeleton className="h-[300px] w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={charts?.monthlyRevenue || []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                   <XAxis dataKey="month" stroke="#666" fontSize={12} />
-                  <YAxis stroke="#666" fontSize={12} />
+                  <YAxis stroke="#666" fontSize={12} domain={[0, 100000]} ticks={[0, 10000, 20000, 40000, 60000, 80000, 100000]} />
                   <Tooltip
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }}
                     labelStyle={{ color: '#fff' }}
