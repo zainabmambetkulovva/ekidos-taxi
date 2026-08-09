@@ -14,13 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/axios';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useLanguageStore } from '@/store/useLanguageStore';
+import { getClientDisplayName } from '@/lib/display-names';
 
 type TabType = 'orders' | 'drivers' | 'clients';
 
-// Display diverse client names in the table
-import { getClientDisplayName } from '@/lib/display-names';
-
 export default function TablesPage() {
+  const { t } = useLanguageStore();
   const [activeTab, setActiveTab] = useState<TabType>('orders');
   const [search, setSearch] = useState('');
 
@@ -52,23 +52,23 @@ export default function TablesPage() {
   });
 
   const tabs = [
-    { id: 'orders' as TabType, label: 'Orders', icon: ShoppingCart },
-    { id: 'drivers' as TabType, label: 'Drivers', icon: Car },
-    { id: 'clients' as TabType, label: 'Clients', icon: UsersRound },
+    { id: 'orders' as TabType, label: t('todayOrders').split(' ')[0] || 'Заказы', icon: ShoppingCart },
+    { id: 'drivers' as TabType, label: t('drivers'), icon: Car },
+    { id: 'clients' as TabType, label: t('totalClients').replace('Всего ', '').replace('Бардык ', '') || 'Клиенты', icon: UsersRound },
   ];
 
   const getStatusBadge = (status: string) => {
     const map: Record<string, any> = {
-      PENDING: <Badge variant="warning">Pending</Badge>,
-      ASSIGNED: <Badge variant="info">Assigned</Badge>,
-      IN_PROGRESS: <Badge variant="info">In Progress</Badge>,
-      COMPLETED: <Badge variant="success">Completed</Badge>,
-      CANCELLED: <Badge variant="destructive">Cancelled</Badge>,
-      ONLINE: <Badge variant="success">Online</Badge>,
-      BUSY: <Badge variant="warning">Busy</Badge>,
-      OFFLINE: <Badge variant="secondary">Offline</Badge>,
-      ACTIVE: <Badge variant="success">Active</Badge>,
-      BLOCKED: <Badge variant="destructive">Blocked</Badge>,
+      PENDING: <Badge variant="warning">{t('pending')}</Badge>,
+      ASSIGNED: <Badge variant="info">{t('assigned')}</Badge>,
+      IN_PROGRESS: <Badge variant="info">{t('inProgress')}</Badge>,
+      COMPLETED: <Badge variant="success">{t('completed')}</Badge>,
+      CANCELLED: <Badge variant="destructive">{t('cancelled')}</Badge>,
+      ONLINE: <Badge variant="success">{t('online')}</Badge>,
+      BUSY: <Badge variant="warning">{t('busy')}</Badge>,
+      OFFLINE: <Badge variant="secondary">{t('offline')}</Badge>,
+      ACTIVE: <Badge variant="success">{t('active')}</Badge>,
+      BLOCKED: <Badge variant="destructive">{t('blocked')}</Badge>,
     };
     return map[status] || <Badge variant="secondary">{status}</Badge>;
   };
@@ -77,8 +77,8 @@ export default function TablesPage() {
     <div className="w-full max-w-[100vw] overflow-x-hidden">
       <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Таблицы</h1>
-        <p className="text-muted-foreground">Просмотр данных в таблицах</p>
+        <h1 className="text-2xl font-bold">{t('tables')}</h1>
+        <p className="text-muted-foreground">{t('viewTables')}</p>
       </div>
 
       {/* Tabs */}
@@ -100,7 +100,7 @@ export default function TablesPage() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search..."
+          placeholder={t('search')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-10"
@@ -115,14 +115,14 @@ export default function TablesPage() {
               <table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Order</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Client</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Pickup</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Destination</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Driver</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Tariff</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Date</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">№</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('client')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('pickup')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('destination')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('driver')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('tariff')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('status')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('date')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,7 +152,7 @@ export default function TablesPage() {
                 </tbody>
               </table>
               {ordersData?.orders?.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">No orders found</div>
+                <div className="text-center py-12 text-muted-foreground">{t('noOrdersYet')}</div>
               )}
             </div>
           </CardContent>
@@ -167,14 +167,14 @@ export default function TablesPage() {
               <table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Driver</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Phone</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Vehicle</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Plate</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Online</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Orders</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Income</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('driver')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('phone')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('vehicle')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('plateNumber')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('status')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('online')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('orders')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('income')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,14 +192,14 @@ export default function TablesPage() {
                         <td className="p-4">{getStatusBadge(driver.accountStatus)}</td>
                         <td className="p-4">{getStatusBadge(driver.status)}</td>
                         <td className="p-4 text-sm">{driver.totalOrders}</td>
-                        <td className="p-4 text-sm text-green-400">{formatCurrency(driver.totalEarnings)}</td>
+                        <td className="p-4 text-sm text-[#7BBDE8]">{formatCurrency(driver.totalEarnings)}</td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
               {driversData?.drivers?.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">No drivers found</div>
+                <div className="text-center py-12 text-muted-foreground">{t('noDriversFound')}</div>
               )}
             </div>
           </CardContent>
@@ -214,11 +214,11 @@ export default function TablesPage() {
               <table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Client</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Phone</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Total Orders</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Favorite Address</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Registered</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('client')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('phone')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('totalOrders')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('destination')}</th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('date')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -240,7 +240,7 @@ export default function TablesPage() {
                 </tbody>
               </table>
               {clientsData?.clients?.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">No clients found</div>
+                <div className="text-center py-12 text-muted-foreground">{t('noOrdersYet')}</div>
               )}
             </div>
           </CardContent>
@@ -250,5 +250,3 @@ export default function TablesPage() {
     </div>
   );
 }
-
-
