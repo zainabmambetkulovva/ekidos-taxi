@@ -65,7 +65,7 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
           >
-            <Card className="hover:shadow-md transition-all border border-gray-100">
+            <Card className="hover:border-[#35577D]/50 transition-all border-[#35577D]/20">
               <CardContent className="p-5">
                 {statsLoading ? (
                   <div className="space-y-3">
@@ -75,11 +75,11 @@ export default function DashboardPage() {
                 ) : (
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-gray-500 font-medium">{stat.label}</p>
-                      <p className="text-2xl font-bold text-black mt-1">{stat.value}</p>
+                      <p className="text-xs text-gray-400 font-medium">{stat.label}</p>
+                      <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
                     </div>
-                    <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center">
-                      <stat.icon className="w-5 h-5 text-red-600" />
+                    <div className="w-11 h-11 rounded-xl bg-[#35577D]/30 flex items-center justify-center">
+                      <stat.icon className="w-5 h-5 text-[#7BBDE8]" />
                     </div>
                   </div>
                 )}
@@ -92,7 +92,7 @@ export default function DashboardPage() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Daily Orders */}
-        <Card className="border border-gray-100">
+        <Card className="border-[#35577D]/20">
           <CardHeader>
             <CardTitle className="text-base">{t('dailyOrders')}</CardTitle>
           </CardHeader>
@@ -104,19 +104,19 @@ export default function DashboardPage() {
                 <AreaChart data={charts?.dailyOrders || []}>
                   <defs>
                     <linearGradient id="orderGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#7BBDE8" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#7BBDE8" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="date" stroke="#999" fontSize={12} />
-                  <YAxis stroke="#999" fontSize={12} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
+                  <XAxis dataKey="date" stroke="#7BBDE8" fontSize={12} />
+                  <YAxis stroke="#7BBDE8" fontSize={12} />
                   <Tooltip
-                    contentStyle={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px' }}
-                    labelStyle={{ color: '#111' }}
+                    contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }}
+                    labelStyle={{ color: '#fff' }}
                     formatter={(value: any) => [value, 'Заказы']}
                   />
-                  <Area type="monotone" dataKey="orders" name="Заказы" stroke="#dc2626" fill="url(#orderGradient)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="orders" name="Заказы" stroke="#7BBDE8" fill="url(#orderGradient)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -124,7 +124,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Weekly Revenue */}
-        <Card className="border border-gray-100">
+        <Card className="border-[#35577D]/20">
           <CardHeader>
             <CardTitle className="text-base">{t('weeklyRevenue')}</CardTitle>
           </CardHeader>
@@ -134,15 +134,15 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={charts?.dailyOrders || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="date" stroke="#999" fontSize={12} />
-                  <YAxis stroke="#999" fontSize={12} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
+                  <XAxis dataKey="date" stroke="#7BBDE8" fontSize={12} />
+                  <YAxis stroke="#7BBDE8" fontSize={12} />
                   <Tooltip
-                    contentStyle={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px' }}
-                    labelStyle={{ color: '#111' }}
+                    contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }}
+                    labelStyle={{ color: '#fff' }}
                     formatter={(value: any) => [value, 'Доход']}
                   />
-                  <Bar dataKey="revenue" name="Доход" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="revenue" name="Доход" fill="#35577D" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -150,7 +150,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Monthly Revenue */}
-        <Card className="border border-gray-100">
+        <Card className="border-[#35577D]/20">
           <CardHeader>
             <CardTitle className="text-base">{t('monthlyRevenueChart')}</CardTitle>
           </CardHeader>
@@ -160,16 +160,16 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={charts?.monthlyRevenue || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="month" stroke="#999" fontSize={12} />
-                  <YAxis stroke="#999" fontSize={12} domain={[0, 100000]} ticks={[0, 10000, 20000, 40000, 60000, 80000, 100000]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
+                  <XAxis dataKey="month" stroke="#7BBDE8" fontSize={12} />
+                  <YAxis stroke="#7BBDE8" fontSize={12} domain={[0, 100000]} ticks={[0, 10000, 20000, 40000, 60000, 80000, 100000]} />
                   <Tooltip
-                    contentStyle={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px' }}
-                    labelStyle={{ color: '#111' }}
+                    contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }}
+                    labelStyle={{ color: '#fff' }}
                     formatter={(value: any, name: string) => [value, name === 'revenue' ? 'Доход' : 'Заказы']}
                   />
-                  <Line type="monotone" dataKey="revenue" name="Доход" stroke="#dc2626" strokeWidth={2} dot={{ fill: '#dc2626' }} />
-                  <Line type="monotone" dataKey="orders" name="Заказы" stroke="#111" strokeWidth={2} dot={{ fill: '#111' }} />
+                  <Line type="monotone" dataKey="revenue" name="Доход" stroke="#7BBDE8" strokeWidth={2} dot={{ fill: '#7BBDE8' }} />
+                  <Line type="monotone" dataKey="orders" name="Заказы" stroke="#35577D" strokeWidth={2} dot={{ fill: '#35577D' }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -177,7 +177,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Driver Activity */}
-        <Card className="border border-gray-100">
+        <Card className="border-[#35577D]/20">
           <CardHeader>
             <CardTitle className="text-base">{t('driverActivity')}</CardTitle>
           </CardHeader>
@@ -190,16 +190,16 @@ export default function DashboardPage() {
                   <div
                     key={driver.id}
                     onClick={() => router.push('/admin/dashboard/drivers')}
-                    className="flex items-center justify-between p-3 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg bg-[#35577D]/10 cursor-pointer hover:bg-[#35577D]/20 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-gray-400 w-6">#{idx + 1}</span>
+                      <span className="text-sm font-bold text-gray-500 w-6">#{idx + 1}</span>
                       <div>
-                        <p className="text-sm font-medium text-black">{driver.firstName} {driver.lastName}</p>
-                        <p className="text-xs text-gray-500">{driver.totalOrders} заказов</p>
+                        <p className="text-sm font-medium text-white">{driver.firstName} {driver.lastName}</p>
+                        <p className="text-xs text-gray-400">{driver.totalOrders} заказов</p>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold text-red-600">
+                    <span className="text-sm font-semibold text-[#7BBDE8]">
                       {formatCurrency(driver.totalEarnings)}
                     </span>
                   </div>

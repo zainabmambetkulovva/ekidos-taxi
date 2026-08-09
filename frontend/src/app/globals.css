@@ -4,24 +4,24 @@
 
 @layer base {
   :root {
-    /* 3 COLOR SYSTEM: Black (#111), Red (#dc2626), White (#ffffff) */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
-    --primary: 0 72% 51%;
+    /* NAVY MIRAGE COLOR SYSTEM: #141E30 (dark), #35577D (mid), white text */
+    --background: 215 40% 13%;
+    --foreground: 210 20% 90%;
+    --card: 215 38% 16%;
+    --card-foreground: 210 20% 90%;
+    --primary: 215 40% 35%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 7%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 7%;
+    --secondary: 215 30% 20%;
+    --secondary-foreground: 210 20% 90%;
+    --muted: 215 30% 22%;
+    --muted-foreground: 210 15% 55%;
+    --accent: 215 30% 25%;
+    --accent-foreground: 210 20% 90%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 72% 51%;
+    --border: 215 30% 22%;
+    --input: 215 30% 22%;
+    --ring: 215 40% 35%;
     --radius: 0.75rem;
   }
 }
@@ -33,9 +33,9 @@
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f5f5f5; }
-::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #dc2626; }
+::-webkit-scrollbar-track { background: #141E30; }
+::-webkit-scrollbar-thumb { background: #35577D; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4a7aad; }
 
 /* Leaflet fix */
 .leaflet-container { height: 100%; width: 100%; border-radius: 0.75rem; }
