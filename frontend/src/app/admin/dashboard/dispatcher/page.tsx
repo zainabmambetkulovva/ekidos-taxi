@@ -125,10 +125,10 @@ export default function DispatcherPage() {
       <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
         <Button
           onClick={() => setIsOrderFormOpen(true)}
-          size="xl"
-          className="w-full h-20 text-xl font-bold gap-3 bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/20"
+          size="lg"
+          className="gap-2 bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/20"
         >
-          <Plus className="w-7 h-7" />
+          <Plus className="w-5 h-5" />
           {t('addOrder')}
         </Button>
       </motion.div>

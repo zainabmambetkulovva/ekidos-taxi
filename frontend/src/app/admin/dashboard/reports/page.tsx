@@ -31,10 +31,10 @@ export default function ReportsPage() {
   });
 
   const periods: { id: PeriodType; label: string }[] = [
-    { id: 'daily', label: 'Daily' },
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
-    { id: 'yearly', label: 'Yearly' },
+    { id: 'daily', label: t('daily') },
+    { id: 'weekly', label: t('weekly') },
+    { id: 'monthly', label: t('monthly') },
+    { id: 'yearly', label: t('yearly') },
   ];
 
   const exportData = (format: string) => {
@@ -57,8 +57,8 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Отчёты</h1>
-          <p className="text-muted-foreground">Создание и экспорт отчётов</p>
+          <h1 className="text-2xl font-bold">{t('reports')}</h1>
+          <p className="text-muted-foreground">{t('generateReports')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => exportData('csv')} className="gap-2">
@@ -145,7 +145,7 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            {period.charAt(0).toUpperCase() + period.slice(1)} Report
+            {t(period)} {t('reports')}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -153,12 +153,12 @@ export default function ReportsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Order</th>
-                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Client</th>
-                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Driver</th>
-                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Price</th>
-                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">Date</th>
+                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">№</th>
+                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('client')}</th>
+                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('driver')}</th>
+                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('status')}</th>
+                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('price')}</th>
+                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('date')}</th>
                 </tr>
               </thead>
               <tbody>

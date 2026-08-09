@@ -214,8 +214,7 @@ export default function DriverChatPage() {
     setNewMessage('');
 
     try {
-      const socket = connectSocket();
-      socket.emit('dm:send', {
+      await api.post('/dm/send', {
         text,
         senderId: myId,
         senderName: myDisplayName,
@@ -225,8 +224,10 @@ export default function DriverChatPage() {
         receiverType: selectedPartner.type,
       });
     } catch {
+      // Fallback socket
       try {
-        await api.post('/dm/send', {
+        const socket = connectSocket();
+        socket.emit('dm:send', {
           text,
           senderId: myId,
           senderName: myDisplayName,

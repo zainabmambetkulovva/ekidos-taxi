@@ -51,6 +51,9 @@ export default function ArchivePage() {
                 <span className="font-mono text-[10px] text-gray-500">#{order.orderNumber}</span>
                 <span className="text-sm font-bold text-green-400">{order.price} сом</span>
               </div>
+              {order.clientPhone && (
+                <p className="text-[10px] text-[#7BBDE8] mb-1">📞 {order.clientPhone}</p>
+              )}
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-500" />

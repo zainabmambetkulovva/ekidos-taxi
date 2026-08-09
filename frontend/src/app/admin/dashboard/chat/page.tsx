@@ -210,8 +210,7 @@ export default function AdminChatPage() {
     setNewMessage('');
 
     try {
-      const socket = connectSocket();
-      socket.emit('dm:send', {
+      await api.post('/dm/send', {
         text,
         senderId: adminId,
         senderName: `📢 ${adminName}`,
@@ -222,7 +221,8 @@ export default function AdminChatPage() {
       });
     } catch {
       try {
-        await api.post('/dm/send', {
+        const socket = connectSocket();
+        socket.emit('dm:send', {
           text,
           senderId: adminId,
           senderName: `📢 ${adminName}`,

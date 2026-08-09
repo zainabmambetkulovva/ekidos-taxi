@@ -441,58 +441,7 @@ export default function DriverHomePage() {
         <DriverMap center={toktogulCenter} showMarker={lineStatus !== 'OFFLINE'} />
       </div>
 
-      {/* Balance gauge - top right - ALWAYS visible */}
-      {balance !== null && (
-        <div className="absolute top-4 right-4 z-[1000]">
-          <div className="relative w-20 h-20">
-            {/* Background circle */}
-            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-              {/* Track (gray background arc) */}
-              <circle
-                cx="50" cy="50" r="42"
-                fill="none"
-                stroke="rgba(255,255,255,0.1)"
-                strokeWidth="8"
-                strokeDasharray={`${Math.PI * 84 * 0.75} ${Math.PI * 84 * 0.25}`}
-                strokeLinecap="round"
-              />
-              {/* Filled arc based on balance (max 1000 for full) */}
-              <circle
-                cx="50" cy="50" r="42"
-                fill="none"
-                stroke={balance > 200 ? '#22c55e' : balance > 50 ? '#eab308' : '#ef4444'}
-                strokeWidth="8"
-                strokeDasharray={`${Math.PI * 84 * 0.75 * Math.max(0, Math.min(balance / 1000, 1))} ${Math.PI * 84}`}
-                strokeLinecap="round"
-                className="transition-all duration-1000"
-              />
-            </svg>
-            {/* Center content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`text-base font-black ${balance > 200 ? 'text-green-400' : balance > 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                {balance}
-              </span>
-            </div>
-            {/* Needle/arrow indicator */}
-            <div
-              className="absolute top-1/2 left-1/2 origin-bottom transition-transform duration-1000"
-              style={{
-                width: '2px',
-                height: '18px',
-                marginLeft: '-1px',
-                marginTop: '-18px',
-                transform: `rotate(${-135 + (270 * Math.max(0, Math.min(balance / 1000, 1)))}deg)`,
-              }}
-            >
-              <div
-                className={`w-0 h-0 border-l-[3px] border-r-[3px] border-b-[8px] border-l-transparent border-r-transparent ${
-                  balance > 200 ? 'border-b-green-400' : balance > 50 ? 'border-b-yellow-400' : 'border-b-red-400'
-                }`}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Balance gauge removed - balance shown in header */}
 
       {/* Location button */}
       <button

@@ -2,43 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Building2, Lock, Save, Loader2, Users, Globe,
-  Plus, Trash2, X,
-} from 'lucide-react';
+import { Building2, Lock, Save, Globe } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { Lang } from '@/lib/translations';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
-  const { user } = useAuthStore();
   const { lang, setLang, t } = useLanguageStore();
   const [companyName, setCompanyName] = useState('');
   const [language, setLanguage] = useState(lang);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
-  const [newAdmin, setNewAdmin] = useState({ email: '', password: '', firstName: '', lastName: '', role: 'ADMIN' });
-  const [addingAdmin, setAddingAdmin] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => { const { data } = await api.get('/settings'); return data; },
-  });
-
-  const { data: admins = [], refetch: refetchAdmins } = useQuery({
-    queryKey: ['admins'],
-    queryFn: async () => { const { data } = await api.get('/admins'); return data; },
   });
 
   useEffect(() => {
@@ -50,54 +35,38 @@ export default function SettingsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (d: any) => { const res = await api.put('/settings', d); return res.data; },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['settings'] }); toast.success('Сохранено'); },
-    onError: () => toast.error('Ошибка сохранения'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      toast.success(t('saveChanges') + ' ✓');
+    },
+    onError: () => toast.error('Error'),
   });
 
-  const handleAddAdmin = async (forceUpdate = false) => {
-    if (!newAdmin.email || !newAdmin.password || !newAdmin.firstName || !newAdmin.lastName) {
-      return toast.error('Заполните все поля');
-    }
-    if (newAdmin.password.length < 6) {
-      return toast.error('Пароль минимум 6 символов');
-    }
-    setAddingAdmin(true);
-    try {
-      const res = await api.post('/admins', newAdmin);
-      const isUpdated = res.data.updated;
-      toast.success(isUpdated
-        ? `Аккаунт ${res.data.email} обновлён и назначен администратором`
-        : `Аккаунт ${res.data.email} успешно создан`
-      );
-      setIsAddAdminOpen(false);
-      setNewAdmin({ email: '', password: '', firstName: '', lastName: '', role: 'ADMIN' });
-      refetchAdmins();
-    } catch (e: any) {
-      const errorCode = e?.response?.data?.error;
-      const msg = e?.response?.data?.message || e?.response?.data?.error || 'Ошибка';
-
-      if (errorCode === 'not_found') {
-        // Чёткое сообщение — жасалма email жаздырбоо
-        toast.error(msg, { duration: 6000 });
-      } else {
-        toast.error(msg);
-      }
-    } finally {
-      setAddingAdmin(false);
-    }
+  const handleSaveCompany = () => {
+    updateMutation.mutate({ companyName, language });
   };
 
-  const handleDeleteAdmin = async (id: string, email: string) => {
-    if (email === user?.email) return toast.error('Нельзя удалить свой аккаунт');
-    setDeletingId(id);
+  const handleSaveLanguage = () => {
+    setLang(language as Lang);
+    updateMutation.mutate({ companyName, language });
+  };
+
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword) {
+      toast.error(t('currentPassword') + ' & ' + t('newPassword'));
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('Min 6 symbols');
+      return;
+    }
     try {
-      await api.delete(`/admins/${id}`);
-      toast.success('Аккаунт удалён');
-      refetchAdmins();
-    } catch {
-      toast.error('Ошибка удаления');
-    } finally {
-      setDeletingId(null);
+      await api.patch('/admins/change-password', { oldPassword, newPassword });
+      toast.success(t('changePassword') + ' ✓');
+      setOldPassword('');
+      setNewPassword('');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Error');
     }
   };
 
@@ -113,7 +82,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-red-400" />
+              <Building2 className="w-5 h-5 text-[#7BBDE8]" />
               {t('company')}
             </CardTitle>
           </CardHeader>
@@ -122,8 +91,8 @@ export default function SettingsPage() {
               <Label>{t('companyName')}</Label>
               <Input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="EKIDOS TAXI" />
             </div>
-            <Button onClick={() => updateMutation.mutate({ companyName, language })} disabled={updateMutation.isPending} className="gap-2">
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <Button onClick={handleSaveCompany} className="gap-2">
+              <Save className="w-4 h-4" />
               {t('saveChanges')}
             </Button>
           </CardContent>
@@ -133,14 +102,14 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Globe className="w-5 h-5 text-red-400" />
+              <Globe className="w-5 h-5 text-[#7BBDE8]" />
               {t('language')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>{t('language')}</Label>
-              <Select value={language} onValueChange={(v) => { setLanguage(v as 'ru' | 'kg' | 'en'); setLang(v as Lang); }}>
+              <Select value={language} onValueChange={(v) => setLanguage(v as Lang)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -151,8 +120,8 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => updateMutation.mutate({ companyName, language })} disabled={updateMutation.isPending} className="gap-2">
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <Button onClick={handleSaveLanguage} className="gap-2">
+              <Save className="w-4 h-4" />
               {t('saveChanges')}
             </Button>
           </CardContent>
@@ -162,7 +131,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Lock className="w-5 h-5 text-red-400" />
+              <Lock className="w-5 h-5 text-[#7BBDE8]" />
               {t('security')}
             </CardTitle>
           </CardHeader>
@@ -175,102 +144,13 @@ export default function SettingsPage() {
               <Label>{t('newPassword')}</Label>
               <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
             </div>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={handleChangePassword}>
               <Lock className="w-4 h-4" />
               {t('changePassword')}
             </Button>
           </CardContent>
         </Card>
-
-        {/* Admin Accounts */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="w-5 h-5 text-red-400" />
-              {t('adminAccounts')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Existing admins list */}
-            {(Array.isArray(admins) ? admins : []).map((admin: any) => (
-              <div key={admin.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-red-400">{admin.firstName?.[0]}</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{admin.firstName} {admin.lastName}</p>
-                    <p className="text-xs text-muted-foreground">{admin.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-white/5 px-2 py-1 rounded text-muted-foreground">{admin.role}</span>
-                  {admin.email !== user?.email && (
-                    <button
-                      onClick={() => handleDeleteAdmin(admin.id, admin.email)}
-                      disabled={deletingId === admin.id}
-                      className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center transition-colors"
-                    >
-                      {deletingId === admin.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" /> : <Trash2 className="w-3.5 h-3.5 text-red-400" />}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            <Button variant="outline" className="w-full gap-2 mt-2" onClick={() => setIsAddAdminOpen(true)}>
-              <Plus className="w-4 h-4" />
-              {t('addAdmin')}
-            </Button>
-          </CardContent>
-        </Card>
       </div>
-
-      {/* Add Admin Dialog */}
-      <Dialog open={isAddAdminOpen} onOpenChange={setIsAddAdminOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Добавить администратора</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Имя *</Label>
-                <Input value={newAdmin.firstName} onChange={e => setNewAdmin({ ...newAdmin, firstName: e.target.value })} placeholder="Имя" />
-              </div>
-              <div className="space-y-2">
-                <Label>Фамилия *</Label>
-                <Input value={newAdmin.lastName} onChange={e => setNewAdmin({ ...newAdmin, lastName: e.target.value })} placeholder="Фамилия" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Email *</Label>
-              <Input type="email" value={newAdmin.email} onChange={e => setNewAdmin({ ...newAdmin, email: e.target.value })} placeholder="admin@example.com" />
-            </div>
-            <div className="space-y-2">
-              <Label>Пароль *</Label>
-              <Input type="password" value={newAdmin.password} onChange={e => setNewAdmin({ ...newAdmin, password: e.target.value })} placeholder="Минимум 6 символов" />
-            </div>
-            <div className="space-y-2">
-              <Label>Роль</Label>
-              <Select value={newAdmin.role} onValueChange={v => setNewAdmin({ ...newAdmin, role: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ADMIN">Администратор</SelectItem>
-                  <SelectItem value="DISPATCHER">Диспетчер</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setIsAddAdminOpen(false)}>Отмена</Button>
-              <Button className="flex-1 gap-2" onClick={() => handleAddAdmin()} disabled={addingAdmin}>
-                {addingAdmin ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Создать
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
