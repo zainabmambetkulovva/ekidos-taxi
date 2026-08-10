@@ -350,7 +350,11 @@ router.post('/', async (req: Request, res: Response) => {
           distance: 0,
         }));
 
+        console.log(`🚀 Auto-assign: ${candidates.length} online drivers for order #${orderNumber}`);
         startOrderAssignment(order, candidates, io);
+
+        // Also broadcast to ALL online drivers as available order (backup)
+        io.emit('order:available', order);
       } else {
         io.to('admin-room').emit('notification', {
           title: 'Водитель жок',
