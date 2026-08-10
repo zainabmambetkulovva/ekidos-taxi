@@ -12,7 +12,7 @@ import { useNotificationStore } from '@/store/useNotificationStore';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
 import { toast } from 'sonner';
-import { playWelcomeSound, playOrderAlertSound } from '@/lib/sounds';
+import { playWelcomeSound, playOrderAlertSound, playClickSound } from '@/lib/sounds';
 
 const menuKeys = [
   { icon: LayoutDashboard, key: 'dashboard', href: '/admin/dashboard' },
@@ -122,7 +122,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
             return (
               <button
                 key={item.href}
-                onClick={() => router.push(item.href)}
+                onClick={() => { playClickSound(); router.push(item.href); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                   isActive
                     ? 'bg-[#35577D]/40 text-white border border-[#35577D]/60'
@@ -181,7 +181,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                   return (
                     <button
                       key={item.href}
-                      onClick={() => { router.push(item.href); setMobileOpen(false); }}
+                      onClick={() => { playClickSound(); router.push(item.href); setMobileOpen(false); }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                         isActive ? 'bg-[#35577D]/40 text-white' : 'text-gray-400 hover:text-white hover:bg-[#35577D]/20'
                       }`}

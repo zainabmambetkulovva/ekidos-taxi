@@ -68,7 +68,7 @@ function LineStatusButton({ status }: { status: 'ONLINE' | 'OFFLINE' | 'BUSY_PER
   }[status];
 
   const handlePress = () => {
-    playClickSound();
+    playWelcomeSound();
     const socket = connectSocket();
     const driverInfo = localStorage.getItem('driverInfo');
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
@@ -242,7 +242,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                 return (
                   <button
                     key={item.href}
-                    onClick={() => { router.push(item.href); setMobileOpen(false); }}
+                    onClick={() => { playClickSound(); router.push(item.href); setMobileOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                       isActive
                         ? 'bg-[#7BBDE8]/15 text-[#7BBDE8] border border-[#7BBDE8]/30'
@@ -278,7 +278,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
             return (
               <button
                 key={item.href}
-                onClick={() => router.push(item.href)}
+                onClick={() => { playClickSound(); router.push(item.href); }}
                 className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${
                   isActive ? 'text-[#7BBDE8]' : 'text-gray-400'
                 }`}
