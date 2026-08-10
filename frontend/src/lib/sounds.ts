@@ -1,142 +1,153 @@
 /**
- * Sound effects using Web Audio API
- * No sound files needed - all generated programmatically
+ * Sound effects using HTML5 Audio with inline base64 WAV
+ * Works on all devices including mobile WebView
  */
 
-let audioCtx: AudioContext | null = null;
+// Generate a simple WAV file programmatically (beep sound)
+function generateWav(frequency: number, duration: number, volume: number = 0.3): string {
+  const sampleRate = 22050;
+  const samples = Math.floor(sampleRate * duration);
+  const buffer = new ArrayBuffer(44 + samples * 2);
+  const view = new DataView(buffer);
 
-function getAudioContext(): AudioContext | null {
-  try {
-    if (!audioCtx || audioCtx.state === 'closed') {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) audioCtx = new AudioCtx();
-    }
-    if (audioCtx?.state === 'suspended') {
-      audioCtx.resume();
-    }
-    return audioCtx;
-  } catch {
-    return null;
+  // WAV header
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + samples * 2, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, samples * 2, true);
+
+  // Generate sine wave with fade out
+  for (let i = 0; i < samples; i++) {
+    const t = i / sampleRate;
+    const fade = Math.max(0, 1 - t / duration); // fade out
+    const sample = Math.sin(2 * Math.PI * frequency * t) * volume * fade * 32767;
+    view.setInt16(44 + i * 2, Math.max(-32768, Math.min(32767, sample)), true);
   }
+
+  // Convert to base64
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(binary);
 }
 
-// Call this on ANY user interaction to unlock audio
-export function unlockAudio() {
-  const ctx = getAudioContext();
-  if (ctx && ctx.state === 'suspended') {
-    ctx.resume();
+// Generate multi-tone sound (chord/arpeggio)
+function generateMultiTone(frequencies: number[], duration: number, volume: number = 0.2): string {
+  const sampleRate = 22050;
+  const samples = Math.floor(sampleRate * duration);
+  const buffer = new ArrayBuffer(44 + samples * 2);
+  const view = new DataView(buffer);
+
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + samples * 2, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, samples * 2, true);
+
+  for (let i = 0; i < samples; i++) {
+    const t = i / sampleRate;
+    const fade = Math.max(0, 1 - t / duration);
+    let sample = 0;
+    frequencies.forEach((freq, idx) => {
+      const delay = idx * 0.1; // stagger each note
+      if (t >= delay) {
+        const localT = t - delay;
+        const localFade = Math.max(0, 1 - localT / (duration - delay));
+        sample += Math.sin(2 * Math.PI * freq * localT) * localFade;
+      }
+    });
+    sample = sample / frequencies.length * volume * fade * 32767;
+    view.setInt16(44 + i * 2, Math.max(-32768, Math.min(32767, sample)), true);
   }
-  // Create a silent buffer to fully unlock
-  if (ctx) {
-    const buffer = ctx.createBuffer(1, 1, 22050);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start(0);
-  }
+
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(binary);
 }
 
-// Soft welcome sound - calm chime when app loads
-export function playWelcomeSound() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
+// Pre-generate sounds
+let clickSoundData: string | null = null;
+let successSoundData: string | null = null;
+let welcomeSoundData: string | null = null;
+let alertSoundData: string | null = null;
 
-  const now = ctx.currentTime;
-  const gain = ctx.createGain();
-  gain.connect(ctx.destination);
-  gain.gain.setValueAtTime(0.15, now);
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
-
-  // C5 note
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'sine';
-  osc1.frequency.setValueAtTime(523, now);
-  osc1.connect(gain);
-  osc1.start(now);
-  osc1.stop(now + 0.6);
-
-  // E5 note (delayed)
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'sine';
-  osc2.frequency.setValueAtTime(659, now + 0.2);
-  osc2.connect(gain);
-  osc2.start(now + 0.2);
-  osc2.stop(now + 0.8);
-
-  // G5 note (delayed more)
-  const osc3 = ctx.createOscillator();
-  osc3.type = 'sine';
-  osc3.frequency.setValueAtTime(784, now + 0.4);
-  osc3.connect(gain);
-  osc3.start(now + 0.4);
-  osc3.stop(now + 1.2);
+function getClickSound(): string {
+  if (!clickSoundData) clickSoundData = generateWav(1000, 0.05, 0.3);
+  return clickSoundData;
 }
 
-// Short click sound for button presses
+function getSuccessSound(): string {
+  if (!successSoundData) successSoundData = generateMultiTone([523, 659, 784, 1047], 0.6, 0.25);
+  return successSoundData;
+}
+
+function getWelcomeSound(): string {
+  if (!welcomeSoundData) welcomeSoundData = generateMultiTone([392, 523, 659], 0.8, 0.2);
+  return welcomeSoundData;
+}
+
+function getAlertSound(): string {
+  if (!alertSoundData) alertSoundData = generateWav(880, 0.8, 0.4);
+  return alertSoundData;
+}
+
+// Play functions
 export function playClickSound() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-
-  const now = ctx.currentTime;
-  const gain = ctx.createGain();
-  gain.connect(ctx.destination);
-  gain.gain.setValueAtTime(0.1, now);
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-
-  const osc = ctx.createOscillator();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(1200, now);
-  osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
-  osc.connect(gain);
-  osc.start(now);
-  osc.stop(now + 0.08);
+  try {
+    const audio = new Audio(getClickSound());
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  } catch {}
 }
 
-// Alert sound for new order - urgent, attention-grabbing
-export function playOrderAlertSound() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-
-  const now = ctx.currentTime;
-  const gain = ctx.createGain();
-  gain.connect(ctx.destination);
-  gain.gain.setValueAtTime(0.3, now);
-  gain.gain.setValueAtTime(0.3, now + 1.5);
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 2);
-
-  // Urgent beep pattern: high-low-high-low-high
-  const freqs = [880, 660, 880, 660, 880];
-  const duration = 0.3;
-
-  freqs.forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, now + i * duration);
-    osc.connect(gain);
-    osc.start(now + i * duration);
-    osc.stop(now + i * duration + duration * 0.8);
-  });
-}
-
-// Success sound for balance topup - pleasant ascending
 export function playSuccessSound() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  try {
+    const audio = new Audio(getSuccessSound());
+    audio.volume = 0.6;
+    audio.play().catch(() => {});
+  } catch {}
+}
 
-  const now = ctx.currentTime;
-  const gain = ctx.createGain();
-  gain.connect(ctx.destination);
-  gain.gain.setValueAtTime(0.2, now);
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+export function playWelcomeSound() {
+  try {
+    const audio = new Audio(getWelcomeSound());
+    audio.volume = 0.4;
+    audio.play().catch(() => {});
+  } catch {}
+}
 
-  // Ascending: C5 → E5 → G5 → C6 (fast arpeggio)
-  const notes = [523, 659, 784, 1047];
-  notes.forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, now + i * 0.1);
-    osc.connect(gain);
-    osc.start(now + i * 0.1);
-    osc.stop(now + i * 0.1 + 0.3);
-  });
+export function playOrderAlertSound() {
+  try {
+    const audio = new Audio(getAlertSound());
+    audio.volume = 0.7;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
+export function unlockAudio() {
+  // Not needed with HTML5 Audio approach, but keep for compatibility
 }
