@@ -5,6 +5,7 @@ import { Clock, CheckCircle2, Navigation, Phone, MapPin as MapPinIcon, Car } fro
 import { useDriverStore } from '@/store/useDriverStore';
 import { getClientDisplayName } from '@/lib/display-names';
 import { useLanguageStore } from '@/store/useLanguageStore';
+import { playOrderAlertSound } from '@/lib/sounds';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -205,6 +206,8 @@ export default function DriverHomePage() {
       
       setIncomingOrder(order);
       setIncomingTimer(25);
+      // Play alert sound
+      playOrderAlertSound();
       // Aggressive vibrate
       if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
       // Alarm sound

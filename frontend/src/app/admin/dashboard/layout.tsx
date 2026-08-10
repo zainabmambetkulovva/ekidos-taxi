@@ -12,6 +12,7 @@ import { useNotificationStore } from '@/store/useNotificationStore';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
 import { toast } from 'sonner';
+import { playWelcomeSound, playOrderAlertSound } from '@/lib/sounds';
 
 const menuKeys = [
   { icon: LayoutDashboard, key: 'dashboard', href: '/admin/dashboard' },
@@ -50,6 +51,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   useEffect(() => {
     if (isAuthenticated && user) {
+      playWelcomeSound();
       const socket = connectSocket();
       socket.emit('admin:join', user.id);
 
@@ -59,28 +61,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       });
 
       socket.on('order:new', () => {
-        // Play notification sound - multiple fallback methods
-        try {
-          const audio = new Audio('/notification.mp3');
-          audio.volume = 0.7;
-          audio.play().catch(() => {
-            // Fallback: use AudioContext beep
-            try {
-              const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-              if (AudioCtx) {
-                const ctx = new AudioCtx();
-                const osc = ctx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.value = 800;
-                osc.connect(ctx.destination);
-                osc.start();
-                setTimeout(() => { osc.frequency.value = 1000; }, 200);
-                setTimeout(() => { osc.frequency.value = 800; }, 400);
-                setTimeout(() => { osc.stop(); ctx.close(); }, 600);
-              }
-            } catch {}
-          });
-        } catch {}
+        // Play alert sound for new order
+        playOrderAlertSound();
       });
 
       return () => {
