@@ -234,6 +234,19 @@ router.get('/:id/status', async (req: Request, res: Response) => {
 });
 
 // Get available orders for drivers (also returns online driver positions for client map)
+// Clear all pending orders (for testing)
+router.post('/clear-pending', async (req: Request, res: Response) => {
+  try {
+    const result = await prisma.order.updateMany({
+      where: { status: 'PENDING' },
+      data: { status: 'CANCELLED' },
+    });
+    return res.json({ cleared: result.count });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/available', async (req: Request, res: Response) => {
   try {
     const orders = await prisma.order.findMany({
