@@ -213,8 +213,24 @@ export default function DriverChatPage() {
     const text = newMessage.trim();
     setNewMessage('');
 
+    // Optimistic: show message immediately
+    const optimisticMsg: DirectMessage = {
+      id: `temp-${Date.now()}`,
+      text,
+      senderId: myId,
+      senderName: myDisplayName,
+      senderType: 'DRIVER',
+      receiverId: selectedPartner.id,
+      receiverName: selectedPartner.name,
+      receiverType: selectedPartner.type,
+      conversationId: [myId, selectedPartner.id].sort().join('_'),
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+    setDmMessages(prev => [...prev, optimisticMsg]);
+
     try {
-      await api.post('/dm/send', {
+      const { data } = await api.post('/dm/send', {
         text,
         senderId: myId,
         senderName: myDisplayName,
@@ -223,20 +239,11 @@ export default function DriverChatPage() {
         receiverName: selectedPartner.name,
         receiverType: selectedPartner.type,
       });
-    } catch {
-      // Fallback socket
-      try {
-        const socket = connectSocket();
-        socket.emit('dm:send', {
-          text,
-          senderId: myId,
-          senderName: myDisplayName,
-          senderType: 'DRIVER',
-          receiverId: selectedPartner.id,
-          receiverName: selectedPartner.name,
-          receiverType: selectedPartner.type,
-        });
-      } catch {}
+      // Replace optimistic with real message
+      setDmMessages(prev => prev.map(m => m.id === optimisticMsg.id ? data : m));
+    } catch (err: any) {
+      console.error('DM send error:', err?.response?.data || err);
+      // Keep optimistic message visible even if server fails
     } finally {
       setSending(false);
       inputRef.current?.focus();

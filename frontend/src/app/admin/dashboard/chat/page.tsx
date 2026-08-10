@@ -209,8 +209,24 @@ export default function AdminChatPage() {
     const text = newMessage.trim();
     setNewMessage('');
 
+    // Optimistic: show message immediately
+    const optimisticMsg: DirectMessage = {
+      id: `temp-${Date.now()}`,
+      text,
+      senderId: adminId,
+      senderName: `📢 ${adminName}`,
+      senderType: 'DISPATCHER',
+      receiverId: selectedPartner.id,
+      receiverName: selectedPartner.name,
+      receiverType: selectedPartner.type,
+      conversationId: [adminId, selectedPartner.id].sort().join('_'),
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+    setDmMessages(prev => [...prev, optimisticMsg]);
+
     try {
-      await api.post('/dm/send', {
+      const { data } = await api.post('/dm/send', {
         text,
         senderId: adminId,
         senderName: `📢 ${adminName}`,
@@ -219,19 +235,9 @@ export default function AdminChatPage() {
         receiverName: selectedPartner.name,
         receiverType: selectedPartner.type,
       });
-    } catch {
-      try {
-        const socket = connectSocket();
-        socket.emit('dm:send', {
-          text,
-          senderId: adminId,
-          senderName: `📢 ${adminName}`,
-          senderType: 'DISPATCHER',
-          receiverId: selectedPartner.id,
-          receiverName: selectedPartner.name,
-          receiverType: selectedPartner.type,
-        });
-      } catch {}
+      setDmMessages(prev => prev.map(m => m.id === optimisticMsg.id ? data : m));
+    } catch (err: any) {
+      console.error('DM send error:', err?.response?.data || err);
     } finally {
       setSending(false);
     }

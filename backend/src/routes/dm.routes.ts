@@ -3,6 +3,7 @@ import { prisma } from '../server';
 import { io } from '../server';
 import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
 
+// DM Routes - Direct Messages between users
 const router = Router();
 
 // Helper: create conversationId from two user IDs (sorted so it's always the same)
