@@ -51,7 +51,15 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      playWelcomeSound();
+      // Play welcome sound on first user interaction
+      const playOnce = () => {
+        playWelcomeSound();
+        document.removeEventListener('touchstart', playOnce);
+        document.removeEventListener('click', playOnce);
+      };
+      document.addEventListener('touchstart', playOnce, { once: true });
+      document.addEventListener('click', playOnce, { once: true });
+
       const socket = connectSocket();
       socket.emit('admin:join', user.id);
 

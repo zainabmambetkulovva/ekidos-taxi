@@ -106,7 +106,7 @@ function getSuccessSound(): string {
 }
 
 function getWelcomeSound(): string {
-  if (!welcomeSoundData) welcomeSoundData = generateMultiTone([392, 523, 659], 0.8, 0.2);
+  if (!welcomeSoundData) welcomeSoundData = generateMultiTone([392, 523, 659], 2.5, 0.15);
   return welcomeSoundData;
 }
 
