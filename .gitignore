@@ -8,6 +8,7 @@ node_modules/
 frontend/.next/
 build/
 .expo/
+*.tsbuildinfo
 # dist/ intentionally NOT ignored — Railway needs it after npm run build
 
 # Environment
