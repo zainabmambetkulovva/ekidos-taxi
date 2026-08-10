@@ -82,6 +82,27 @@ export default function DriverOrdersPage() {
       socket.emit('driver:join', driverId);
     }
 
+    // Fetch existing available orders from API
+    const fetchAvailableOrders = async () => {
+      try {
+        const { data } = await api.get('/orders/available');
+        const available = Array.isArray(data) ? data : [];
+        if (available.length > 0) {
+          setOrders(prev => {
+            const merged = [...prev];
+            available.forEach((order: any) => {
+              if (!merged.find(o => o.id === order.id)) {
+                merged.push(order);
+              }
+            });
+            return merged;
+          });
+        }
+      } catch {}
+    };
+    fetchAvailableOrders();
+    const fetchIv = setInterval(fetchAvailableOrders, 10000);
+
     // New order arrives — ONLY if assigned to THIS driver
     socket.on('order:incoming', (order: any) => {
       if (order.assignedDriverId !== driverId) return;
@@ -111,6 +132,7 @@ export default function DriverOrdersPage() {
     }
 
     return () => {
+      clearInterval(fetchIv);
       socket.off('order:incoming');
       socket.off('order:taken');
       socket.off('order:expired');
