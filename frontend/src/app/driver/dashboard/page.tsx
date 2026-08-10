@@ -14,11 +14,9 @@ import { connectSocket } from '@/lib/socket';
 // Active Order Card with step-by-step flow
 function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => void }) {
   const [step, setStep] = useState<'driving' | 'arrived' | 'client_in_car'>('driving');
-  const [countdown, setCountdown] = useState(120); // 2 minutes in seconds
+  const [countdown, setCountdown] = useState(120);
   const [extraCharge, setExtraCharge] = useState(0);
-  const { t } = useLanguageStore();
 
-  // Countdown timer when arrived
   useEffect(() => {
     if (step !== 'arrived') return;
     setCountdown(120);
@@ -44,13 +42,13 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
       socket.emit('driver:arrived', { orderId: order.id, driverId });
     }
     setStep('arrived');
-    toast.success('Клиентке кабар берилди!');
+    toast.success('Клиент уведомлён!');
   };
 
   const handleClientInCar = () => {
     playWelcomeSound();
     setStep('client_in_car');
-    toast.success('Жолго!');
+    toast.success('В пути!');
   };
 
   const handleComplete = () => {
@@ -60,17 +58,15 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
 
   return (
     <div className="bg-[#0d0d0d] border border-green-500/30 rounded-2xl p-4 shadow-2xl">
-      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-bold text-green-400 uppercase tracking-wider">
-          {step === 'driving' && t('navigate')}
-          {step === 'arrived' && t('arrived')}
-          {step === 'client_in_car' && t('inProgress')}
+          {step === 'driving' && 'Еду к клиенту'}
+          {step === 'arrived' && 'На месте'}
+          {step === 'client_in_car' && 'В пути'}
         </span>
         <span className="text-xl font-black text-green-400">{order.price + extraCharge} сом</span>
       </div>
 
-      {/* Route */}
       <div className="space-y-2 mb-3">
         <div className="flex items-start gap-2.5">
           <div className="mt-1 w-2.5 h-2.5 rounded-full bg-green-500 ring-2 ring-green-500/20 flex-shrink-0" />
@@ -83,7 +79,6 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
         </div>
       </div>
 
-      {/* Client info */}
       <div className="flex items-center justify-between mb-3 bg-white/5 rounded-xl px-3 py-2">
         <span className="text-xs text-gray-400">Клиент: <span className="text-white font-medium">{getClientDisplayName(order.id)}</span></span>
         {order.clientPhone && (
@@ -93,7 +88,6 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
         )}
       </div>
 
-      {/* Step-by-step action buttons */}
       {step === 'driving' && (
         <div className="flex gap-2">
           <button
@@ -101,32 +95,31 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
             className="flex-1 h-11 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
           >
             <Navigation className="w-4 h-4" />
-            {t('navigate')}
+            Навигация
           </button>
           <button
             onClick={handleArrived}
             className="flex-1 h-11 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
           >
             <MapPinIcon className="w-4 h-4" />
-            {t('arrived')}
+            Я подъехал
           </button>
         </div>
       )}
 
       {step === 'arrived' && (
         <div className="space-y-2">
-          {/* Countdown timer */}
           <div className="text-center py-2">
             <span className={`text-lg font-bold ${countdown > 0 ? 'text-yellow-400' : 'text-red-400'}`}>
               {countdown > 0 ? `${Math.floor(countdown/60)}:${(countdown%60).toString().padStart(2,'0')}` : '+50 сом'}
             </span>
             <p className="text-[10px] text-gray-500">
-              {countdown > 0 ? 'Бесплатно күтүү' : 'Кошумча акы кошулду'}
+              {countdown > 0 ? 'Бесплатное ожидание' : 'Доп. плата добавлена'}
             </p>
           </div>
           {extraCharge > 0 && (
             <div className="text-center text-xs text-red-400 font-medium">
-              Кошумча: +{extraCharge} сом (жалпы: {order.price + extraCharge} сом)
+              Доп: +{extraCharge} сом (итого: {order.price + extraCharge} сом)
             </div>
           )}
           <button
@@ -134,7 +127,7 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
             className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all"
           >
             <Car className="w-5 h-5" />
-            {t('inProgress')}
+            Клиент в машине
           </button>
         </div>
       )}
@@ -145,7 +138,7 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
           className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-lg shadow-green-500/20"
         >
           <CheckCircle2 className="w-5 h-5" />
-          {t('completeOrder')}
+          Завершить заказ
         </button>
       )}
     </div>
@@ -328,14 +321,17 @@ export default function DriverHomePage() {
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
     if (!driverId) return;
 
+    // Immediately show active order (optimistic)
+    setActiveOrder(incomingOrder);
+    setIncomingOrder(null);
+    setIncomingTimer(0);
+    toast.success('Заказ принят!');
+
+    // API call in background
     try {
       await api.patch(`/orders/${incomingOrder.id}/accept`, { driverId });
-      setActiveOrder(incomingOrder);
-      setIncomingOrder(null);
-      setIncomingTimer(0);
-      toast.success('Заказ кабыл алынды!');
     } catch {
-      toast.error('Ката — кайра аракет кылыңыз');
+      // Even if fails, keep the order active locally
     }
   };
 
@@ -434,13 +430,13 @@ export default function DriverHomePage() {
               className="w-full h-16 rounded-2xl bg-green-600 hover:bg-green-700 text-white text-xl font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-green-600/30"
             >
               <CheckCircle2 className="w-7 h-7" />
-              {t('accept')}
+              ПРИНЯТЬ
             </button>
             <button
               onClick={handleRejectIncoming}
               className="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-gray-400 text-sm font-medium active:scale-95 transition-all"
             >
-              {t('reject')}
+              Отклонить
             </button>
           </div>
         </div>
