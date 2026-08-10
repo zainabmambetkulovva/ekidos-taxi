@@ -64,7 +64,7 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
           {step === 'arrived' && 'На месте'}
           {step === 'client_in_car' && 'В пути'}
         </span>
-        <span className="text-xl font-black text-green-400">{order.price + extraCharge} сом</span>
+        <span className="text-xl font-black text-green-400">{order.price} сом</span>
       </div>
 
       <div className="space-y-2 mb-3">
@@ -108,28 +108,13 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
       )}
 
       {step === 'arrived' && (
-        <div className="space-y-2">
-          <div className="text-center py-2">
-            <span className={`text-lg font-bold ${countdown > 0 ? 'text-yellow-400' : 'text-red-400'}`}>
-              {countdown > 0 ? `${Math.floor(countdown/60)}:${(countdown%60).toString().padStart(2,'0')}` : '+50 сом'}
-            </span>
-            <p className="text-[10px] text-gray-500">
-              {countdown > 0 ? 'Бесплатное ожидание' : 'Доп. плата добавлена'}
-            </p>
-          </div>
-          {extraCharge > 0 && (
-            <div className="text-center text-xs text-red-400 font-medium">
-              Доп: +{extraCharge} сом (итого: {order.price + extraCharge} сом)
-            </div>
-          )}
-          <button
-            onClick={handleClientInCar}
-            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all"
-          >
-            <Car className="w-5 h-5" />
-            Клиент в машине
-          </button>
-        </div>
+        <button
+          onClick={handleClientInCar}
+          className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all"
+        >
+          <Car className="w-5 h-5" />
+          Клиент в машине
+        </button>
       )}
 
       {step === 'client_in_car' && (
