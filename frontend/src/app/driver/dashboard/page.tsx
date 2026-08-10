@@ -205,7 +205,7 @@ export default function DriverHomePage() {
       if (currentStatus === 'BUSY_PERSONAL') return;
       
       setIncomingOrder(order);
-      setIncomingTimer(25);
+      setIncomingTimer(20);
       // Play alert sound
       playOrderAlertSound();
       // Aggressive vibrate
@@ -380,7 +380,7 @@ export default function DriverHomePage() {
             <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
               <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
               <circle cx="50" cy="50" r="44" fill="none" stroke="#ef4444" strokeWidth="6"
-                strokeDasharray={`${Math.PI * 88 * (incomingTimer / 25)} ${Math.PI * 88}`}
+                strokeDasharray={`${Math.PI * 88 * (incomingTimer / 20)} ${Math.PI * 88}`}
                 strokeLinecap="round" className="transition-all duration-1000" />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
@@ -472,40 +472,6 @@ export default function DriverHomePage() {
             <ActiveOrderCard order={activeOrder} onComplete={handleCompleteOrder} />
           </div>
         )}
-
-        {/* Waiting state — removed, status indicator is enough */}
-
-        {/* BUSY_PERSONAL state */}
-        {lineStatus === 'BUSY_PERSONAL' && !activeOrder && (
-          <div className="px-3 pb-2">
-            <div className="bg-[#111]/90 border border-orange-500/30 rounded-2xl p-3 text-center backdrop-blur-sm">
-              <span className="text-lg">☕</span>
-              <p className="text-xs text-orange-400 font-medium mt-1">По делам</p>
-              <p className="text-[10px] text-gray-600 mt-0.5">Заказдар келбейт</p>
-            </div>
-          </div>
-        )}
-
-        {/* Status indicator bar */}
-        <div className="flex justify-center py-3 px-4">
-          <div className={`px-6 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 ${
-            lineStatus === 'ONLINE' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-            lineStatus === 'BUSY_PERSONAL' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-            lineStatus === 'BUSY' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-            'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${
-              lineStatus === 'ONLINE' ? 'bg-green-400 animate-pulse' :
-              lineStatus === 'BUSY_PERSONAL' ? 'bg-orange-400' :
-              lineStatus === 'BUSY' ? 'bg-red-400 animate-pulse' :
-              'bg-gray-400'
-            }`} />
-            {lineStatus === 'ONLINE' && 'Линияда'}
-            {lineStatus === 'BUSY_PERSONAL' && 'По делам'}
-            {lineStatus === 'BUSY' && 'Заказ аткарууда'}
-            {lineStatus === 'OFFLINE' && 'Оффлайн'}
-          </div>
-        </div>
       </div>
     </div>
   );

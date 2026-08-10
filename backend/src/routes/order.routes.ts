@@ -49,17 +49,17 @@ function startOrderAssignment(order: any, candidates: any[], ioServer: any) {
       ...order,
       assignedDriverId: selected.id,
       distanceMeters: Math.round(selected.distance * 1000),
-      timeoutSeconds: 25,
+      timeoutSeconds: 20,
     });
 
     // Notify admin
     ioServer.to('admin-room').emit('notification', {
       title: 'Заказ жөнөтүлдү',
-      message: `#${order.orderNumber} → ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}м) — 25 сек`,
+      message: `#${order.orderNumber} → ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}м) — 20 сек`,
       type: 'auto_assigned',
     });
 
-    // 25 second timeout — if not accepted, try next
+    // 20 second timeout — if not accepted, try next
     currentTimeout = setTimeout(async () => {
       try {
         const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
@@ -70,7 +70,7 @@ function startOrderAssignment(order: any, candidates: any[], ioServer: any) {
           assignToNext();
         }
       } catch {}
-    }, 25000);
+    }, 20000);
   }
 
   // Start the chain
