@@ -16,6 +16,7 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
   const [step, setStep] = useState<'driving' | 'arrived' | 'client_in_car'>('driving');
   const [countdown, setCountdown] = useState(120); // 2 minutes in seconds
   const [extraCharge, setExtraCharge] = useState(0);
+  const { t } = useLanguageStore();
 
   // Countdown timer when arrived
   useEffect(() => {
@@ -24,7 +25,6 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          // Time's up - add 50 som
           setExtraCharge(50);
           clearInterval(timer);
           return 0;
@@ -36,7 +36,7 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
   }, [step]);
 
   const handleArrived = () => {
-    // Emit socket event to notify client
+    playWelcomeSound();
     const socket = connectSocket();
     const driverInfo = localStorage.getItem('driverInfo');
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
@@ -48,8 +48,14 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
   };
 
   const handleClientInCar = () => {
+    playWelcomeSound();
     setStep('client_in_car');
     toast.success('Жолго!');
+  };
+
+  const handleComplete = () => {
+    playWelcomeSound();
+    onComplete();
   };
 
   return (
@@ -57,9 +63,9 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-bold text-green-400 uppercase tracking-wider">
-          {step === 'driving' && 'Еду к клиенту'}
-          {step === 'arrived' && 'На месте'}
-          {step === 'client_in_car' && 'В пути'}
+          {step === 'driving' && t('navigate')}
+          {step === 'arrived' && t('arrived')}
+          {step === 'client_in_car' && t('inProgress')}
         </span>
         <span className="text-xl font-black text-green-400">{order.price + extraCharge} сом</span>
       </div>
@@ -95,14 +101,14 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
             className="flex-1 h-11 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
           >
             <Navigation className="w-4 h-4" />
-            Навигация
+            {t('navigate')}
           </button>
           <button
             onClick={handleArrived}
             className="flex-1 h-11 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
           >
             <MapPinIcon className="w-4 h-4" />
-            Я подъехал
+            {t('arrived')}
           </button>
         </div>
       )}
@@ -128,18 +134,18 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
             className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all"
           >
             <Car className="w-5 h-5" />
-            Клиент в машине
+            {t('inProgress')}
           </button>
         </div>
       )}
 
       {step === 'client_in_car' && (
         <button
-          onClick={onComplete}
+          onClick={handleComplete}
           className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-lg shadow-green-500/20"
         >
           <CheckCircle2 className="w-5 h-5" />
-          Завершить заказ
+          {t('completeOrder')}
         </button>
       )}
     </div>
@@ -428,13 +434,13 @@ export default function DriverHomePage() {
               className="w-full h-16 rounded-2xl bg-green-600 hover:bg-green-700 text-white text-xl font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-green-600/30"
             >
               <CheckCircle2 className="w-7 h-7" />
-              ПРИНЯТЬ
+              {t('accept')}
             </button>
             <button
               onClick={handleRejectIncoming}
               className="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-gray-400 text-sm font-medium active:scale-95 transition-all"
             >
-              Четке кагуу
+              {t('reject')}
             </button>
           </div>
         </div>
