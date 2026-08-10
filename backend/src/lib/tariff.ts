@@ -18,11 +18,7 @@ export interface TariffConfig {
 }
 
 export const TARIFFS: Record<string, TariffConfig> = {
-  Standard: { perKm: 15, minimum: 80, name: 'Стандарт' },
-  Comfort: { perKm: 20, minimum: 120, name: 'Комфорт' },
-  Business: { perKm: 30, minimum: 200, name: 'Бизнес' },
-  Minivan: { perKm: 25, minimum: 150, name: 'Минивэн' },
-  Intercity: { perKm: 12, minimum: 300, name: 'Междугород' },
+  Standard: { perKm: 18, minimum: 110, name: 'Стандарт' },
 };
 
 export const COMPANY_COMMISSION = 0.15; // 15%
