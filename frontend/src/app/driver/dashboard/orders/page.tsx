@@ -74,8 +74,6 @@ export default function DriverOrdersPage() {
 
   // Socket.IO real-time: listen for new orders
   useEffect(() => {
-    if (!isOnline) return;
-
     const socket = connectSocket();
     const driverInfo = localStorage.getItem('driverInfo');
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
@@ -100,22 +98,24 @@ export default function DriverOrdersPage() {
       setOrders(prev => prev.filter(o => o.id !== orderId));
     });
 
-    return () => {
-      socket.off('order:incoming');
-      socket.off('order:taken');
-    };
-  }, [isOnline]);
+    // Order expired (timeout) — remove from list
+    socket.on('order:expired', ({ orderId }: { orderId: string }) => {
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+    });
 
-  // NO polling — orders come ONLY via socket (order:incoming to assigned driver)
-  useEffect(() => {
-    if (!isOnline) { setOrders([]); setLoading(false); return; }
     setLoading(false);
 
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-  }, [isOnline]);
+
+    return () => {
+      socket.off('order:incoming');
+      socket.off('order:taken');
+      socket.off('order:expired');
+    };
+  }, []);
 
   const handleAccept = async (order: any) => {
     try {
