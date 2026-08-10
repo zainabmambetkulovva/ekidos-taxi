@@ -290,6 +290,12 @@ router.post('/', async (req: Request, res: Response) => {
       orderPrice = priceCalc.total;
       driverEarning = priceCalc.driverEarning;
       companyCommission = priceCalc.companyCommission;
+    } else if (orderPrice === 0) {
+      // No coordinates and no price — use minimum tariff
+      const priceCalc = calculatePrice(0, tariff || 'Standard');
+      orderPrice = priceCalc.total; // will be minimum (110 som)
+      driverEarning = priceCalc.driverEarning;
+      companyCommission = priceCalc.companyCommission;
     } else if (orderPrice > 0) {
       companyCommission = Math.round(orderPrice * COMPANY_COMMISSION);
       driverEarning = orderPrice - companyCommission;
