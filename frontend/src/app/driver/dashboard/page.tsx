@@ -5,7 +5,7 @@ import { Clock, CheckCircle2, Navigation, Phone, MapPin as MapPinIcon, Car } fro
 import { useDriverStore } from '@/store/useDriverStore';
 import { getClientDisplayName } from '@/lib/display-names';
 import { useLanguageStore } from '@/store/useLanguageStore';
-import { playOrderAlertSound, playSuccessSound } from '@/lib/sounds';
+import { playOrderAlertSound, playWelcomeSound } from '@/lib/sounds';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -317,7 +317,7 @@ export default function DriverHomePage() {
 
   const handleAcceptIncoming = async () => {
     if (!incomingOrder) return;
-    playSuccessSound();
+    playWelcomeSound();
     const driverInfo = localStorage.getItem('driverInfo');
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
     if (!driverId) return;
