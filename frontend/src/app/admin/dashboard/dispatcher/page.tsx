@@ -277,7 +277,8 @@ export default function DispatcherPage() {
 
             <div className="space-y-2">
               <Label>{t('price')}</Label>
-              <Input type="number" value={orderForm.price} onChange={(e) => setOrderForm({...orderForm, price: e.target.value})} placeholder="0" min="0" />
+              <Input type="number" value={orderForm.price} onChange={(e) => setOrderForm({...orderForm, price: e.target.value})} placeholder="Авто (18 сом/км)" min="0" />
+              <p className="text-[10px] text-muted-foreground">Бош калтырсаңыз — аралыкка жараша автоматтык эсептелет</p>
             </div>
 
             <div className="space-y-2">

@@ -283,8 +283,15 @@ router.post('/', async (req: Request, res: Response) => {
     let companyCommission = 0;
     let distance = 0;
 
-    if (orderPrice > 0) {
-      companyCommission = Math.round(orderPrice * 0.15);
+    // Auto-calculate price from coordinates if price not provided
+    if (orderPrice === 0 && finalPickupLat && finalPickupLng && finalDestLat && finalDestLng) {
+      distance = calculateDistance(finalPickupLat, finalPickupLng, finalDestLat, finalDestLng);
+      const priceCalc = calculatePrice(distance, tariff || 'Standard');
+      orderPrice = priceCalc.total;
+      driverEarning = priceCalc.driverEarning;
+      companyCommission = priceCalc.companyCommission;
+    } else if (orderPrice > 0) {
+      companyCommission = Math.round(orderPrice * COMPANY_COMMISSION);
       driverEarning = orderPrice - companyCommission;
     }
 

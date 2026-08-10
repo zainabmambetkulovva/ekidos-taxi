@@ -139,6 +139,85 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     }
   }, [showMarker]);
 
+  // Show route line when active order exists (pickup → destination)
+  useEffect(() => {
+    const L = (window as any).L;
+    const map = mapRef.current;
+    if (!L || !map) return;
+
+    // Clean previous route
+    if ((map as any)._routeLine) {
+      map.removeLayer((map as any)._routeLine);
+      (map as any)._routeLine = null;
+    }
+    if ((map as any)._routeMarkers) {
+      (map as any)._routeMarkers.forEach((m: any) => map.removeLayer(m));
+      (map as any)._routeMarkers = null;
+    }
+
+    if (!activeOrder) return;
+
+    const pickupLat = activeOrder.pickupLat;
+    const pickupLng = activeOrder.pickupLng;
+    const destLat = activeOrder.destLat;
+    const destLng = activeOrder.destLng;
+
+    if (!pickupLat || !pickupLng) return;
+
+    const points: [number, number][] = [[pickupLat, pickupLng]];
+    if (destLat && destLng) points.push([destLat, destLng]);
+
+    if (points.length >= 2) {
+      // Draw route line
+      const line = L.polyline(points, {
+        color: '#7BBDE8',
+        weight: 4,
+        opacity: 0.8,
+        dashArray: '10, 8',
+      }).addTo(map);
+      (map as any)._routeLine = line;
+
+      // Add markers for pickup (green) and destination (red)
+      const pickupIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      const destIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+
+      const markers = [
+        L.marker([pickupLat, pickupLng], { icon: pickupIcon }).addTo(map),
+        L.marker([destLat, destLng], { icon: destIcon }).addTo(map),
+      ];
+      (map as any)._routeMarkers = markers;
+
+      // Fit map to show the route
+      map.fitBounds(L.latLngBounds(points), { padding: [50, 50] });
+    } else if (points.length === 1) {
+      // Only pickup - just show marker
+      const pickupIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      const m = L.marker([pickupLat, pickupLng], { icon: pickupIcon }).addTo(map);
+      (map as any)._routeMarkers = [m];
+      map.setView([pickupLat, pickupLng], 15);
+    }
+
+    return () => {
+      if ((map as any)._routeLine) { map.removeLayer((map as any)._routeLine); (map as any)._routeLine = null; }
+      if ((map as any)._routeMarkers) { (map as any)._routeMarkers.forEach((m: any) => map.removeLayer(m)); (map as any)._routeMarkers = null; }
+    };
+  }, [activeOrder, mapReady]);
+
   // Fetch and show order markers
   useEffect(() => {
     if (!showMarker || activeOrder) return;
