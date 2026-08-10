@@ -12,7 +12,7 @@ import { useDriverStore } from '@/store/useDriverStore';
 import BlockTimer from './block-timer';
 import { connectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
-import { playWelcomeSound, playClickSound } from '@/lib/sounds';
+import { playWelcomeSound, playClickSound, unlockAudio } from '@/lib/sounds';
 
 import api from '@/lib/axios';
 
@@ -123,6 +123,10 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     }
     setAuthChecked(true);
     playWelcomeSound();
+    // Unlock audio on first touch for future sounds
+    const unlock = () => { unlockAudio(); document.removeEventListener('touchstart', unlock); document.removeEventListener('click', unlock); };
+    document.addEventListener('touchstart', unlock, { once: true });
+    document.addEventListener('click', unlock, { once: true });
   }, [router]);
 
   // Connect socket immediately when driver dashboard loads

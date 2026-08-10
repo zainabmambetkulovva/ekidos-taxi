@@ -20,6 +20,22 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
+// Call this on ANY user interaction to unlock audio
+export function unlockAudio() {
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume();
+  }
+  // Create a silent buffer to fully unlock
+  if (ctx) {
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+  }
+}
+
 // Soft welcome sound - calm chime when app loads
 export function playWelcomeSound() {
   const ctx = getAudioContext();
