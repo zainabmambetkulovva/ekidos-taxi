@@ -70,7 +70,7 @@ export default function CompletedOrdersPage() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                    <span className="text-xs text-muted-foreground">{getClientDisplayName(order.id)}</span>
+                    <span className="text-xs text-muted-foreground">{order.clientName}</span>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {formatDate(order.completedAt || order.createdAt)}

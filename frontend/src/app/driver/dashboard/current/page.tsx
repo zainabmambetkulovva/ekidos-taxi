@@ -173,7 +173,7 @@ export default function CurrentOrderPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">{getClientDisplayName(currentOrder.id)}</span>
+                <span className="text-sm">{currentOrder.clientName}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-muted-foreground" />
