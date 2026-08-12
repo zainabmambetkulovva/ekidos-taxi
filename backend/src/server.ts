@@ -240,6 +240,75 @@ app.patch('/api/drivers/:id/push-token', async (req: Request, res: Response) => 
 });
 // ===== END PUSH TOKEN =====
 
+// ===== CLIENT AUTH (email + password) =====
+app.post('/api/auth/client/register', async (req: Request, res: Response) => {
+  try {
+    const { email, password, name, phone } = req.body;
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Email туура эмес' });
+    if (!password || password.length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символ' });
+    if (!name) return res.status(400).json({ error: 'Аты-жөнү керек' });
+
+    const clientPhone = phone || `email:${email.toLowerCase().trim()}`;
+
+    // Check if already exists
+    const existing = await prisma.client.findUnique({ where: { phone: clientPhone } });
+    if (existing) return res.status(400).json({ error: 'Бул email менен аккаунт бар. Кириңиз.' });
+
+    // Hash password and store in OTP table (reuse as password store)
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await prisma.oTP.create({
+      data: { phone: clientPhone, code: hashedPassword, expiresAt: new Date('2099-01-01'), isUsed: false },
+    });
+
+    const client = await prisma.client.create({
+      data: { name, phone: clientPhone },
+    });
+
+    const token = jwt.sign(
+      { id: client.id, phone: client.phone, role: 'CLIENT' },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '30d' }
+    );
+
+    return res.json({ token, client: { id: client.id, name: client.name, phone: clientPhone, email } });
+  } catch (error: any) {
+    console.error('Client register error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/auth/client/login', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email жана пароль керек' });
+
+    const clientPhone = `email:${email.toLowerCase().trim()}`;
+    const client = await prisma.client.findUnique({ where: { phone: clientPhone } });
+    if (!client) return res.status(404).json({ error: 'Аккаунт табылган жок. Катталыңыз.' });
+
+    // Find password hash from OTP table
+    const otpRecord = await prisma.oTP.findFirst({
+      where: { phone: clientPhone, isUsed: false },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!otpRecord) return res.status(401).json({ error: 'Пароль туура эмес' });
+
+    const isValid = await bcrypt.compare(password, otpRecord.code);
+    if (!isValid) return res.status(401).json({ error: 'Пароль туура эмес' });
+
+    const token = jwt.sign(
+      { id: client.id, phone: client.phone, role: 'CLIENT' },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '30d' }
+    );
+
+    return res.json({ token, client: { id: client.id, name: client.name, phone: clientPhone, email } });
+  } catch (error: any) {
+    console.error('Client login error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ===== CLIENT AUTH (email + OTP password) =====
 app.post('/api/auth/client/request-otp', async (req: Request, res: Response) => {
   try {
