@@ -215,6 +215,78 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Quick Actions + Fleet Status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Quick Actions */}
+        <Card className="border-[#35577D]/20">
+          <CardHeader>
+            <CardTitle className="text-base">Тез аракеттер</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <button
+              onClick={() => router.push('/admin/dashboard/dispatcher')}
+              className="w-full p-3 rounded-lg bg-[#35577D]/20 hover:bg-[#35577D]/30 text-left text-sm font-medium text-[#7BBDE8] transition-colors"
+            >
+              + Жаңы заказ кошуу
+            </button>
+            <button
+              onClick={() => router.push('/admin/dashboard/chat')}
+              className="w-full p-3 rounded-lg bg-[#35577D]/20 hover:bg-[#35577D]/30 text-left text-sm font-medium text-[#7BBDE8] transition-colors"
+            >
+              💬 Водителдерге кабар жөнөтүү
+            </button>
+            <button
+              onClick={() => router.push('/admin/dashboard/drivers')}
+              className="w-full p-3 rounded-lg bg-[#35577D]/20 hover:bg-[#35577D]/30 text-left text-sm font-medium text-[#7BBDE8] transition-colors"
+            >
+              🚗 Водитель кошуу
+            </button>
+            <button
+              onClick={() => router.push('/admin/dashboard/map')}
+              className="w-full p-3 rounded-lg bg-[#35577D]/20 hover:bg-[#35577D]/30 text-left text-sm font-medium text-[#7BBDE8] transition-colors"
+            >
+              🗺️ Жандуу карта
+            </button>
+          </CardContent>
+        </Card>
+
+        {/* Fleet Status */}
+        <Card className="border-[#35577D]/20">
+          <CardHeader>
+            <CardTitle className="text-base">Автопарк статусу</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[#35577D]/10">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#7BBDE8] animate-pulse" />
+                  <span className="text-sm">Онлайн</span>
+                </div>
+                <span className="text-lg font-bold text-[#7BBDE8]">{stats?.onlineDrivers || 0}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[#35577D]/10">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#35577D]" />
+                  <span className="text-sm">Заказда</span>
+                </div>
+                <span className="text-lg font-bold">{stats?.busyDrivers || 0}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[#35577D]/10">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-gray-500" />
+                  <span className="text-sm">Оффлайн</span>
+                </div>
+                <span className="text-lg font-bold text-gray-400">{stats?.offlineDrivers || 0}</span>
+              </div>
+              <div className="pt-2 border-t border-[#35577D]/20 flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Жалпы водителдер</span>
+                <span className="text-sm font-bold">{stats?.totalDrivers || 0}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
