@@ -249,20 +249,26 @@ app.post('/api/auth/client/register', async (req: Request, res: Response) => {
     if (!name) return res.status(400).json({ error: 'Аты-жөнү керек' });
 
     const clientPhone = phone || `email:${email.toLowerCase().trim()}`;
-
-    // Check if already exists
-    const existing = await prisma.client.findUnique({ where: { phone: clientPhone } });
-    if (existing) return res.status(400).json({ error: 'Бул email менен аккаунт бар. Кириңиз.' });
-
-    // Hash password and store in OTP table (reuse as password store)
     const hashedPassword = await bcrypt.hash(password, 10);
-    await prisma.oTP.create({
-      data: { phone: clientPhone, code: hashedPassword, expiresAt: new Date('2099-01-01'), isUsed: false },
-    });
 
-    const client = await prisma.client.create({
-      data: { name, phone: clientPhone },
-    });
+    // Check if client exists - if yes, update their password and let them in
+    let client = await prisma.client.findUnique({ where: { phone: clientPhone } });
+
+    if (client) {
+      // Update name and set/update password
+      client = await prisma.client.update({ where: { phone: clientPhone }, data: { name } });
+      // Upsert password in OTP table
+      const existingPw = await prisma.oTP.findFirst({ where: { phone: clientPhone, isUsed: false } });
+      if (existingPw) {
+        await prisma.oTP.update({ where: { id: existingPw.id }, data: { code: hashedPassword } });
+      } else {
+        await prisma.oTP.create({ data: { phone: clientPhone, code: hashedPassword, expiresAt: new Date('2099-01-01'), isUsed: false } });
+      }
+    } else {
+      // Create new client
+      await prisma.oTP.create({ data: { phone: clientPhone, code: hashedPassword, expiresAt: new Date('2099-01-01'), isUsed: false } });
+      client = await prisma.client.create({ data: { name, phone: clientPhone } });
+    }
 
     const token = jwt.sign(
       { id: client.id, phone: client.phone, role: 'CLIENT' },
