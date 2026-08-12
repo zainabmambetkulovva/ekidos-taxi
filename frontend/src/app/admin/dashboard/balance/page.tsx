@@ -160,9 +160,9 @@ export default function BalancePage() {
           </div>
         ) : pendingRequests.length === 0 ? (
           <Card>
-            <CardContent className="p-8 text-center">
-              <CheckCircle2 className="w-12 h-12 text-green-400/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">Жаңы запрос жок</p>
+            <CardContent className="p-4 text-center">
+              <CheckCircle2 className="w-8 h-8 text-green-400/30 mx-auto mb-1" />
+              <p className="text-muted-foreground text-sm">Жаңы запрос жок</p>
             </CardContent>
           </Card>
         ) : (

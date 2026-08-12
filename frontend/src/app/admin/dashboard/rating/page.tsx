@@ -37,12 +37,12 @@ export default function RatingPage() {
   });
 
   const statCards = [
-    { label: t("todayOrders"), value: stats?.todayOrders || 0, icon: ShoppingCart, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: t("monthlyOrders"), value: stats?.monthlyOrders || 0, icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { label: t("todayRevenue"), value: formatCurrency(stats?.todayRevenue || 0), icon: DollarSign, color: 'text-green-400', bg: 'bg-green-500/10' },
-    { label: t("monthlyRevenue"), value: formatCurrency(stats?.monthlyRevenue || 0), icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: t("activeDrivers"), value: stats?.activeDrivers || 0, icon: Users, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-    { label: t("onlineDrivers"), value: stats?.onlineDrivers || 0, icon: UserCheck, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+    { label: t("todayOrders"), value: stats?.todayOrders || 0, icon: ShoppingCart, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
+    { label: t("monthlyOrders"), value: stats?.monthlyOrders || 0, icon: TrendingUp, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
+    { label: t("todayRevenue"), value: formatCurrency(stats?.todayRevenue || 0), icon: DollarSign, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
+    { label: t("monthlyRevenue"), value: formatCurrency(stats?.monthlyRevenue || 0), icon: TrendingUp, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
+    { label: t("activeDrivers"), value: stats?.activeDrivers || 0, icon: Users, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
+    { label: t("onlineDrivers"), value: stats?.onlineDrivers || 0, icon: UserCheck, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
   ];
 
   return (
@@ -61,7 +61,7 @@ export default function RatingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
           >
-            <Card className="hover:border-white/20 transition-colors">
+            <Card className="hover:border-[#35577D]/50 transition-colors border-[#35577D]/20">
               <CardContent className="p-5">
                 {isLoading ? (
                   <Skeleton className="h-16 w-full" />
@@ -94,7 +94,7 @@ export default function RatingPage() {
                 <p className="text-sm text-yellow-400 font-medium">{t('bestDriver')}</p>
                 <p className="text-xl font-bold">{stats.bestDriver.firstName} {stats.bestDriver.lastName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {stats.bestDriver.totalOrders} {t('orders')} • Rating: {stats.bestDriver.rating.toFixed(1)}
+                  {stats.bestDriver.totalOrders} {t('orders')} • Рейтинг: {stats.bestDriver.rating.toFixed(1)}
                 </p>
               </div>
             </div>
@@ -113,15 +113,15 @@ export default function RatingPage() {
               <AreaChart data={charts?.monthlyRevenue || []}>
                 <defs>
                   <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#7BBDE8" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#7BBDE8" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="month" stroke="#666" fontSize={12} />
-                <YAxis stroke="#666" fontSize={12} />
-                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="revenue" stroke="#10b981" fill="url(#revenueGrad)" strokeWidth={2} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
+                <XAxis dataKey="month" stroke="#7BBDE8" fontSize={12} />
+                <YAxis stroke="#7BBDE8" fontSize={12} />
+                <Tooltip contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }} />
+                <Area type="monotone" dataKey="revenue" stroke="#7BBDE8" fill="url(#revenueGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -135,11 +135,11 @@ export default function RatingPage() {
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={charts?.dailyOrders || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                <YAxis stroke="#666" fontSize={12} />
-                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }} />
-                <Bar dataKey="orders" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
+                <XAxis dataKey="date" stroke="#7BBDE8" fontSize={12} />
+                <YAxis stroke="#7BBDE8" fontSize={12} />
+                <Tooltip contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }} />
+                <Bar dataKey="orders" fill="#35577D" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -182,7 +182,7 @@ export default function RatingPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold">{driver.totalOrders} orders</p>
-                  <p className="text-sm text-green-400">{formatCurrency(driver.totalEarnings)}</p>
+                  <p className="text-sm text-[#7BBDE8]">{formatCurrency(driver.totalEarnings)}</p>
                 </div>
               </motion.div>
             ))}
