@@ -23,6 +23,8 @@ export default function TablesPage() {
   const { t } = useLanguageStore();
   const [activeTab, setActiveTab] = useState<TabType>('orders');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 10;
 
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['table-orders', search],
@@ -87,7 +89,7 @@ export default function TablesPage() {
           <Button
             key={tab.id}
             variant={activeTab === tab.id ? 'default' : 'ghost'}
-            onClick={() => { setActiveTab(tab.id); setSearch(''); }}
+            onClick={() => { setActiveTab(tab.id); setSearch(''); setPage(1); }}
             className="gap-2"
           >
             <tab.icon className="w-4 h-4" />
@@ -131,7 +133,7 @@ export default function TablesPage() {
                       <tr key={i}><td colSpan={8} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
                     ))
                   ) : (
-                    ordersData?.orders?.map((order: any) => (
+                    ordersData?.orders?.slice(0, page * PER_PAGE).map((order: any) => (
                       <tr key={order.id} className="border-b border-border/50 hover:bg-white/5 transition-colors">
                         <td className="p-4 font-mono text-sm text-red-400">{order.orderNumber}</td>
                         <td className="p-4">
@@ -153,6 +155,16 @@ export default function TablesPage() {
               </table>
               {ordersData?.orders?.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground">{t('noOrdersYet')}</div>
+              )}
+              {ordersData?.orders && ordersData.orders.length > page * PER_PAGE && (
+                <div className="text-center py-4 border-t border-border">
+                  <button
+                    onClick={() => setPage(p => p + 1)}
+                    className="text-sm font-medium text-[#7BBDE8] hover:text-white transition-colors"
+                  >
+                    Дальше →
+                  </button>
+                </div>
               )}
             </div>
           </CardContent>
