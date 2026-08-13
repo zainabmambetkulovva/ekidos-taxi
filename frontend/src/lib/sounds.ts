@@ -111,7 +111,7 @@ function getWelcomeSound(): string {
 }
 
 function getAlertSound(): string {
-  if (!alertSoundData) alertSoundData = generateWav(880, 0.8, 0.4);
+  if (!alertSoundData) alertSoundData = generateWav(880, 7, 0.8);
   return alertSoundData;
 }
 
@@ -143,7 +143,7 @@ export function playWelcomeSound() {
 export function playOrderAlertSound() {
   try {
     const audio = new Audio(getAlertSound());
-    audio.volume = 0.7;
+    audio.volume = 1.0;
     audio.play().catch(() => {});
   } catch {}
 }
