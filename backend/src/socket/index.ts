@@ -377,8 +377,8 @@ export function setupSocketHandlers(io: Server) {
           return;
         }
 
-        // Set 30-second timeout before going offline
-        // If driver reconnects within 30 sec, the timeout gets cancelled
+        // Set 5-second timeout before going offline
+        // If driver reconnects within 5 sec, the timeout gets cancelled
         const timeout = setTimeout(async () => {
           disconnectTimeouts.delete(driverId);
           
@@ -419,10 +419,10 @@ export function setupSocketHandlers(io: Server) {
           } catch (error) {
             console.error('Auto-offline error:', error);
           }
-        }, 30000); // 30 seconds
+        }, 5000); // 5 seconds
 
         disconnectTimeouts.set(driverId, timeout);
-        console.log(`⏳ Driver ${driverId} disconnected — 30s auto-offline timer started`);
+        console.log(`⏳ Driver ${driverId} disconnected — 5s auto-offline timer started`);
       }
     });
   });

@@ -70,6 +70,9 @@ export default function LiveMapPage() {
       .forEach((driver: any) => {
         const color = driver.status === 'ONLINE' ? '#22c55e' : driver.status === 'BUSY' ? '#ef4444' : driver.status === 'BUSY_PERSONAL' ? '#f97316' : '#6b7280';
         const statusLabel = driver.status === 'ONLINE' ? 'Бош' : driver.status === 'BUSY' ? 'Заказда' : driver.status === 'BUSY_PERSONAL' ? 'По делам' : 'Оффлайн';
+        const offlineTime = driver.status === 'OFFLINE' && driver.lastLocationUpdate
+          ? ` (${new Date(driver.lastLocationUpdate).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })})`
+          : '';
         const icon = L.divIcon({
           className: '',
           html: `<div style="display:flex;flex-direction:column;align-items:center"><div style="width:28px;height:28px;background:${color};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg></div><div style="background:${color};color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:4px;margin-top:2px;white-space:nowrap">${driver.callsign || driver.firstName?.[0] || ''}</div></div>`,
@@ -77,7 +80,7 @@ export default function LiveMapPage() {
           iconAnchor: [18, 42],
         });
         L.marker([driver.latitude, driver.longitude], { icon }).addTo(map)
-          .bindPopup(`<div style="font-family:sans-serif;min-width:140px"><b>${driver.firstName} ${driver.lastName}</b>${driver.callsign ? `<br><span style="color:#ef4444;font-weight:700">Позывной: ${driver.callsign}</span>` : ''}<br>${driver.phone || ''}<br>${driver.vehicle ? `${driver.vehicle.brand} ${driver.vehicle.model}<br><b>${driver.vehicle.plateNumber}</b>` : ''}<br><span style="color:${color};font-weight:700">${statusLabel}</span></div>`);
+          .bindPopup(`<div style="font-family:sans-serif;min-width:140px"><b>${driver.firstName} ${driver.lastName}</b>${driver.callsign ? `<br><span style="color:#ef4444;font-weight:700">Позывной: ${driver.callsign}</span>` : ''}<br>${driver.phone || ''}<br>${driver.vehicle ? `${driver.vehicle.brand} ${driver.vehicle.model}<br><b>${driver.vehicle.plateNumber}</b>` : ''}<br><span style="color:${color};font-weight:700">${statusLabel}${offlineTime}</span></div>`);
       });
 
     setTimeout(() => map.invalidateSize(), 300);
