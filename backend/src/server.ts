@@ -95,7 +95,7 @@ app.post('/api/topup', async (req: Request, res: Response) => {
     });
     return res.json({ id: request.id, status: 'PENDING' });
   } catch (error) {
-    console.error('Topup create error:', error);
+    console.error('Topup create error:', error) 
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

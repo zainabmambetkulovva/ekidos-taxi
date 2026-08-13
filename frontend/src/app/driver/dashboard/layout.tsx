@@ -111,6 +111,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useLanguageStore();
+  const { lineStatus } = useDriverStore();
   const [authChecked, setAuthChecked] = useState(false);
 
   // AUTH GUARD: check token exists, redirect to login if not
@@ -175,8 +176,12 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-[#141E30] flex flex-col">
       {/* Block Timer Overlay */}
       <BlockTimer />
-      {/* Top Nav */}
-      <header className="sticky top-0 z-[5000] bg-[#1a2740]/95 backdrop-blur-xl border-b border-[#35577D]/30 px-4 py-3">
+      {/* Top Nav - color based on line status */}
+      <header className={`sticky top-0 z-[5000] backdrop-blur-xl px-4 py-3 ${
+        lineStatus === 'ONLINE' ? 'bg-[#00c853]/90 border-b-2 border-[#00e676]' :
+        lineStatus === 'BUSY_PERSONAL' ? 'bg-[#ff6d00]/90 border-b-2 border-[#ff9100]' :
+        'bg-[#d32f2f]/90 border-b-2 border-[#f44336]'
+      }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 hover:bg-[#35577D]/20 rounded-lg">
@@ -278,7 +283,11 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       )}
 
       {/* Bottom Tab Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-[5000] bg-[#1a2740]/95 backdrop-blur-xl border-t border-[#35577D]/30 px-1 py-1.5">
+      <div className={`fixed bottom-0 left-0 right-0 z-[5000] backdrop-blur-xl border-t px-1 py-1.5 ${
+        lineStatus === 'ONLINE' ? 'bg-[#00c853]/90 border-[#00e676]' :
+        lineStatus === 'BUSY_PERSONAL' ? 'bg-[#ff6d00]/90 border-[#ff9100]' :
+        'bg-[#d32f2f]/90 border-[#f44336]'
+      }`}>
         <div className="flex items-center justify-around max-w-md mx-auto">
           {driverMenu.slice(0, 4).map((item) => {
             const isActive = pathname === item.href;
@@ -287,10 +296,10 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                 key={item.href}
                 onClick={() => { playClickSound(); router.push(item.href); }}
                 className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${
-                  isActive ? 'text-[#7BBDE8]' : 'text-gray-500'
+                  isActive ? 'text-white font-bold' : 'text-white/60'
                 }`}
               >
-                <item.icon className={`w-5 h-5 ${isActive ? 'text-[#7BBDE8]' : ''}`} />
+                <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-white/60'}`} />
                 <span className="text-[9px] font-medium">{item.label}</span>
               </button>
             );
