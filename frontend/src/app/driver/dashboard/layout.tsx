@@ -176,12 +176,21 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-[#141E30] flex flex-col">
       {/* Block Timer Overlay */}
       <BlockTimer />
-      {/* Top Nav - color based on line status */}
+      {/* Top Nav - neon glow when on duty */}
       <header className={`sticky top-0 z-[5000] backdrop-blur-xl px-4 py-3 ${
-        lineStatus === 'ONLINE' ? 'bg-[#00c853]/90 border-b-2 border-[#00e676]' :
-        lineStatus === 'BUSY_PERSONAL' ? 'bg-[#ff6d00]/90 border-b-2 border-[#ff9100]' :
-        'bg-[#d32f2f]/90 border-b-2 border-[#f44336]'
-      }`}>
+        lineStatus === 'ONLINE'
+          ? 'bg-[#0a1a0a] border-b-2 border-[#39ff14]'
+          : lineStatus === 'BUSY_PERSONAL'
+          ? 'bg-[#1a0f00] border-b-2 border-[#ff6a00]'
+          : 'bg-[#1a2740]/95 border-b border-[#35577D]/30'
+      }`}
+      style={
+        lineStatus === 'ONLINE'
+          ? { boxShadow: '0 0 20px #39ff14, 0 0 40px #39ff1466, 0 4px 30px #39ff1433' }
+          : lineStatus === 'BUSY_PERSONAL'
+          ? { boxShadow: '0 0 20px #ff6a00, 0 0 40px #ff6a0066, 0 4px 30px #ff6a0033' }
+          : {}
+      }>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 hover:bg-[#35577D]/20 rounded-lg">
@@ -283,11 +292,22 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       )}
 
       {/* Bottom Tab Navigation */}
-      <div className={`fixed bottom-0 left-0 right-0 z-[5000] backdrop-blur-xl border-t px-1 py-1.5 ${
-        lineStatus === 'ONLINE' ? 'bg-[#00c853]/90 border-[#00e676]' :
-        lineStatus === 'BUSY_PERSONAL' ? 'bg-[#ff6d00]/90 border-[#ff9100]' :
-        'bg-[#d32f2f]/90 border-[#f44336]'
-      }`}>
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-[5000] backdrop-blur-xl border-t px-1 py-1.5 ${
+          lineStatus === 'ONLINE'
+            ? 'bg-[#0a1a0a] border-[#39ff14]'
+            : lineStatus === 'BUSY_PERSONAL'
+            ? 'bg-[#1a0f00] border-[#ff6a00]'
+            : 'bg-[#1a2740]/95 border-[#35577D]/30'
+        }`}
+        style={
+          lineStatus === 'ONLINE'
+            ? { boxShadow: '0 0 20px #39ff14, 0 0 40px #39ff1444, 0 -4px 20px #39ff1422' }
+            : lineStatus === 'BUSY_PERSONAL'
+            ? { boxShadow: '0 0 20px #ff6a00, 0 0 40px #ff6a0044, 0 -4px 20px #ff6a0022' }
+            : {}
+        }
+      >
         <div className="flex items-center justify-around max-w-md mx-auto">
           {driverMenu.slice(0, 4).map((item) => {
             const isActive = pathname === item.href;
@@ -296,10 +316,12 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                 key={item.href}
                 onClick={() => { playClickSound(); router.push(item.href); }}
                 className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${
-                  isActive ? 'text-white font-bold' : 'text-white/60'
+                  isActive
+                    ? lineStatus === 'ONLINE' ? 'text-[#39ff14]' : lineStatus === 'BUSY_PERSONAL' ? 'text-[#ff6a00]' : 'text-[#7BBDE8]'
+                    : 'text-gray-400'
                 }`}
               >
-                <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-white/60'}`} />
+                <item.icon className={`w-5 h-5`} />
                 <span className="text-[9px] font-medium">{item.label}</span>
               </button>
             );
