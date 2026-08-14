@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../server';
 import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
 
-const router = Router();
+const router = Router(); 
 
 // GET /api/topup — get all topup requests (admin)
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {

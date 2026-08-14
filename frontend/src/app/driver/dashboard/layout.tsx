@@ -177,19 +177,13 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       {/* Block Timer Overlay */}
       <BlockTimer />
       {/* Top Nav - neon glow when on duty */}
-      <header className={`sticky top-0 z-[5000] backdrop-blur-xl px-4 py-3 ${
-        lineStatus === 'ONLINE'
-          ? 'bg-[#0a1a0a] border-b-2 border-[#39ff14]'
-          : lineStatus === 'BUSY_PERSONAL'
-          ? 'bg-[#1a0f00] border-b-2 border-[#ff6a00]'
-          : 'bg-[#1a2740]/95 border-b border-[#35577D]/30'
-      }`}
+      <header className="sticky top-0 z-[5000] backdrop-blur-xl px-4 py-3 bg-[#1a2740]/95"
       style={
         lineStatus === 'ONLINE'
-          ? { boxShadow: '0 0 20px #39ff14, 0 0 40px #39ff1466, 0 4px 30px #39ff1433' }
+          ? { borderBottom: '2px solid #39ff14', boxShadow: '0 0 15px #39ff1466, 0 2px 20px #39ff1433' }
           : lineStatus === 'BUSY_PERSONAL'
-          ? { boxShadow: '0 0 20px #ff6a00, 0 0 40px #ff6a0066, 0 4px 30px #ff6a0033' }
-          : {}
+          ? { borderBottom: '2px solid #ff6a00', boxShadow: '0 0 15px #ff6a0066, 0 2px 20px #ff6a0033' }
+          : { borderBottom: '1px solid rgba(53,87,125,0.3)' }
       }>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -293,19 +287,13 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
 
       {/* Bottom Tab Navigation */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-[5000] backdrop-blur-xl border-t px-1 py-1.5 ${
-          lineStatus === 'ONLINE'
-            ? 'bg-[#0a1a0a] border-[#39ff14]'
-            : lineStatus === 'BUSY_PERSONAL'
-            ? 'bg-[#1a0f00] border-[#ff6a00]'
-            : 'bg-[#1a2740]/95 border-[#35577D]/30'
-        }`}
+        className="fixed bottom-0 left-0 right-0 z-[5000] backdrop-blur-xl px-1 py-1.5 bg-[#1a2740]/95"
         style={
           lineStatus === 'ONLINE'
-            ? { boxShadow: '0 0 20px #39ff14, 0 0 40px #39ff1444, 0 -4px 20px #39ff1422' }
+            ? { borderTop: '2px solid #39ff14', boxShadow: '0 0 15px #39ff1466, 0 -2px 20px #39ff1433' }
             : lineStatus === 'BUSY_PERSONAL'
-            ? { boxShadow: '0 0 20px #ff6a00, 0 0 40px #ff6a0044, 0 -4px 20px #ff6a0022' }
-            : {}
+            ? { borderTop: '2px solid #ff6a00', boxShadow: '0 0 15px #ff6a0066, 0 -2px 20px #ff6a0033' }
+            : { borderTop: '1px solid rgba(53,87,125,0.3)' }
         }
       >
         <div className="flex items-center justify-around max-w-md mx-auto">
