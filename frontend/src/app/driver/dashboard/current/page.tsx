@@ -42,7 +42,7 @@ function OrderFlowButtons({ order, onComplete }: { order: any; onComplete: () =>
   if (step === 'driving') {
     return (
       <div className="flex gap-2 pt-3">
-        <Button variant="outline" className="flex-1 gap-2" onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.pickupAddress)}`, '_blank')}>
+        <Button variant="outline" className="flex-1 gap-2" onClick={() => window.open(`yandexnavi://build_route_on_map?lat_to=${order.pickupLat || ''}&lon_to=${order.pickupLng || ''}&appmetrica_tracking_id=1178268795219780096`, '_blank') || window.open(`https://yandex.com/maps/?rtext=~${order.pickupLat},${order.pickupLng}&rtt=auto`, '_blank')}>
           <Navigation className="w-4 h-4" />
           Навигация
         </Button>

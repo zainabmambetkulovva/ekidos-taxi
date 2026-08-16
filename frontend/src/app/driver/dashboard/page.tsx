@@ -91,7 +91,7 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
       {step === 'driving' && (
         <div className="flex gap-2">
           <button
-            onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.pickupAddress)}`, '_blank')}
+            onClick={() => window.open(`yandexnavi://build_route_on_map?lat_to=${encodeURIComponent(order.pickupLat || '')}&lon_to=${encodeURIComponent(order.pickupLng || '')}&appmetrica_tracking_id=1178268795219780096`, '_blank') || window.open(`https://yandex.com/maps/?rtext=~${order.pickupLat},${order.pickupLng}&rtt=auto`, '_blank')}
             className="flex-1 h-11 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
           >
             <Navigation className="w-4 h-4" />

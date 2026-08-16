@@ -248,7 +248,19 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
             iconAnchor: [14, 14],
           });
           const m = L.marker([order.pickupLat, order.pickupLng], { icon }).addTo(map)
-            .bindPopup(`<b>${order.pickupAddress}</b><br>→ ${order.destAddress}<br><b style="color:#22c55e">${order.price} сом</b>`);
+            .bindPopup(
+              `<div style="font-family:sans-serif;min-width:180px;font-size:13px">` +
+              `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">` +
+              `<span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>` +
+              `<span><b>Алынуучу жер:</b> ${order.pickupAddress}</span>` +
+              `</div>` +
+              `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">` +
+              `<span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span>` +
+              `<span><b>Барылуучу жер:</b> ${order.destAddress || 'Көрсөтүлгөн жок'}</span>` +
+              `</div>` +
+              `<div style="border-top:1px solid #eee;padding-top:4px;color:#16a34a;font-weight:700;font-size:14px">${order.price} сом</div>` +
+              `</div>`
+            );
           orderMarkersRef.current.push(m);
         });
       } catch {}

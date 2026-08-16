@@ -247,6 +247,25 @@ router.post('/clear-pending', async (req: Request, res: Response) => {
   }
 });
 
+// Delete all COMPLETED and CANCELLED orders from DB (archive cleanup)
+router.delete('/clear-archive', async (req: Request, res: Response) => {
+  try {
+    // Delete payments first (FK constraint)
+    await prisma.payment.deleteMany({
+      where: {
+        order: { status: { in: ['COMPLETED', 'CANCELLED'] } },
+      },
+    });
+    const result = await prisma.order.deleteMany({
+      where: { status: { in: ['COMPLETED', 'CANCELLED'] } },
+    });
+    return res.json({ deleted: result.count });
+  } catch (error) {
+    console.error('clear-archive error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/available', async (req: Request, res: Response) => {
   try {
     const orders = await prisma.order.findMany({
