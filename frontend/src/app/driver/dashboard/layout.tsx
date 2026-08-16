@@ -251,7 +251,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
             {/* Line Status Buttons */}
             <div className="px-3 mb-4">
               <p className="text-[10px] text-gray-500 uppercase tracking-wider px-4 mb-2 font-semibold">Линия статусу</p>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 rounded-2xl p-2" style={{ backgroundColor: '#1e3a5f' }}>
                 <LineStatusButton status="ONLINE" />
                 <LineStatusButton status="BUSY_PERSONAL" />
                 <LineStatusButton status="OFFLINE" />
