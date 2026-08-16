@@ -266,6 +266,24 @@ router.delete('/clear-archive', async (req: Request, res: Response) => {
   }
 });
 
+// Delete ALL orders and related data (full reset — drivers untouched)
+router.delete('/clear-all', async (req: Request, res: Response) => {
+  try {
+    // 1. Delete all payments (FK)
+    await prisma.payment.deleteMany({});
+    // 2. Delete all orders
+    const result = await prisma.order.deleteMany({});
+    // 3. Reset driver stats (totalOrders, totalEarnings) — but keep drivers themselves
+    await prisma.driver.updateMany({
+      data: { totalOrders: 0, totalEarnings: 0 },
+    });
+    return res.json({ deleted: result.count, message: 'All orders and stats cleared' });
+  } catch (error) {
+    console.error('clear-all error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/available', async (req: Request, res: Response) => {
   try {
     const orders = await prisma.order.findMany({
