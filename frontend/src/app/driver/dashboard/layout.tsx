@@ -177,13 +177,21 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       {/* Block Timer Overlay */}
       <BlockTimer />
       {/* Top Nav - neon glow when on duty */}
-      <header className="sticky top-0 z-[5000] backdrop-blur-xl px-4 py-3 bg-[#1a2740]/95"
+      <header className="sticky top-0 z-[5000] px-4 py-3"
       style={
         lineStatus === 'ONLINE'
-          ? { borderBottom: '2px solid #39ff14', boxShadow: '0 0 15px #39ff1466, 0 2px 20px #39ff1433' }
+          ? {
+              background: 'linear-gradient(180deg, #0d2e0d 0%, #1a2740 100%)',
+              borderBottom: '4px solid #00ff00',
+              boxShadow: '0 0 50px #00ff00cc, 0 0 100px #00ff0077, 0 8px 40px #00ff00bb, inset 0 -3px 25px #00ff0066'
+            }
           : lineStatus === 'BUSY_PERSONAL'
-          ? { borderBottom: '2px solid #ff6a00', boxShadow: '0 0 15px #ff6a0066, 0 2px 20px #ff6a0033' }
-          : { borderBottom: '1px solid rgba(53,87,125,0.3)' }
+          ? {
+              background: 'linear-gradient(180deg, #2e1a00 0%, #1a2740 100%)',
+              borderBottom: '4px solid #ff9500',
+              boxShadow: '0 0 50px #ff9500cc, 0 0 100px #ff950077, 0 8px 40px #ff9500bb, inset 0 -3px 25px #ff950066'
+            }
+          : { background: '#1a2740', borderBottom: '1px solid rgba(53,87,125,0.3)' }
       }>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -287,13 +295,21 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
 
       {/* Bottom Tab Navigation */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-[5000] backdrop-blur-xl px-1 py-1.5 bg-[#1a2740]/95"
+        className="fixed bottom-0 left-0 right-0 z-[5000] px-1 py-1.5"
         style={
           lineStatus === 'ONLINE'
-            ? { borderTop: '2px solid #39ff14', boxShadow: '0 0 15px #39ff1466, 0 -2px 20px #39ff1433' }
+            ? {
+                background: 'linear-gradient(0deg, #0d2e0d 0%, #1a2740 100%)',
+                borderTop: '4px solid #00ff00',
+                boxShadow: '0 0 50px #00ff00cc, 0 0 100px #00ff0077, 0 -8px 40px #00ff00bb, inset 0 3px 25px #00ff0066'
+              }
             : lineStatus === 'BUSY_PERSONAL'
-            ? { borderTop: '2px solid #ff6a00', boxShadow: '0 0 15px #ff6a0066, 0 -2px 20px #ff6a0033' }
-            : { borderTop: '1px solid rgba(53,87,125,0.3)' }
+            ? {
+                background: 'linear-gradient(0deg, #2e1a00 0%, #1a2740 100%)',
+                borderTop: '4px solid #ff9500',
+                boxShadow: '0 0 50px #ff9500cc, 0 0 100px #ff950077, 0 -8px 40px #ff9500bb, inset 0 3px 25px #ff950066'
+              }
+            : { background: '#1a2740', borderTop: '1px solid rgba(53,87,125,0.3)' }
         }
       >
         <div className="flex items-center justify-around max-w-md mx-auto">
