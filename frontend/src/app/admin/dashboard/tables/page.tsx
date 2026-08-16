@@ -42,6 +42,7 @@ export default function TablesPage() {
       return data;
     },
     enabled: activeTab === 'drivers',
+    refetchInterval: 10000,
   });
 
   const { data: clientsData, isLoading: clientsLoading } = useQuery({
@@ -51,6 +52,7 @@ export default function TablesPage() {
       return data;
     },
     enabled: activeTab === 'clients',
+    refetchInterval: 10000,
   });
 
   const tabs = [

@@ -277,6 +277,10 @@ router.delete('/clear-all', async (req: Request, res: Response) => {
     await prisma.driver.updateMany({
       data: { totalOrders: 0, totalEarnings: 0 },
     });
+    // 4. Reset client totalOrders count
+    await prisma.client.updateMany({
+      data: { totalOrders: 0 },
+    });
     return res.json({ deleted: result.count, message: 'All orders and stats cleared' });
   } catch (error) {
     console.error('clear-all error:', error);
