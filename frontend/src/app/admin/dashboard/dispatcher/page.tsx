@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Plus, MapPin, Phone, User, Loader2, Clock, SlidersHorizontal, X, Check } from 'lucide-react';
@@ -32,8 +32,7 @@ function OptionsBottomSheet({
 }) {
   const [local, setLocal] = useState<string[]>(selected);
 
-  // sync when reopened
-  useState(() => { setLocal(selected); });
+  useEffect(() => { if (open) setLocal(selected); }, [open]);
 
   const toggle = (id: string) => {
     setLocal(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -41,28 +40,31 @@ function OptionsBottomSheet({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md p-3 gap-0 bg-[#0f1720] border-[#35577D]/30">
+      <DialogContent
+        className="bg-[#0f1720] border-[#35577D]/30 p-4 gap-0"
+        style={{ width: '400px', maxWidth: '400px', maxHeight: '200px', overflow: 'auto' }}
+      >
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-sm text-white">Опции к заказу</DialogTitle>
+          <DialogTitle className="text-base text-white">Опции к заказу</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-1 mb-2">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           {OPTIONS_LIST.map((opt) => {
             const isSelected = local.includes(opt.id);
             return (
               <button
                 key={opt.id}
                 type="button"
-                onClick={() => toggle(opt.id)}
-                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-left ${
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle(opt.id); }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left cursor-pointer ${
                   isSelected
                     ? 'bg-red-500/20 border-red-500/50 text-white'
                     : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
                 }`}
               >
-                <span className="text-xs">{opt.emoji}</span>
-                <span className="text-[11px] font-medium flex-1 leading-tight">{opt.label}</span>
-                {isSelected && <Check className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />}
+                <span className="text-sm">{opt.emoji}</span>
+                <span className="text-sm font-medium flex-1 leading-tight">{opt.label}</span>
+                {isSelected && <Check className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
               </button>
             );
           })}
@@ -70,8 +72,8 @@ function OptionsBottomSheet({
 
         <button
           type="button"
-          onClick={() => { onSave(local); onClose(); }}
-          className="w-full h-7 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-[11px] transition-all"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSave(local); onClose(); }}
+          className="w-full h-9 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all cursor-pointer"
         >
           Сохранить{local.length > 0 ? ` (${local.length})` : ''}
         </button>
