@@ -111,6 +111,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const { t } = useLanguageStore();
   const { lineStatus } = useDriverStore();
   const [authChecked, setAuthChecked] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // AUTH GUARD: check token exists, redirect to login if not
   useEffect(() => {
@@ -130,6 +131,26 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     document.addEventListener('touchstart', playOnce, { once: true });
     document.addEventListener('click', playOnce, { once: true });
   }, [router]);
+
+  // Listen for incoming DMs and count unread
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const driverInfo = localStorage.getItem('driverInfo');
+    const myId = driverInfo ? JSON.parse(driverInfo).id : null;
+    if (!myId) return;
+
+    const socket = connectSocket();
+    socket.emit('dm:join', myId);
+
+    const handleDm = (msg: any) => {
+      // Only count if not on chat page and message is for me
+      if (msg.receiverId === myId && !window.location.pathname.includes('/chat')) {
+        setUnreadCount(prev => prev + 1);
+      }
+    };
+    socket.on('dm:message', handleDm);
+    return () => { socket.off('dm:message', handleDm); };
+  }, [authChecked]);
 
   // Connect socket immediately when driver dashboard loads
   useState(() => {
@@ -313,17 +334,29 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
         <div className="flex items-center justify-around max-w-md mx-auto">
           {driverMenu.slice(0, 4).map((item) => {
             const isActive = pathname === item.href;
+            const isChatTab = item.href === '/driver/dashboard/chat';
             return (
               <button
                 key={item.href}
-                onClick={() => { playClickSound(); router.push(item.href); }}
-                className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${
+                onClick={() => {
+                  playClickSound();
+                  if (isChatTab) setUnreadCount(0);
+                  router.push(item.href);
+                }}
+                className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all relative ${
                   isActive
                     ? lineStatus === 'ONLINE' ? 'text-[#39ff14]' : lineStatus === 'BUSY_PERSONAL' ? 'text-[#ff6a00]' : 'text-[#7BBDE8]'
                     : 'text-gray-400'
                 }`}
               >
-                <item.icon className={`w-5 h-5`} />
+                <div className="relative">
+                  <item.icon className="w-5 h-5" />
+                  {isChatTab && unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-0.5 leading-none">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[9px] font-medium">{item.label}</span>
               </button>
             );

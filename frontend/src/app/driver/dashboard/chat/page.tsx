@@ -48,18 +48,27 @@ interface DriverItem {
 
 type ActiveChat = 'general' | string;
 
-// Persist messages in localStorage so they survive navigation
-function saveMessages(key: string, msgs: any[]) {
-  try { localStorage.setItem(`chat_${key}`, JSON.stringify(msgs.slice(-200))); } catch {}
+// Persist messages per conversation in localStorage
+const CACHE_PREFIX = 'ekidos_chat_v2_';
+function saveConvMessages(convId: string, msgs: any[]) {
+  try { localStorage.setItem(CACHE_PREFIX + convId, JSON.stringify(msgs.slice(-300))); } catch {}
 }
-function loadMessages(key: string): any[] {
-  try { const s = localStorage.getItem(`chat_${key}`); return s ? JSON.parse(s) : []; } catch { return []; }
+function loadConvMessages(convId: string): any[] {
+  try { const s = localStorage.getItem(CACHE_PREFIX + convId); return s ? JSON.parse(s) : []; } catch { return []; }
+}
+
+// Merge old + new messages without duplicates, sorted by time
+function mergeMessages<T extends { id: string; createdAt: string }>(existing: T[], incoming: T[]): T[] {
+  const map = new Map<string, T>();
+  [...existing, ...incoming].forEach(m => map.set(m.id, m));
+  return Array.from(map.values()).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
 export default function DriverChatPage() {
   const [activeChat, setActiveChat] = useState<ActiveChat>('general');
-  const [messages, setMessages] = useState<ChatMessage[]>(() => loadMessages('general'));
-  const [dmMessages, setDmMessages] = useState<DirectMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadConvMessages('general'));
+  // Store DM messages per conversationId: { convId: DirectMessage[] }
+  const [convMessages, setConvMessages] = useState<Record<string, DirectMessage[]>>({});
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [drivers, setDrivers] = useState<DriverItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,9 +89,12 @@ export default function DriverChatPage() {
     const fetch = async () => {
       try {
         const { data } = await api.get('/chat', { params: { limit: 200 } });
-        const msgs = data.messages || [];
-        setMessages(msgs);
-        saveMessages('general', msgs);
+        const fresh = data.messages || [];
+        setMessages(prev => {
+          const merged = mergeMessages(prev, fresh);
+          saveConvMessages('general', merged);
+          return merged;
+        });
       } catch {}
     };
     fetch();
@@ -119,18 +131,20 @@ export default function DriverChatPage() {
     socket.on('chat:message', (msg: ChatMessage) => {
       setMessages(prev => {
         if (prev.find(m => m.id === msg.id)) return prev;
-        const next = [...prev, msg];
-        saveMessages('general', next);
+        const next = mergeMessages(prev, [msg]);
+        saveConvMessages('general', next);
         return next;
       });
     });
 
     socket.on('dm:message', (msg: DirectMessage) => {
-      setDmMessages(prev => {
-        if (prev.find(m => m.id === msg.id)) return prev;
-        const next = [...prev, msg];
-        if (msg.conversationId) saveMessages(msg.conversationId, next);
-        return next;
+      const convId = msg.conversationId;
+      setConvMessages(prev => {
+        const existing = prev[convId] || loadConvMessages(convId);
+        if (existing.find((m: DirectMessage) => m.id === msg.id)) return prev;
+        const next = mergeMessages(existing, [msg]);
+        saveConvMessages(convId, next);
+        return { ...prev, [convId]: next };
       });
       setConversations(prev => {
         const existing = prev.find(c => c.conversationId === msg.conversationId);
@@ -157,21 +171,27 @@ export default function DriverChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, dmMessages, activeChat]);
 
-  // Open DM — load from cache first, then server
+  // Open DM — load cache instantly, merge with server
   const openDm = async (d: DriverItem) => {
     const name = `${d.firstName} ${d.lastName}${d.callsign ? ` (${d.callsign})` : ''}`;
     setSelectedPartner({ id: d.id, name });
     setActiveChat(d.id);
     const convId = [myId, d.id].sort().join('_');
-    // Load from cache immediately
-    const cached = loadMessages(convId);
-    if (cached.length) setDmMessages(cached);
-    // Then fetch fresh from server
+    // Load cache immediately so messages show instantly
+    const cached = loadConvMessages(convId);
+    if (cached.length) {
+      setConvMessages(prev => ({ ...prev, [convId]: cached }));
+    }
+    // Fetch from server and merge (never clear cached)
     try {
       const { data } = await api.get(`/dm/messages/${convId}`, { params: { limit: 100 } });
-      const msgs = data.messages || [];
-      setDmMessages(msgs);
-      saveMessages(convId, msgs);
+      const fresh = data.messages || [];
+      setConvMessages(prev => {
+        const existing = prev[convId] || cached;
+        const merged = mergeMessages(existing, fresh);
+        saveConvMessages(convId, merged);
+        return { ...prev, [convId]: merged };
+      });
       await api.patch(`/dm/read/${convId}`, { userId: myId });
       setConversations(prev => prev.map(c => c.conversationId === convId ? { ...c, unreadCount: 0 } : c));
     } catch {}
@@ -194,20 +214,31 @@ export default function DriverChatPage() {
     setSending(true);
     const text = newMessage.trim();
     setNewMessage('');
+    const convId = [myId, selectedPartner.id].sort().join('_');
     const optimistic: DirectMessage = {
       id: `tmp-${Date.now()}`, text,
       senderId: myId, senderName: myDisplayName, senderType: 'DRIVER',
       receiverId: selectedPartner.id, receiverName: selectedPartner.name, receiverType: 'DISPATCHER',
-      conversationId: [myId, selectedPartner.id].sort().join('_'),
+      conversationId: convId,
       isRead: false, createdAt: new Date().toISOString(),
     };
-    setDmMessages(prev => { const next = [...prev, optimistic]; saveMessages(optimistic.conversationId, next); return next; });
+    setConvMessages(prev => {
+      const existing = prev[convId] || [];
+      const next = [...existing, optimistic];
+      saveConvMessages(convId, next);
+      return { ...prev, [convId]: next };
+    });
     try {
       const { data } = await api.post('/dm/send', {
         text, senderId: myId, senderName: myDisplayName, senderType: 'DRIVER',
         receiverId: selectedPartner.id, receiverName: selectedPartner.name, receiverType: 'DISPATCHER',
       });
-      setDmMessages(prev => prev.map(m => m.id === optimistic.id ? data : m));
+      setConvMessages(prev => {
+        const existing = prev[convId] || [];
+        const next = existing.map(m => m.id === optimistic.id ? data : m);
+        saveConvMessages(convId, next);
+        return { ...prev, [convId]: next };
+      });
     } catch {} finally { setSending(false); }
   };
 
