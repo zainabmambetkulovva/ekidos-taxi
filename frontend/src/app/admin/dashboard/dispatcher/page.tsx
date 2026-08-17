@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Plus, MapPin, Phone, User, Loader2, Clock, SlidersHorizontal, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,70 +32,51 @@ function OptionsBottomSheet({
 }) {
   const [local, setLocal] = useState<string[]>(selected);
 
+  // sync when reopened
+  useState(() => { setLocal(selected); });
+
   const toggle = (id: string) => {
     setLocal(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            className="fixed inset-0 bg-black/60 z-[10000]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          {/* Sheet */}
-          <motion.div
-            className="fixed bottom-0 left-0 right-0 z-[10001] bg-[#0f1720] rounded-t-2xl px-3 pt-3 pb-4 max-h-[60vh] overflow-y-auto"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xs font-bold text-white">Опции к заказу</h2>
-              <button onClick={onClose} className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
-                <X className="w-3 h-3 text-white" />
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md p-3 gap-0 bg-[#0f1720] border-[#35577D]/30">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-sm text-white">Опции к заказу</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-1 mb-2">
+          {OPTIONS_LIST.map((opt) => {
+            const isSelected = local.includes(opt.id);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => toggle(opt.id)}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-left ${
+                  isSelected
+                    ? 'bg-red-500/20 border-red-500/50 text-white'
+                    : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                }`}
+              >
+                <span className="text-xs">{opt.emoji}</span>
+                <span className="text-[11px] font-medium flex-1 leading-tight">{opt.label}</span>
+                {isSelected && <Check className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />}
               </button>
-            </div>
+            );
+          })}
+        </div>
 
-            <div className="grid grid-cols-2 gap-1 mb-2">
-              {OPTIONS_LIST.map((opt) => {
-                const isSelected = local.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => toggle(opt.id)}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-left ${
-                      isSelected
-                        ? 'bg-red-500/20 border-red-500/50 text-white'
-                        : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
-                    }`}
-                  >
-                    <span className="text-xs">{opt.emoji}</span>
-                    <span className="text-[11px] font-medium flex-1 leading-tight">{opt.label}</span>
-                    {isSelected && <Check className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => { onSave(local); onClose(); }}
-              className="w-full h-7 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-[11px] transition-all"
-            >
-              Сохранить{local.length > 0 ? ` (${local.length})` : ''}
-            </button>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+        <button
+          type="button"
+          onClick={() => { onSave(local); onClose(); }}
+          className="w-full h-7 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-[11px] transition-all"
+        >
+          Сохранить{local.length > 0 ? ` (${local.length})` : ''}
+        </button>
+      </DialogContent>
+    </Dialog>
   );
 }
 // ===== END OPTIONS =====
