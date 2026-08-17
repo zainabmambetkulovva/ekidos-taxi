@@ -169,7 +169,7 @@ export default function DriverChatPage() {
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, dmMessages, activeChat]);
+  }, [messages, convMessages, activeChat]);
 
   // Open DM — load cache instantly, merge with server
   const openDm = async (d: DriverItem) => {
@@ -255,7 +255,7 @@ export default function DriverChatPage() {
   });
 
   const currentDm = selectedPartner
-    ? dmMessages.filter(m => m.conversationId === [myId, selectedPartner.id].sort().join('_'))
+    ? (convMessages[[myId, selectedPartner.id].sort().join('_')] || [])
     : [];
 
   const totalUnread = conversations.reduce((s, c) => s + c.unreadCount, 0);
