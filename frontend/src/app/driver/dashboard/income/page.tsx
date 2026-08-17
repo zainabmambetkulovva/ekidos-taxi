@@ -2,12 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { DollarSign, TrendingUp, ShoppingCart, Calendar } from 'lucide-react';
+import { ShoppingCart, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/axios';
 import { useAuthStore } from '@/store/useAuthStore';
-import { formatCurrency } from '@/lib/utils';
 
 export default function IncomePage() {
   const { user } = useAuthStore();
@@ -22,18 +21,17 @@ export default function IncomePage() {
   });
 
   const stats = [
-    { label: 'Total Earnings', value: formatCurrency(driver?.totalEarnings || 0), icon: DollarSign, color: 'text-green-400', bg: 'bg-green-500/10' },
-    { label: 'Total Orders', value: driver?.totalOrders || 0, icon: ShoppingCart, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Rating', value: driver?.rating?.toFixed(1) || '5.0', icon: TrendingUp, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+    { label: 'Бардык заказдар', value: driver?.totalOrders || 0, icon: ShoppingCart, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Рейтинг', value: driver?.rating?.toFixed(1) || '5.0', icon: TrendingUp, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
   ];
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Income</h2>
+      <h2 className="text-xl font-bold">Статистика</h2>
 
       {isLoading ? (
         <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
+          {Array.from({ length: 2 }).map((_, i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />
           ))}
         </div>

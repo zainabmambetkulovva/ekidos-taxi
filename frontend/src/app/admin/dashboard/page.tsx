@@ -40,8 +40,6 @@ export default function DashboardPage() {
 
   const statCards = [
     { label: t('todayOrders'), value: stats?.todayOrders || 0, icon: ShoppingCart },
-    { label: t('todayRevenue'), value: formatCurrency(stats?.todayRevenue || 0), icon: DollarSign },
-    { label: t('monthlyRevenue'), value: formatCurrency(stats?.monthlyRevenue || 0), icon: TrendingUp },
     { label: t('onlineDrivers'), value: stats?.onlineDrivers || 0, icon: UserCheck },
     { label: t('busyDrivers'), value: stats?.busyDrivers || 0, icon: Car },
     { label: t('offlineDrivers'), value: stats?.offlineDrivers || 0, icon: UserX },
@@ -123,59 +121,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Weekly Revenue */}
-        <Card className="border-[#35577D]/20">
-          <CardHeader>
-            <CardTitle className="text-base">{t('weeklyRevenue')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {chartsLoading ? (
-              <Skeleton className="h-[250px] w-full" />
-            ) : (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={charts?.dailyOrders || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
-                  <XAxis dataKey="date" stroke="#7BBDE8" fontSize={12} />
-                  <YAxis stroke="#7BBDE8" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }}
-                    labelStyle={{ color: '#fff' }}
-                    formatter={(value: any) => [value, 'Доход']}
-                  />
-                  <Bar dataKey="revenue" name="Доход" fill="#35577D" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Monthly Revenue */}
-        <Card className="border-[#35577D]/20">
-          <CardHeader>
-            <CardTitle className="text-base">{t('monthlyRevenueChart')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {chartsLoading ? (
-              <Skeleton className="h-[300px] w-full" />
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={charts?.monthlyRevenue || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
-                  <XAxis dataKey="month" stroke="#7BBDE8" fontSize={12} />
-                  <YAxis stroke="#7BBDE8" fontSize={12} domain={[0, 100000]} ticks={[0, 10000, 20000, 40000, 60000, 80000, 100000]} />
-                  <Tooltip
-                    contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }}
-                    labelStyle={{ color: '#fff' }}
-                    formatter={(value: any, name: string) => [value, name === 'revenue' ? 'Доход' : 'Заказы']}
-                  />
-                  <Line type="monotone" dataKey="revenue" name="Доход" stroke="#7BBDE8" strokeWidth={2} dot={{ fill: '#7BBDE8' }} />
-                  <Line type="monotone" dataKey="orders" name="Заказы" stroke="#35577D" strokeWidth={2} dot={{ fill: '#35577D' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Driver Activity */}
         <Card className="border-[#35577D]/20">
           <CardHeader>
@@ -199,9 +144,6 @@ export default function DashboardPage() {
                         <p className="text-xs text-gray-400">{driver.totalOrders} заказов</p>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold text-[#7BBDE8]">
-                      {formatCurrency(driver.totalEarnings)}
-                    </span>
                   </div>
                 ))}
                 {(!charts?.topDrivers || charts.topDrivers.length === 0) && (

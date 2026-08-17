@@ -39,8 +39,6 @@ export default function RatingPage() {
   const statCards = [
     { label: t("todayOrders"), value: stats?.todayOrders || 0, icon: ShoppingCart, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
     { label: t("monthlyOrders"), value: stats?.monthlyOrders || 0, icon: TrendingUp, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
-    { label: t("todayRevenue"), value: formatCurrency(stats?.todayRevenue || 0), icon: DollarSign, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
-    { label: t("monthlyRevenue"), value: formatCurrency(stats?.monthlyRevenue || 0), icon: TrendingUp, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
     { label: t("activeDrivers"), value: stats?.activeDrivers || 0, icon: Users, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
     { label: t("onlineDrivers"), value: stats?.onlineDrivers || 0, icon: UserCheck, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
   ];
@@ -103,30 +101,6 @@ export default function RatingPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t('revenue')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={charts?.monthlyRevenue || []}>
-                <defs>
-                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#7BBDE8" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#7BBDE8" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
-                <XAxis dataKey="month" stroke="#7BBDE8" fontSize={12} />
-                <YAxis stroke="#7BBDE8" fontSize={12} />
-                <Tooltip contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="revenue" stroke="#7BBDE8" fill="url(#revenueGrad)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {/* Orders Chart */}
         <Card>
           <CardHeader>
@@ -182,7 +156,6 @@ export default function RatingPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold">{driver.totalOrders} orders</p>
-                  <p className="text-sm text-[#7BBDE8]">{formatCurrency(driver.totalEarnings)}</p>
                 </div>
               </motion.div>
             ))}

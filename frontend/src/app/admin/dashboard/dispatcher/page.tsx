@@ -45,7 +45,6 @@ export default function DispatcherPage() {
     tariff: 'Standard',
     comment: '',
     paymentMethod: 'CASH',
-    price: '',
   });
 
   const { data: ordersData, isLoading } = useQuery({
@@ -65,7 +64,7 @@ export default function DispatcherPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
       setIsOrderFormOpen(false);
-      setOrderForm({ pickupAddress: '', destAddress: '', clientPhone: '', tariff: 'Standard', comment: '', paymentMethod: 'CASH', price: '' });
+      setOrderForm({ pickupAddress: '', destAddress: '', clientPhone: '', tariff: 'Standard', comment: '', paymentMethod: 'CASH' });
       setErrors({});
       toast.success(t('createOrder') + ' ✓');
     },
@@ -168,9 +167,6 @@ export default function DispatcherPage() {
                       <div className="flex items-center gap-4 text-sm">
                         <div className="text-right">
                           <p className="font-medium text-yellow-400 font-mono text-lg">{order.clientPhone}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-lg">{formatCurrency(order.price)}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</p>
                         </div>
                       </div>
@@ -273,12 +269,6 @@ export default function DispatcherPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t('price')}</Label>
-              <Input type="number" value={orderForm.price} onChange={(e) => setOrderForm({...orderForm, price: e.target.value})} placeholder="Авто (18 сом/км)" min="0" />
-              <p className="text-[10px] text-muted-foreground">Бош калтырсаңыз — аралыкка жараша автоматтык эсептелет</p>
             </div>
 
             <div className="space-y-2">

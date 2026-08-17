@@ -90,7 +90,7 @@ export default function ReportsPage() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
@@ -124,19 +124,6 @@ export default function ReportsPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">{t("revenue")}</p>
-                  <p className="text-2xl font-bold mt-1 text-green-400">{formatCurrency(report?.revenue || 0)}</p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-green-400/10 flex items-center justify-center">
-                  <span className="text-green-400 text-lg font-black">С</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
 
@@ -157,7 +144,6 @@ export default function ReportsPage() {
                   <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('client')}</th>
                   <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('driver')}</th>
                   <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('status')}</th>
-                  <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('price')}</th>
                   <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('date')}</th>
                 </tr>
               </thead>
@@ -172,7 +158,6 @@ export default function ReportsPage() {
                         {order.status}
                       </Badge>
                     </td>
-                    <td className="p-4 text-sm font-medium">{formatCurrency(order.price)}</td>
                     <td className="p-4 text-xs text-muted-foreground">{formatDate(order.createdAt)}</td>
                   </tr>
                 ))}
