@@ -57,6 +57,11 @@ export default function ProfilePage() {
             </span>
           </div>
           <h3 className="text-xl font-bold">{driver.firstName} {driver.lastName}</h3>
+          {driver.callsign && (
+            <div className="mt-1 px-3 py-1 rounded-full bg-red-500/20 border border-red-500/30 inline-flex items-center">
+              <span className="text-red-400 font-black text-lg">#{driver.callsign}</span>
+            </div>
+          )}
           <div className="flex items-center justify-center gap-1 mt-2">
             <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
             <span className="text-lg font-bold">{driver.rating?.toFixed(1) || '5.0'}</span>
@@ -104,6 +109,12 @@ export default function ProfilePage() {
               </span>
               <span className="text-sm font-medium">{driver.phone}</span>
             </div>
+            {driver.callsign && (
+              <div className="flex items-center justify-between py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Позывной</span>
+                <span className="text-sm font-black text-red-400">#{driver.callsign}</span>
+              </div>
+            )}
             {driver.vehicle && (
               <>
                 <div className="flex items-center justify-between py-2 border-b border-border/50">

@@ -463,7 +463,7 @@ async function dispatchPendingOrders() {
     if (pendingOrders.length === 0) return;
 
     const onlineDrivers = await prisma.driver.findMany({
-      where: { status: 'ONLINE', accountStatus: 'ACTIVE' },
+      where: { status: 'ONLINE', accountStatus: 'ACTIVE' },  // Only ONLINE, not BUSY
       select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
     });
 
@@ -491,43 +491,51 @@ async function dispatchPendingOrders() {
         const selected = remaining[Math.floor(Math.random() * remaining.length)];
         triedDrivers.push(selected.id);
 
-        io.to(`driver:${selected.id}`).emit('order:incoming', {
-          ...order,
-          assignedDriverId: selected.id,
-          distanceMeters: 0,
-          timeoutSeconds: 20,
-        });
-
-        io.to('admin-room').emit('notification', {
-          title: 'Заказ кайра жөнөтүлдү',
-          message: `#${order.orderNumber} → ${selected.firstName} — 20 сек`,
-          type: 'auto_assigned',
-        });
-
-        const t = setTimeout(async () => {
-          try {
-            const fresh = await prisma.order.findUnique({ where: { id: order.id } });
-            if (fresh && fresh.status === 'PENDING') {
-              io.to(`driver:${selected.id}`).emit('order:expired', { orderId: order.id });
+        // Skip if driver became BUSY since we fetched the list
+        prisma.driver.findUnique({ where: { id: selected.id }, select: { status: true } })
+          .then(freshDriver => {
+            if (freshDriver && freshDriver.status !== 'ONLINE') {
               assignToNext();
-            } else {
-              // Order was accepted or cancelled — remove from active set
-              activeDispatchOrders.delete(order.id);
+              return;
             }
-          } catch {
-            activeDispatchOrders.delete(order.id);
-          }
-        }, 20000);
 
-        // If order gets accepted via socket, clear timeout
-        const cleanupHandler = (data: any) => {
-          if (data.orderId === order.id) {
-            clearTimeout(t);
-            activeDispatchOrders.delete(order.id);
-            io.off('order:accepted', cleanupHandler);
-          }
-        };
-        io.on('order:accepted', cleanupHandler);
+            io.to(`driver:${selected.id}`).emit('order:incoming', {
+              ...order,
+              assignedDriverId: selected.id,
+              distanceMeters: 0,
+              timeoutSeconds: 20,
+            });
+
+            io.to('admin-room').emit('notification', {
+              title: 'Заказ кайра жөнөтүлдү',
+              message: `#${order.orderNumber} → ${selected.firstName} — 20 сек`,
+              type: 'auto_assigned',
+            });
+
+            const t = setTimeout(async () => {
+              try {
+                const fresh = await prisma.order.findUnique({ where: { id: order.id } });
+                if (fresh && fresh.status === 'PENDING') {
+                  io.to(`driver:${selected.id}`).emit('order:expired', { orderId: order.id });
+                  assignToNext();
+                } else {
+                  activeDispatchOrders.delete(order.id);
+                }
+              } catch {
+                activeDispatchOrders.delete(order.id);
+              }
+            }, 20000);
+
+            const cleanupHandler = (data: any) => {
+              if (data.orderId === order.id) {
+                clearTimeout(t);
+                activeDispatchOrders.delete(order.id);
+                io.off('order:accepted', cleanupHandler);
+              }
+            };
+            io.on('order:accepted', cleanupHandler);
+          })
+          .catch(() => assignToNext());
       }
 
       assignToNext();

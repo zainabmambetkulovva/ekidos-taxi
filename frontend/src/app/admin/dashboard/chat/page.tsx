@@ -416,7 +416,7 @@ export default function AdminChatPage() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder={activeChat === 'general' ? 'Жалпы чатка жазыңыз...' : `${selectedPartner?.name} га жазыңыз...`}
+                placeholder="..."
                 maxLength={500}
                 className="flex-1 bg-white/5 border-white/10"
                 autoFocus={activeChat !== 'general'}

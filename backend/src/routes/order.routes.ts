@@ -394,7 +394,7 @@ router.post('/', async (req: Request, res: Response) => {
     try {
       const onlineDrivers = await prisma.driver.findMany({
         where: {
-          status: 'ONLINE',
+          status: 'ONLINE',  // Only ONLINE — not BUSY, not BUSY_PERSONAL
           accountStatus: 'ACTIVE',
         },
         select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
@@ -461,28 +461,35 @@ router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Res
       return res.status(400).json({ error: 'Балансыңыз жетишсиз (20 баланс керек)' });
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
+    // ATOMIC accept — only update if still PENDING (prevents race condition / double assignment)
+    const updatedOrder = await prisma.order.updateMany({
+      where: { id, status: 'PENDING' },
       data: {
         driverId,
         status: 'ASSIGNED',
         assignedAt: new Date(),
       },
+    });
+
+    if (updatedOrder.count === 0) {
+      return res.status(400).json({ error: 'Заказ башка водитель тарабынан алынган' });
+    }
+
+    const finalOrder = await prisma.order.findUnique({
+      where: { id },
       include: { driver: true },
     });
 
     await prisma.driver.update({
       where: { id: driverId },
-      data: {
-        status: 'BUSY',
-      },
+      data: { status: 'BUSY' },
     });
 
     // Notify all to remove this order
     io.emit('order:taken', { orderId: id, driverId });
-    io.to('admin-room').emit('order:accepted', updatedOrder);
+    io.to('admin-room').emit('order:accepted', finalOrder);
 
-    return res.json(updatedOrder);
+    return res.json(finalOrder);
   } catch (error) {
     console.error('Accept order error:', error);
     return res.status(500).json({ error: 'Internal server error' });

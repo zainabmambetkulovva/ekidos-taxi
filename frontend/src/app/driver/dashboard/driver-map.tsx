@@ -318,47 +318,32 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
       const driverName = name || existing?.name || '';
       const driverCallsign = callsign || existing?.callsign || '';
       const color = getDriverColor(driverStatus);
+      // Show callsign or first letter
+      const label = driverCallsign || (driverName ? driverName.charAt(0) : '?');
+
+      const makeIconHtml = () =>
+        `<div style="width:30px;height:30px;background:${color};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);font-size:11px;font-weight:900;color:white;font-family:sans-serif;letter-spacing:-0.5px">${label}</div>`;
+
+      const makePopup = () =>
+        `<div style="font-family:sans-serif;min-width:100px">` +
+        `<b>${driverName}</b>` +
+        `${driverCallsign ? `<br><span style="color:#ef4444;font-weight:700">#${driverCallsign}</span>` : ''}` +
+        `<br><span style="color:${color};font-weight:600">${getStatusLabel(driverStatus)}</span>` +
+        `</div>`;
 
       if (existing?.marker) {
-        // Update position
         existing.marker.setLatLng([lat, lng]);
-        // Update icon if status changed
         if (status && status !== existing.status) {
-          const newIcon = L.divIcon({
-            className: '',
-            html: `<div style="width:28px;height:28px;background:${color};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg></div>`,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
-          });
+          const newIcon = L.divIcon({ className: '', html: makeIconHtml(), iconSize: [30, 30], iconAnchor: [15, 15] });
           existing.marker.setIcon(newIcon);
-          // Update popup
-          existing.marker.setPopupContent(
-            `<div style="font-family:sans-serif;min-width:120px">` +
-            `<b>${driverName}</b>` +
-            `${driverCallsign ? `<br><span style="color:#ef4444;font-weight:700">№${driverCallsign}</span>` : ''}` +
-            `<br><span style="color:${color};font-weight:600">${getStatusLabel(driverStatus)}</span>` +
-            `</div>`
-          );
+          existing.marker.setPopupContent(makePopup());
           existing.status = driverStatus;
           if (name) existing.name = name;
           if (callsign) existing.callsign = callsign;
         }
       } else {
-        // Create new marker
-        const icon = L.divIcon({
-          className: '',
-          html: `<div style="width:28px;height:28px;background:${color};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg></div>`,
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
-        });
-        const marker = L.marker([lat, lng], { icon }).addTo(map)
-          .bindPopup(
-            `<div style="font-family:sans-serif;min-width:120px">` +
-            `<b>${driverName}</b>` +
-            `${driverCallsign ? `<br><span style="color:#ef4444;font-weight:700">№${driverCallsign}</span>` : ''}` +
-            `<br><span style="color:${color};font-weight:600">${getStatusLabel(driverStatus)}</span>` +
-            `</div>`
-          );
+        const icon = L.divIcon({ className: '', html: makeIconHtml(), iconSize: [30, 30], iconAnchor: [15, 15] });
+        const marker = L.marker([lat, lng], { icon }).addTo(map).bindPopup(makePopup());
         otherDrivers[driverId] = { marker, status: driverStatus, name: driverName, callsign: driverCallsign };
       }
     };
