@@ -375,6 +375,7 @@ router.post('/', async (req: Request, res: Response) => {
         driverEarning,
         companyCommission,
         distance,
+        // @ts-ignore — options field added via ALTER TABLE, Prisma client regenerated on deploy
         options: Array.isArray(options) ? options : [],
       },
     });
