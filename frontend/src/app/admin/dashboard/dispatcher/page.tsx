@@ -151,9 +151,9 @@ export default function DispatcherPage() {
     }
     const callsign = orderForm.clientPhone.trim();
     if (!callsign) {
-      newErrors.clientPhone = 'Позывной же телефон жазыңыз';
-    } else if (!/^\d{3}$/.test(callsign) && !isValidKyrgyzPhone(callsign)) {
-      newErrors.clientPhone = '3 цифра (позывной) же +996 7XX XXX XXX';
+      newErrors.clientPhone = 'Номер жазыңыз';
+    } else if (!isValidKyrgyzPhone(callsign)) {
+      newErrors.clientPhone = '+996 7XX XXX XXX форматында жазыңыз';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -309,45 +309,20 @@ export default function DispatcherPage() {
               {errors.destAddress && <p className="text-xs text-red-400">{errors.destAddress}</p>}
             </div>
 
-            {/* Позывной */}
+            {/* Номер */}
             <div className="space-y-2">
-              <Label>Позывной же телефон *</Label>
+              <Label>Номер *</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                 <Input
                   value={orderForm.clientPhone}
                   onChange={(e) => { setOrderForm({...orderForm, clientPhone: e.target.value}); setErrors({...errors, clientPhone: ''}); }}
-                  placeholder="123 же +996 7XX XXX XXX"
+                  placeholder="+996 7XX XXX XXX"
                   className={`pl-10 ${errors.clientPhone ? 'border-red-500' : ''}`}
                   required
                 />
               </div>
               {errors.clientPhone && <p className="text-xs text-red-400">{errors.clientPhone}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('tariff')}</Label>
-                <Select value={orderForm.tariff} onValueChange={(v) => setOrderForm({...orderForm, tariff: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Standard">Standard</SelectItem>
-                    <SelectItem value="Comfort">Comfort</SelectItem>
-                    <SelectItem value="Business">Business</SelectItem>
-                    <SelectItem value="Minivan">Minivan</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>{t('paymentMethod')}</Label>
-                <Select value={orderForm.paymentMethod} onValueChange={(v) => setOrderForm({...orderForm, paymentMethod: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CASH">{t('cash')}</SelectItem>
-                    <SelectItem value="CARD">{t('card')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             {/* Опции */}
