@@ -106,12 +106,12 @@ function getSuccessSound(): string {
 }
 
 function getWelcomeSound(): string {
-  if (!welcomeSoundData) welcomeSoundData = generateMultiTone([392, 523, 659], 2.5, 0.15);
+  if (!welcomeSoundData) welcomeSoundData = generateMultiTone([392, 523, 659], 2.0, 0.15);
   return welcomeSoundData;
 }
 
 function getAlertSound(): string {
-  if (!alertSoundData) alertSoundData = generateWav(880, 7, 0.8);
+  if (!alertSoundData) alertSoundData = generateWav(880, 2.0, 0.8);
   return alertSoundData;
 }
 
