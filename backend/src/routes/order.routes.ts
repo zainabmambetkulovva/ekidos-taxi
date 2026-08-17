@@ -306,6 +306,8 @@ router.post('/', async (req: Request, res: Response) => {
     const { pickupAddress, destAddress, clientName, clientPhone, tariff, comment, paymentMethod, price, pickupLat, pickupLng, destLat, destLng,
       // Client app sends these alternative field names:
       from, to, addressFrom, addressTo,
+      // Order options
+      options,
     } = req.body;
 
     // Support client app format: from={lat,lng}, addressFrom="..."
@@ -373,6 +375,7 @@ router.post('/', async (req: Request, res: Response) => {
         driverEarning,
         companyCommission,
         distance,
+        options: Array.isArray(options) ? options : [],
       },
     });
 

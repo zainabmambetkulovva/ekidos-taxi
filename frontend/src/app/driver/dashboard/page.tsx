@@ -6,6 +6,7 @@ import { useDriverStore } from '@/store/useDriverStore';
 import { getClientDisplayName } from '@/lib/display-names';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { playOrderAlertSound, playWelcomeSound } from '@/lib/sounds';
+import { ORDER_OPTIONS, getOptionEmoji, getOptionLabel } from '@/lib/order-options';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -87,6 +88,21 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
           </a>
         )}
       </div>
+
+      {/* Order options */}
+      {order.options && order.options.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {order.options.map((optId: string) => (
+            <span
+              key={optId}
+              className="inline-flex items-center gap-1 text-xs bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 px-2 py-1 rounded-full font-medium"
+            >
+              <span>{getOptionEmoji(optId)}</span>
+              <span>{getOptionLabel(optId)}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {step === 'driving' && (
         <div className="flex gap-2">
@@ -406,6 +422,24 @@ export default function DriverHomePage() {
               <span className="text-xs text-gray-400">Клиент: </span>
               <span className="text-sm text-white font-medium">{incomingOrder.clientName}</span>
             </div>
+
+            {/* Options */}
+            {incomingOrder.options && incomingOrder.options.length > 0 && (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3">
+                <p className="text-xs text-yellow-400 font-semibold mb-2 uppercase tracking-wide">Опции к заказу</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {incomingOrder.options.map((optId: string) => (
+                    <span
+                      key={optId}
+                      className="inline-flex items-center gap-1 text-xs bg-yellow-500/20 text-yellow-200 border border-yellow-500/30 px-2.5 py-1 rounded-full font-medium"
+                    >
+                      <span>{getOptionEmoji(optId)}</span>
+                      <span>{getOptionLabel(optId)}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action buttons */}

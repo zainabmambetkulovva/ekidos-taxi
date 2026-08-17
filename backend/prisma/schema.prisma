@@ -103,6 +103,7 @@ model Order {
   companyCommission Float   @default(0)
   distance        Float     @default(0)
   status          String    @default("PENDING")
+  options         String[]  @default([])
   driverId        String?
   clientId        String?
   assignedAt      DateTime?

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { Plus, MapPin, Phone, User, Loader2, Clock } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, MapPin, Phone, User, Loader2, Clock, SlidersHorizontal, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,10 +14,92 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { useLanguageStore } from '@/store/useLanguageStore';
 
-// Phone validation: +996 7XX XXX XXX
+import { ORDER_OPTIONS as OPTIONS_LIST } from '@/lib/order-options';
+
+function OptionsBottomSheet({
+  open,
+  selected,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  selected: string[];
+  onClose: () => void;
+  onSave: (opts: string[]) => void;
+}) {
+  const [local, setLocal] = useState<string[]>(selected);
+
+  const toggle = (id: string) => {
+    setLocal(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            className="fixed inset-0 bg-black/60 z-[10000]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+          {/* Sheet */}
+          <motion.div
+            className="fixed bottom-0 left-0 right-0 z-[10001] bg-[#0f1720] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-white">Опции к заказу</h2>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              {OPTIONS_LIST.map((opt) => {
+                const isSelected = local.includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => toggle(opt.id)}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl border transition-all text-left ${
+                      isSelected
+                        ? 'bg-red-500/20 border-red-500/60 text-white'
+                        : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="text-xl">{opt.emoji}</span>
+                    <span className="text-sm font-medium flex-1">{opt.label}</span>
+                    {isSelected && <Check className="w-4 h-4 text-red-400 flex-shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => { onSave(local); onClose(); }}
+              className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-all"
+            >
+              Сохранить{local.length > 0 ? ` (${local.length})` : ''}
+            </button>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+// ===== END OPTIONS =====
+
 function isValidKyrgyzPhone(phone: string): boolean {
   const cleaned = phone.replace(/[\s\-\(\)]/g, '');
   if (/^\+996[57]\d{8}$/.test(cleaned)) return true;
@@ -37,11 +119,13 @@ export default function DispatcherPage() {
   const queryClient = useQueryClient();
   const { t } = useLanguageStore();
   const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [orderForm, setOrderForm] = useState({
     pickupAddress: '',
     destAddress: '',
-    clientPhone: '',    // Позывной (3 цифра) же телефон
+    clientPhone: '',
     tariff: 'Standard',
     comment: '',
     paymentMethod: 'CASH',
@@ -65,6 +149,7 @@ export default function DispatcherPage() {
       queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
       setIsOrderFormOpen(false);
       setOrderForm({ pickupAddress: '', destAddress: '', clientPhone: '', tariff: 'Standard', comment: '', paymentMethod: 'CASH' });
+      setSelectedOptions([]);
       setErrors({});
       toast.success(t('createOrder') + ' ✓');
     },
@@ -78,11 +163,9 @@ export default function DispatcherPage() {
     if (!isValidAddress(orderForm.pickupAddress)) {
       newErrors.pickupAddress = t('pickupAddress') + ' — кеминде 3 символ';
     }
-    // Б точка — милдеттүү эмес, бирок жазылса текшерилет
     if (orderForm.destAddress && !isValidAddress(orderForm.destAddress)) {
       newErrors.destAddress = t('destAddress') + ' — кеминде 3 символ';
     }
-    // Позывной: 3 цифра же телефон номер
     const callsign = orderForm.clientPhone.trim();
     if (!callsign) {
       newErrors.clientPhone = 'Позывной же телефон жазыңыз';
@@ -96,10 +179,10 @@ export default function DispatcherPage() {
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    // clientName = позывной жана телефон
     createOrderMutation.mutate({
       ...orderForm,
-      clientName: orderForm.clientPhone, // позывной же номер катары
+      clientName: orderForm.clientPhone,
+      options: selectedOptions,
     });
   };
 
@@ -163,6 +246,19 @@ export default function DispatcherPage() {
                             <span className="text-muted-foreground">{order.destAddress}</span>
                           </div>
                         )}
+                        {/* Show options if any */}
+                        {order.options && order.options.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {order.options.map((optId: string) => {
+                              const opt = OPTIONS_LIST.find(o => o.id === optId);
+                              return opt ? (
+                                <span key={optId} className="text-xs bg-red-500/15 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full">
+                                  {opt.emoji} {opt.label}
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 text-sm">
                         <div className="text-right">
@@ -193,13 +289,13 @@ export default function DispatcherPage() {
       </div>
 
       {/* Create Order Dialog */}
-      <Dialog open={isOrderFormOpen} onOpenChange={setIsOrderFormOpen}>
+      <Dialog open={isOrderFormOpen} onOpenChange={(open) => { setIsOrderFormOpen(open); if (!open) setErrors({}); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl">{t('createOrder')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateOrder} className="space-y-4">
-            {/* А точка — милдеттүү */}
+            {/* А точка */}
             <div className="space-y-2">
               <Label>{t('pickupAddress')} *</Label>
               <div className="relative">
@@ -215,7 +311,7 @@ export default function DispatcherPage() {
               {errors.pickupAddress && <p className="text-xs text-red-400">{errors.pickupAddress}</p>}
             </div>
 
-            {/* Б точка — милдеттүү ЭМЕС */}
+            {/* Б точка */}
             <div className="space-y-2">
               <Label>{t('destAddress')} <span className="text-muted-foreground text-xs">(милдеттүү эмес)</span></Label>
               <div className="relative">
@@ -230,7 +326,7 @@ export default function DispatcherPage() {
               {errors.destAddress && <p className="text-xs text-red-400">{errors.destAddress}</p>}
             </div>
 
-            {/* Позывной же телефон */}
+            {/* Позывной */}
             <div className="space-y-2">
               <Label>Позывной же телефон *</Label>
               <div className="relative">
@@ -271,6 +367,32 @@ export default function DispatcherPage() {
               </div>
             </div>
 
+            {/* Опции */}
+            <div className="space-y-2">
+              <Label>Опции к заказу</Label>
+              <button
+                type="button"
+                onClick={() => setIsOptionsOpen(true)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+                  selectedOptions.length > 0
+                    ? 'bg-red-500/10 border-red-500/40 text-white'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
+                {selectedOptions.length > 0 ? (
+                  <span className="text-sm flex-1 truncate">
+                    {selectedOptions.map(id => OPTIONS_LIST.find(o => o.id === id)?.label).filter(Boolean).join(', ')}
+                  </span>
+                ) : (
+                  <span className="text-sm flex-1">Опцияларды тандаңыз...</span>
+                )}
+                {selectedOptions.length > 0 && (
+                  <span className="text-xs bg-red-500/30 text-red-400 px-2 py-0.5 rounded-full font-bold">{selectedOptions.length}</span>
+                )}
+              </button>
+            </div>
+
             <div className="space-y-2">
               <Label>{t('comment')}</Label>
               <Textarea value={orderForm.comment} onChange={(e) => setOrderForm({...orderForm, comment: e.target.value})} placeholder={t('comment')} />
@@ -286,6 +408,14 @@ export default function DispatcherPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Options Bottom Sheet */}
+      <OptionsBottomSheet
+        open={isOptionsOpen}
+        selected={selectedOptions}
+        onClose={() => setIsOptionsOpen(false)}
+        onSave={(opts) => setSelectedOptions(opts)}
+      />
     </div>
   );
 }
