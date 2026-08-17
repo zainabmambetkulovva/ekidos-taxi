@@ -42,9 +42,9 @@ function OptionsBottomSheet({
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
         className="bg-[#0f1720] border-[#35577D]/30 p-4 gap-0"
-        style={{ width: '400px', maxWidth: '400px', maxHeight: '200px', overflow: 'auto' }}
+        style={{ width: '520px', maxWidth: '90vw' }}
       >
-        <DialogHeader className="pb-2">
+        <DialogHeader className="pb-3">
           <DialogTitle className="text-base text-white">Опции к заказу</DialogTitle>
         </DialogHeader>
 
@@ -56,15 +56,15 @@ function OptionsBottomSheet({
                 key={opt.id}
                 type="button"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle(opt.id); }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left cursor-pointer ${
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all text-left cursor-pointer ${
                   isSelected
                     ? 'bg-red-500/20 border-red-500/50 text-white'
                     : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
                 }`}
               >
-                <span className="text-sm">{opt.emoji}</span>
+                <span className="text-base">{opt.emoji}</span>
                 <span className="text-sm font-medium flex-1 leading-tight">{opt.label}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
+                {isSelected && <Check className="w-4 h-4 text-red-400 flex-shrink-0" />}
               </button>
             );
           })}
