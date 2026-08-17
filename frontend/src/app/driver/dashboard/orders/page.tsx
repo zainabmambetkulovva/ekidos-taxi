@@ -199,7 +199,6 @@ export default function DriverOrdersPage() {
             <div key={order.id} className="bg-[#0d0d0d] border border-white/10 rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between px-4 pt-3">
                 <span className="font-mono text-[10px] text-gray-500">#{order.orderNumber}</span>
-                <span className="text-xl font-black text-green-400">{order.price} сом</span>
               </div>
 
               <div className="px-4 py-3 space-y-2">

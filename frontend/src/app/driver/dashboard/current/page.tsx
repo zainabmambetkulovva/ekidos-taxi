@@ -144,7 +144,6 @@ export default function CurrentOrderPage() {
             {/* Order Number */}
             <div className="flex items-center justify-between">
               <span className="font-mono text-sm text-red-400">#{currentOrder.orderNumber}</span>
-              <span className="text-2xl font-bold text-green-400">{formatCurrency(currentOrder.price)}</span>
             </div>
 
             {/* Route */}

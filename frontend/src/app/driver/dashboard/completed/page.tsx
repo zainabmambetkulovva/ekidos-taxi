@@ -57,7 +57,6 @@ export default function CompletedOrdersPage() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <span className="font-mono text-xs text-muted-foreground">#{order.orderNumber}</span>
-                    <span className="text-lg font-bold text-green-400">{formatCurrency(order.price)}</span>
                   </div>
                   <div className="space-y-1 text-sm">
                     <div className="flex items-start gap-2">

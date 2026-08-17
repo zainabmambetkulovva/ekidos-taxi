@@ -65,7 +65,6 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
           {step === 'arrived' && 'На месте'}
           {step === 'client_in_car' && 'В пути'}
         </span>
-        <span className="text-xl font-black text-green-400">{order.price} сом</span>
       </div>
 
       <div className="space-y-2 mb-3">
@@ -398,12 +397,6 @@ export default function DriverHomePage() {
 
           {/* Order card */}
           <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-3xl p-6 space-y-4 mb-8">
-            {/* Price */}
-            <div className="text-center">
-              <span className="text-4xl font-black text-green-400">{incomingOrder.price}</span>
-              <span className="text-lg text-green-400 ml-1">сом</span>
-            </div>
-
             {/* Route */}
             <div className="space-y-3">
               <div className="flex items-start gap-3">

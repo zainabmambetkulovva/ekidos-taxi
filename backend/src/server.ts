@@ -541,6 +541,20 @@ async function dispatchPendingOrders() {
 setInterval(dispatchPendingOrders, 5000);
 // ===== END PENDING ORDER REASSIGNMENT ENGINE =====
 
+// ===== AUTO MIGRATION: add options column if missing =====
+async function ensureOptionsColumn() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS options TEXT[] DEFAULT '{}';
+    `);
+    console.log('✅ options column ensured');
+  } catch (e) {
+    console.error('Migration options column error:', e);
+  }
+}
+ensureOptionsColumn();
+// ===== END AUTO MIGRATION =====
+
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);

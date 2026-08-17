@@ -243,9 +243,9 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
           if (!order.pickupLat || !order.pickupLng) return;
           const icon = L.divIcon({
             className: '',
-            html: `<div style="width:28px;height:28px;background:#ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:9px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${order.price}</div>`,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
+            html: `<div style="width:20px;height:20px;background:#ef4444;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
           });
           const m = L.marker([order.pickupLat, order.pickupLng], { icon }).addTo(map)
             .bindPopup(
@@ -254,11 +254,10 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
               `<span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>` +
               `<span><b>Алынуучу жер:</b> ${order.pickupAddress}</span>` +
               `</div>` +
-              `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">` +
+              `<div style="display:flex;align-items:center;gap:6px">` +
               `<span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span>` +
               `<span><b>Барылуучу жер:</b> ${order.destAddress || 'Көрсөтүлгөн жок'}</span>` +
               `</div>` +
-              `<div style="border-top:1px solid #eee;padding-top:4px;color:#16a34a;font-weight:700;font-size:14px">${order.price} сом</div>` +
               `</div>`
             );
           orderMarkersRef.current.push(m);
