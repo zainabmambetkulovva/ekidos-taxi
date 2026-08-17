@@ -50,20 +50,20 @@ function OptionsBottomSheet({
           />
           {/* Sheet */}
           <motion.div
-            className="fixed bottom-0 left-0 right-0 z-[10001] bg-[#0f1720] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto"
+            className="fixed bottom-0 left-0 right-0 z-[10001] bg-[#0f1720] rounded-t-3xl px-4 pt-4 pb-5 max-h-[80vh] overflow-y-auto"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-white">Опции к заказу</h2>
-              <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                <X className="w-4 h-4 text-white" />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-white">Опции к заказу</h2>
+              <button onClick={onClose} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+                <X className="w-3.5 h-3.5 text-white" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mb-6">
+            <div className="grid grid-cols-2 gap-1.5 mb-3">
               {OPTIONS_LIST.map((opt) => {
                 const isSelected = local.includes(opt.id);
                 return (
@@ -71,15 +71,15 @@ function OptionsBottomSheet({
                     key={opt.id}
                     type="button"
                     onClick={() => toggle(opt.id)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-xl border transition-all text-left ${
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-all text-left ${
                       isSelected
-                        ? 'bg-red-500/20 border-red-500/60 text-white'
+                        ? 'bg-red-500/20 border-red-500/50 text-white'
                         : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
                     }`}
                   >
-                    <span className="text-xl">{opt.emoji}</span>
-                    <span className="text-sm font-medium flex-1">{opt.label}</span>
-                    {isSelected && <Check className="w-4 h-4 text-red-400 flex-shrink-0" />}
+                    <span className="text-sm">{opt.emoji}</span>
+                    <span className="text-xs font-medium flex-1 leading-tight">{opt.label}</span>
+                    {isSelected && <Check className="w-3 h-3 text-red-400 flex-shrink-0" />}
                   </button>
                 );
               })}
@@ -88,7 +88,7 @@ function OptionsBottomSheet({
             <button
               type="button"
               onClick={() => { onSave(local); onClose(); }}
-              className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-all"
+              className="w-full h-8 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-xs transition-all"
             >
               Сохранить{local.length > 0 ? ` (${local.length})` : ''}
             </button>
