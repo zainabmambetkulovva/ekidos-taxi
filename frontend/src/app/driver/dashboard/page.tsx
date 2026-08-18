@@ -202,6 +202,10 @@ export default function DriverHomePage() {
       // Don't accept orders when BUSY_PERSONAL
       const currentStatus = localStorage.getItem('ekidos-driver-line-status');
       if (currentStatus === 'BUSY_PERSONAL') return;
+      // Don't accept orders when balance < 12
+      const info = localStorage.getItem('driverInfo');
+      const bal = info ? JSON.parse(info).balance : null;
+      if (bal !== null && bal < 12) return;
       
       setIncomingOrder(order);
       setIncomingTimer(20);
@@ -356,21 +360,21 @@ export default function DriverHomePage() {
 
   return (
     <div className="relative h-[calc(100vh-120px)]">
-      {/* BALANCE BLOCK SCREEN - only when balance confirmed 0 from server */}
-      {balance !== null && balance <= 0 && !incomingOrder && !activeOrder && (
-        <div className="absolute inset-0 z-[9998] bg-black flex flex-col items-center justify-center p-6">
-          <div className="w-32 h-32 rounded-full border-4 border-red-500 flex flex-col items-center justify-center mb-6">
-            <span className="text-3xl font-black text-red-500">0</span>
-            <span className="text-xs text-gray-500">баланс</span>
+      {/* LOW BALANCE WARNING - shown when balance < 12 */}
+      {balance !== null && balance < 12 && !incomingOrder && !activeOrder && (
+        <div className="absolute inset-0 z-[9998] bg-black/95 flex flex-col items-center justify-center p-6">
+          <div className="w-32 h-32 rounded-full border-4 border-red-500 flex flex-col items-center justify-center mb-6 shadow-lg shadow-red-500/30">
+            <span className="text-3xl font-black text-red-500">{balance}</span>
+            <span className="text-xs text-gray-400 mt-1">сом</span>
           </div>
-          <h1 className="text-2xl font-black text-white mb-2 text-center">Баланс толуктаңыз!</h1>
-          <p className="text-gray-400 text-sm text-center mb-8 max-w-xs">
-            Балансыңыз түгөндү. Заказ кабыл алуу үчүн балансыңызды толуктаңыз.
+          <h1 className="text-2xl font-black text-white mb-3 text-center">Балансыңызды толуктаңыз!</h1>
+          <p className="text-gray-400 text-sm text-center mb-6 max-w-xs leading-relaxed">
+            Заказ кабыл алуу үчүн балансыңыз кем дегенде <span className="text-yellow-400 font-bold">12 сом</span> болушу керек.
           </p>
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 w-full max-w-xs space-y-3">
-            <p className="text-sm text-gray-300 text-center font-medium">Толуктоо:</p>
-            <p className="text-xs text-gray-500 text-center">Telegram ботко чекти жөнөтүңүз.</p>
-            <p className="text-xs text-gray-500 text-center">Канча сом салсаңыз — ошончо баланс болот.</p>
+          <div className="bg-white/5 border border-red-500/30 rounded-2xl p-5 w-full max-w-xs space-y-2">
+            <p className="text-sm text-white text-center font-semibold">Кантип толуктоо керек?</p>
+            <p className="text-xs text-gray-400 text-center">Telegram ботко өтүп, чек жөнөтүңүз.</p>
+            <p className="text-xs text-gray-400 text-center">Канча сом салсаңыз — ошончо баланс болот.</p>
           </div>
         </div>
       )}
