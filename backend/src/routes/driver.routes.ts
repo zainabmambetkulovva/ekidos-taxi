@@ -419,7 +419,11 @@ router.patch('/:id/reset-password', authenticateToken, authorizeRoles('ADMIN', '
 });
 
 // Direct balance topup by admin (no topup request needed)
-router.patch('/:id/balance', authenticateToken, authorizeRoles('ADMIN', 'DISPATCHER'), async (req: AuthRequest, res: Response) => {
+router.patch('/:id/balance', authenticateToken, async (req: AuthRequest, res: Response) => {
+  // Must be authenticated admin/dispatcher — not a driver
+  if (!req.user || req.user.role === 'DRIVER') {
+    return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
+  }
   try {
     const id = req.params.id as string;
     const { amount } = req.body;

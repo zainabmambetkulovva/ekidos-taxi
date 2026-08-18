@@ -86,6 +86,10 @@ router.post('/', async (req: Request, res: Response) => {
 
 // PATCH /api/topup/:id/approve — approve and add balance (admin)
 router.patch('/:id/approve', authenticateToken, async (req: AuthRequest, res: Response) => {
+  // Allow any authenticated admin/dispatcher
+  if (!req.user || !['ADMIN', 'DISPATCHER', 'SUPER_ADMIN'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
+  }
   try {
     const { id } = req.params;
     const { amount } = req.body;
