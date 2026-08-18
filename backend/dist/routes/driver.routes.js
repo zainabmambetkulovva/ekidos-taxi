@@ -25,8 +25,13 @@ router.get('/', auth_middleware_1.authenticateToken, async (req, res) => {
         const where = {};
         if (status)
             where.status = status;
-        if (accountStatus)
+        if (accountStatus) {
             where.accountStatus = accountStatus;
+        }
+        else {
+            // By default, exclude archived drivers from main list
+            where.accountStatus = { not: 'ARCHIVED' };
+        }
         if (search) {
             where.OR = [
                 { firstName: { contains: search, mode: 'insensitive' } },
@@ -54,13 +59,78 @@ router.get('/', auth_middleware_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
+// Search drivers by callsign (for admin balance topup)
+router.get('/search/callsign', auth_middleware_1.authenticateToken, async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.trim().length === 0) {
+            return res.json([]);
+        }
+        const drivers = await server_1.prisma.driver.findMany({
+            where: {
+                OR: [
+                    { callsign: { contains: q, mode: 'insensitive' } },
+                    { firstName: { contains: q, mode: 'insensitive' } },
+                    { lastName: { contains: q, mode: 'insensitive' } },
+                ],
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                callsign: true,
+                phone: true,
+                balance: true,
+            },
+            take: 10,
+        });
+        return res.json(drivers);
+    }
+    catch (error) {
+        console.error('Search drivers error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Get all online/busy drivers with status info (for driver map — see other drivers)
+router.get('/online-with-status', async (req, res) => {
+    try {
+        const drivers = await server_1.prisma.driver.findMany({
+            where: {
+                status: { in: ['ONLINE', 'BUSY', 'BUSY_PERSONAL'] },
+                accountStatus: 'ACTIVE',
+                latitude: { not: null },
+                longitude: { not: null },
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                callsign: true,
+                status: true,
+                latitude: true,
+                longitude: true,
+            },
+        });
+        return res.json(drivers.map(d => ({
+            id: d.id,
+            lat: d.latitude,
+            lng: d.longitude,
+            status: d.status,
+            name: `${d.firstName} ${d.lastName}`,
+            callsign: d.callsign || '',
+        })));
+    }
+    catch (error) {
+        return res.json([]);
+    }
+});
 // Get single driver (public - for client to see accepted driver info)
 router.get('/:id/public', async (req, res) => {
     try {
         const id = req.params.id;
         const driver = await server_1.prisma.driver.findUnique({
             where: { id },
-            select: { firstName: true, lastName: true, phone: true, vehicle: true },
+            select: { firstName: true, lastName: true, phone: true, latitude: true, longitude: true, vehicle: true },
         });
         if (!driver)
             return res.status(404).json({ error: 'Driver not found' });
@@ -208,12 +278,82 @@ router.put('/:id', auth_middleware_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
-// Delete driver
+// Delete driver (soft delete — archive, not permanent)
 router.delete('/:id', auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('ADMIN'), async (req, res) => {
     try {
         const id = req.params.id;
+        await server_1.prisma.driver.update({
+            where: { id },
+            data: {
+                accountStatus: 'ARCHIVED',
+                status: 'OFFLINE',
+            },
+        });
+        return res.json({ message: 'Driver archived successfully' });
+    }
+    catch (error) {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Get archived (deleted) drivers
+router.get('/archived/list', auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const drivers = await server_1.prisma.driver.findMany({
+            where: { accountStatus: 'ARCHIVED' },
+            include: { vehicle: true },
+            orderBy: { updatedAt: 'desc' },
+        });
+        const serialize = (obj) => JSON.parse(JSON.stringify(obj, (_, v) => typeof v === 'bigint' ? v.toString() : v));
+        return res.json({ drivers: serialize(drivers), total: drivers.length });
+    }
+    catch (error) {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Restore archived driver
+router.patch('/:id/restore', auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const id = req.params.id;
+        await server_1.prisma.driver.update({
+            where: { id },
+            data: { accountStatus: 'ACTIVE', status: 'OFFLINE' },
+        });
+        return res.json({ message: 'Driver restored successfully' });
+    }
+    catch (error) {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Permanently delete archived driver (only for ARCHIVED drivers)
+router.delete('/:id/permanent', auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const id = req.params.id;
+        const driver = await server_1.prisma.driver.findUnique({ where: { id } });
+        if (!driver)
+            return res.status(404).json({ error: 'Driver not found' });
+        if (driver.accountStatus !== 'ARCHIVED') {
+            return res.status(400).json({ error: 'Алгач архивдеп, анан гана толук өчүрүңүз' });
+        }
         await server_1.prisma.driver.delete({ where: { id } });
-        return res.json({ message: 'Driver deleted successfully' });
+        return res.json({ message: 'Driver permanently deleted' });
+    }
+    catch (error) {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Update driver location (from driver app GPS)
+router.patch('/:id/location', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { latitude, longitude } = req.body;
+        if (latitude == null || longitude == null) {
+            return res.status(400).json({ error: 'latitude and longitude required' });
+        }
+        await server_1.prisma.driver.update({
+            where: { id },
+            data: { latitude, longitude, lastLocationUpdate: new Date() },
+        });
+        return res.json({ ok: true });
     }
     catch (error) {
         return res.status(500).json({ error: 'Internal server error' });
@@ -248,6 +388,35 @@ router.patch('/:id/reset-password', auth_middleware_1.authenticateToken, (0, aut
     }
     catch (error) {
         console.error('Reset password error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Direct balance topup by admin (no topup request needed)
+router.patch('/:id/balance', auth_middleware_1.authenticateToken, async (req, res) => {
+    // Must be authenticated admin/dispatcher — not a driver
+    if (!req.user || req.user.role === 'DRIVER') {
+        return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
+    }
+    try {
+        const id = req.params.id;
+        const { amount } = req.body;
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ error: 'Valid amount is required' });
+        }
+        const driver = await server_1.prisma.driver.update({
+            where: { id },
+            data: { balance: { increment: amount } },
+        });
+        return res.json({
+            success: true,
+            driverName: `${driver.firstName} ${driver.lastName}`,
+            callsign: driver.callsign,
+            newBalance: driver.balance,
+            amount,
+        });
+    }
+    catch (error) {
+        console.error('Direct balance topup error:', error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
