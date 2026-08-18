@@ -52,12 +52,19 @@ type ActiveChat = 'general' | string; // 'general' or driverId
 
 // ====== PERSISTENCE: localStorage for messages ======
 const DM_CACHE_PREFIX = 'ekidos_dm_v2_';
-function saveDmMessages(convId: string, msgs: DirectMessage[]) {
-  try { localStorage.setItem(DM_CACHE_PREFIX + convId, JSON.stringify(msgs)); } catch {}
+const GENERAL_CHAT_CACHE_KEY = DM_CACHE_PREFIX + 'general';
+function saveConvMessages(convId: string, msgs: any[]) {
+  try { localStorage.setItem(convId === 'general' ? GENERAL_CHAT_CACHE_KEY : DM_CACHE_PREFIX + convId, JSON.stringify(msgs)); } catch {}
 }
-function loadDmMessages(convId: string): DirectMessage[] {
-  try { const s = localStorage.getItem(DM_CACHE_PREFIX + convId); return s ? JSON.parse(s) : []; } catch { return []; }
+function loadConvMessages(convId: string): any[] {
+  try { 
+    const key = convId === 'general' ? GENERAL_CHAT_CACHE_KEY : DM_CACHE_PREFIX + convId;
+    const s = localStorage.getItem(key); 
+    return s ? JSON.parse(s) : []; 
+  } catch { return []; }
 }
+function saveDmMessages(convId: string, msgs: any[]) { saveConvMessages(convId, msgs); }
+function loadDmMessages(convId: string): any[] { return loadConvMessages(convId); }
 
 // Merge old + new without duplicates
 function mergeDirectMessages(existing: DirectMessage[], incoming: DirectMessage[]): DirectMessage[] {
@@ -66,9 +73,15 @@ function mergeDirectMessages(existing: DirectMessage[], incoming: DirectMessage[
   return Array.from(map.values()).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
+function mergeMessages<T extends { id: string; createdAt: string }>(existing: T[], incoming: T[]): T[] {
+  const map = new Map<string, T>();
+  [...existing, ...incoming].forEach(m => map.set(m.id, m));
+  return Array.from(map.values()).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
 export default function AdminChatPage() {
   const [activeChat, setActiveChat] = useState<ActiveChat>('general');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadConvMessages('general'));
   // Store DM messages per conversationId in localStorage
   const [convMessages, setConvMessages] = useState<Record<string, DirectMessage[]>>({});
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -89,7 +102,12 @@ export default function AdminChatPage() {
     const fetchMessages = async () => {
       try {
         const { data } = await api.get('/chat', { params: { limit: 200 } });
-        setMessages(data.messages || []);
+        const fresh = data.messages || [];
+        setMessages(prev => {
+          const merged = mergeMessages(prev, fresh);
+          saveConvMessages('general', merged);
+          return merged;
+        });
       } catch {}
     };
     fetchMessages();
@@ -126,7 +144,12 @@ export default function AdminChatPage() {
     socket.emit('dm:join', adminId);
 
     socket.on('chat:message', (message: ChatMessage) => {
-      setMessages(prev => prev.find(m => m.id === message.id) ? prev : [...prev, message]);
+      setMessages(prev => {
+        if (prev.find(m => m.id === message.id)) return prev;
+        const next = [...prev, message];
+        saveConvMessages('general', next);
+        return next;
+      });
     });
 
     socket.on('dm:message', (message: DirectMessage) => {

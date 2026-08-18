@@ -36,6 +36,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   const { t } = useLanguageStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const menuItems = menuKeys.map(item => ({ ...item, label: t(item.key) }));
 
@@ -71,6 +72,13 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       socket.on('order:new', () => {
         // Play alert sound for new order
         playOrderAlertSound();
+      });
+
+      // Listen for DMs and count unread
+      socket.on('dm:message', (msg: any) => {
+        if (!pathname.includes('/chat')) {
+          setUnreadCount(prev => prev + 1);
+        }
       });
 
       return () => {
@@ -127,17 +135,25 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
+            const isChatTab = item.href === '/admin/dashboard/chat';
             return (
               <button
                 key={item.href}
-                onClick={() => { playClickSound(); router.push(item.href); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                onClick={() => { playClickSound(); if (isChatTab) setUnreadCount(0); router.push(item.href); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative ${
                   isActive
                     ? 'bg-[#35577D]/40 text-white border border-[#35577D]/60'
                     : 'text-gray-400 hover:text-white hover:bg-[#35577D]/20 border border-transparent'
                 }`}
               >
-                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <div className="relative">
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  {isChatTab && unreadCount > 0 && (
+                    <span className="absolute -top-2 -right-2 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </div>
                 {sidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
               </button>
             );

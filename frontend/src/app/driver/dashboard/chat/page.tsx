@@ -50,12 +50,19 @@ type ActiveChat = 'general' | string;
 
 // ====== PERSISTENCE: localStorage for messages ======
 const DM_CACHE_PREFIX = 'ekidos_dm_v2_';
-function saveDmMessages(convId: string, msgs: any[]) {
-  try { localStorage.setItem(DM_CACHE_PREFIX + convId, JSON.stringify(msgs)); } catch {}
+const GENERAL_CHAT_CACHE_KEY = DM_CACHE_PREFIX + 'general';
+function saveConvMessages(convId: string, msgs: any[]) {
+  try { localStorage.setItem(convId === 'general' ? GENERAL_CHAT_CACHE_KEY : DM_CACHE_PREFIX + convId, JSON.stringify(msgs)); } catch {}
 }
-function loadDmMessages(convId: string): any[] {
-  try { const s = localStorage.getItem(DM_CACHE_PREFIX + convId); return s ? JSON.parse(s) : []; } catch { return []; }
+function loadConvMessages(convId: string): any[] {
+  try { 
+    const key = convId === 'general' ? GENERAL_CHAT_CACHE_KEY : DM_CACHE_PREFIX + convId;
+    const s = localStorage.getItem(key); 
+    return s ? JSON.parse(s) : []; 
+  } catch { return []; }
 }
+function saveDmMessages(convId: string, msgs: any[]) { saveConvMessages(convId, msgs); }
+function loadDmMessages(convId: string): any[] { return loadConvMessages(convId); }
 
 // Merge old + new messages without duplicates, sorted by time
 function mergeMessages<T extends { id: string; createdAt: string }>(existing: T[], incoming: T[]): T[] {
