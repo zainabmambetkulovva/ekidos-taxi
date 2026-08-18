@@ -81,6 +81,30 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
   useEffect(() => {
     if (!showMarker || !navigator.geolocation) return;
 
+    // Get own callsign from localStorage
+    const getMyCallsign = () => {
+      try {
+        const info = localStorage.getItem('driverInfo');
+        if (info) {
+          const d = JSON.parse(info);
+          return d.callsign || d.firstName?.charAt(0)?.toUpperCase() || '?';
+        }
+      } catch {}
+      return '?';
+    };
+
+    const makeMyIcon = (L: any) => {
+      const callsign = getMyCallsign();
+      const fontSize = callsign.length <= 2 ? '13px' : callsign.length <= 3 ? '11px' : '9px';
+      const width = Math.max(36, callsign.length * 10 + 14);
+      return L.divIcon({
+        className: '',
+        html: `<div style="min-width:${width}px;height:36px;background:#3b82f6;border-radius:18px;border:3px solid white;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(59,130,246,0.6);font-size:${fontSize};font-weight:900;color:white;font-family:sans-serif;padding:0 7px;white-space:nowrap;letter-spacing:-0.5px">${callsign}</div>`,
+        iconSize: [width, 36],
+        iconAnchor: [width / 2, 18],
+      });
+    };
+
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const newLoc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
@@ -93,13 +117,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
         if (markerRef.current) {
           markerRef.current.setLatLng(newLoc);
         } else {
-          const icon = L.divIcon({
-            className: '',
-            html: `<div style="width:18px;height:18px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5)"></div>`,
-            iconSize: [18, 18],
-            iconAnchor: [9, 9],
-          });
-          markerRef.current = L.marker(newLoc, { icon }).addTo(map);
+          markerRef.current = L.marker(newLoc, { icon: makeMyIcon(L) }).addTo(map);
         }
 
         // Don't auto-pan - only pan when location button is pressed
