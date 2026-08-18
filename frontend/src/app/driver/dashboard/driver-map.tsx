@@ -316,19 +316,15 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
       const existing = otherDrivers[driverId];
       const driverStatus = status || existing?.status || 'ONLINE';
       const driverName = name || existing?.name || '';
-      const driverCallsign = callsign || existing?.callsign || '';
+      const driverCallsign = callsign !== undefined ? callsign : (existing?.callsign ?? '');
       const color = getDriverColor(driverStatus);
-      // Show callsign or first letter
-      const label = driverCallsign || (driverName ? driverName.charAt(0) : '?');
-      // Adjust font size based on label length
-      const fontSize = label.length <= 2 ? '12px' : label.length <= 4 ? '10px' : '8px';
-      // Wider pill shape if callsign is long, circle if short
-      const isLong = label.length > 2;
+
+      // Always show callsign inside circle; fallback to first letter of name
+      const label = driverCallsign || (driverName ? driverName.charAt(0).toUpperCase() : '?');
+      const fontSize = label.length <= 2 ? '13px' : label.length <= 3 ? '11px' : '9px';
 
       const makeIconHtml = () =>
-        isLong
-          ? `<div style="min-width:36px;height:24px;background:${color};border-radius:12px;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);font-size:${fontSize};font-weight:900;color:white;font-family:sans-serif;padding:0 5px;white-space:nowrap">${label}</div>`
-          : `<div style="width:30px;height:30px;background:${color};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);font-size:${fontSize};font-weight:900;color:white;font-family:sans-serif">${label}</div>`;
+        `<div style="min-width:34px;height:34px;background:${color};border-radius:17px;border:2.5px solid white;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.45);font-size:${fontSize};font-weight:900;color:white;font-family:sans-serif;padding:0 6px;white-space:nowrap;letter-spacing:-0.5px">${label}</div>`;
 
       const makePopup = () =>
         `<div style="font-family:sans-serif;min-width:100px">` +
@@ -337,18 +333,19 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
         `<br><span style="color:${color};font-weight:600">${getStatusLabel(driverStatus)}</span>` +
         `</div>`;
 
+      const iconW = Math.max(34, label.length * 10 + 14);
       if (existing?.marker) {
         existing.marker.setLatLng([lat, lng]);
         if (status && status !== existing.status) {
-          const newIcon = L.divIcon({ className: '', html: makeIconHtml(), iconSize: isLong ? [Math.max(36, label.length * 9), 24] : [30, 30], iconAnchor: isLong ? [Math.max(18, label.length * 4.5), 12] : [15, 15] });
+          const newIcon = L.divIcon({ className: '', html: makeIconHtml(), iconSize: [iconW, 34], iconAnchor: [iconW / 2, 17] });
           existing.marker.setIcon(newIcon);
           existing.marker.setPopupContent(makePopup());
           existing.status = driverStatus;
           if (name) existing.name = name;
-          if (callsign) existing.callsign = callsign;
+          if (callsign !== undefined) existing.callsign = callsign;
         }
       } else {
-        const icon = L.divIcon({ className: '', html: makeIconHtml(), iconSize: isLong ? [Math.max(36, label.length * 9), 24] : [30, 30], iconAnchor: isLong ? [Math.max(18, label.length * 4.5), 12] : [15, 15] });
+        const icon = L.divIcon({ className: '', html: makeIconHtml(), iconSize: [iconW, 34], iconAnchor: [iconW / 2, 17] });
         const marker = L.marker([lat, lng], { icon }).addTo(map).bindPopup(makePopup());
         otherDrivers[driverId] = { marker, status: driverStatus, name: driverName, callsign: driverCallsign };
       }
