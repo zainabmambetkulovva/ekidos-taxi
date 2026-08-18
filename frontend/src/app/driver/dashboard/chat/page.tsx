@@ -48,13 +48,13 @@ interface DriverItem {
 
 type ActiveChat = 'general' | string;
 
-// Persist messages per conversation in localStorage
-const CACHE_PREFIX = 'ekidos_chat_v2_';
-function saveConvMessages(convId: string, msgs: any[]) {
-  try { localStorage.setItem(CACHE_PREFIX + convId, JSON.stringify(msgs.slice(-300))); } catch {}
+// ====== PERSISTENCE: localStorage for messages ======
+const DM_CACHE_PREFIX = 'ekidos_dm_v2_';
+function saveDmMessages(convId: string, msgs: any[]) {
+  try { localStorage.setItem(DM_CACHE_PREFIX + convId, JSON.stringify(msgs)); } catch {}
 }
-function loadConvMessages(convId: string): any[] {
-  try { const s = localStorage.getItem(CACHE_PREFIX + convId); return s ? JSON.parse(s) : []; } catch { return []; }
+function loadDmMessages(convId: string): any[] {
+  try { const s = localStorage.getItem(DM_CACHE_PREFIX + convId); return s ? JSON.parse(s) : []; } catch { return []; }
 }
 
 // Merge old + new messages without duplicates, sorted by time
@@ -178,18 +178,18 @@ export default function DriverChatPage() {
     setActiveChat(d.id);
     const convId = [myId, d.id].sort().join('_');
     // Load cache immediately so messages show instantly
-    const cached = loadConvMessages(convId);
+    const cached = loadDmMessages(convId);
     if (cached.length) {
       setConvMessages(prev => ({ ...prev, [convId]: cached }));
     }
     // Fetch from server and merge (never clear cached)
     try {
-      const { data } = await api.get(`/dm/messages/${convId}`, { params: { limit: 100 } });
+      const { data } = await api.get(`/dm/messages/${convId}`);
       const fresh = data.messages || [];
       setConvMessages(prev => {
         const existing = prev[convId] || cached;
         const merged = mergeMessages(existing, fresh);
-        saveConvMessages(convId, merged);
+        saveDmMessages(convId, merged);
         return { ...prev, [convId]: merged };
       });
       await api.patch(`/dm/read/${convId}`, { userId: myId });
@@ -225,7 +225,7 @@ export default function DriverChatPage() {
     setConvMessages(prev => {
       const existing = prev[convId] || [];
       const next = [...existing, optimistic];
-      saveConvMessages(convId, next);
+      saveDmMessages(convId, next);
       return { ...prev, [convId]: next };
     });
     try {
@@ -236,7 +236,7 @@ export default function DriverChatPage() {
       setConvMessages(prev => {
         const existing = prev[convId] || [];
         const next = existing.map(m => m.id === optimistic.id ? data : m);
-        saveConvMessages(convId, next);
+        saveDmMessages(convId, next);
         return { ...prev, [convId]: next };
       });
     } catch {} finally { setSending(false); }
@@ -247,6 +247,7 @@ export default function DriverChatPage() {
   };
 
   const fmt = (d: string) => new Date(d).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const filtered = drivers.filter(d => {
     const q = searchQuery.toLowerCase();

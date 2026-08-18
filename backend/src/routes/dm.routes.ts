@@ -74,7 +74,9 @@ router.get('/messages/:conversationId', authenticateToken, async (req: AuthReque
   try {
     const conversationId = req.params.conversationId as string;
     const page = parseInt((req.query.page as string) || '1');
-    const limit = parseInt((req.query.limit as string) || '50');
+    const limitParam = req.query.limit as string;
+    // If limit is provided, use it; otherwise fetch ALL messages (no limit)
+    const limit = limitParam ? parseInt(limitParam) : 10000; // Max 10000 messages per conversation
     const skip = (page - 1) * limit;
 
     const [messages, total] = await Promise.all([

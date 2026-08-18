@@ -50,10 +50,27 @@ interface DriverItem {
 
 type ActiveChat = 'general' | string; // 'general' or driverId
 
+// ====== PERSISTENCE: localStorage for messages ======
+const DM_CACHE_PREFIX = 'ekidos_dm_v2_';
+function saveDmMessages(convId: string, msgs: DirectMessage[]) {
+  try { localStorage.setItem(DM_CACHE_PREFIX + convId, JSON.stringify(msgs)); } catch {}
+}
+function loadDmMessages(convId: string): DirectMessage[] {
+  try { const s = localStorage.getItem(DM_CACHE_PREFIX + convId); return s ? JSON.parse(s) : []; } catch { return []; }
+}
+
+// Merge old + new without duplicates
+function mergeDirectMessages(existing: DirectMessage[], incoming: DirectMessage[]): DirectMessage[] {
+  const map = new Map<string, DirectMessage>();
+  [...existing, ...incoming].forEach(m => map.set(m.id, m));
+  return Array.from(map.values()).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
 export default function AdminChatPage() {
   const [activeChat, setActiveChat] = useState<ActiveChat>('general');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [dmMessages, setDmMessages] = useState<DirectMessage[]>([]);
+  // Store DM messages per conversationId in localStorage
+  const [convMessages, setConvMessages] = useState<Record<string, DirectMessage[]>>({});
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [drivers, setDrivers] = useState<DriverItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,7 +130,14 @@ export default function AdminChatPage() {
     });
 
     socket.on('dm:message', (message: DirectMessage) => {
-      setDmMessages(prev => prev.find(m => m.id === message.id) ? prev : [...prev, message]);
+      const convId = message.conversationId;
+      setConvMessages(prev => {
+        const existing = prev[convId] || loadDmMessages(convId);
+        if (existing.find(m => m.id === message.id)) return prev;
+        const next = mergeDirectMessages(existing, [message]);
+        saveDmMessages(convId, next);
+        return { ...prev, [convId]: next };
+      });
       setConversations(prev => {
         const existing = prev.find(c => c.conversationId === message.conversationId);
         if (existing) {
@@ -142,7 +166,7 @@ export default function AdminChatPage() {
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, dmMessages, activeChat]);
+  }, [messages, convMessages, activeChat]);
 
   // Open DM
   const openDm = async (driver: DriverItem) => {
@@ -151,9 +175,23 @@ export default function AdminChatPage() {
     setActiveChat(driver.id);
 
     const conversationId = [adminId, driver.id].sort().join('_');
+    
+    // Load from localStorage first (instant)
+    const cached = loadDmMessages(conversationId);
+    if (cached.length) {
+      setConvMessages(prev => ({ ...prev, [conversationId]: cached }));
+    }
+    
+    // Fetch from server and merge
     try {
-      const { data } = await api.get(`/dm/messages/${conversationId}`, { params: { limit: 100 } });
-      setDmMessages(data.messages || []);
+      const { data } = await api.get(`/dm/messages/${conversationId}`);
+      const fresh = data.messages || [];
+      setConvMessages(prev => {
+        const existing = prev[conversationId] || cached;
+        const merged = mergeDirectMessages(existing, fresh);
+        saveDmMessages(conversationId, merged);
+        return { ...prev, [conversationId]: merged };
+      });
       await api.patch(`/dm/read/${conversationId}`, { userId: adminId });
       setConversations(prev => prev.map(c => c.conversationId === conversationId ? { ...c, unreadCount: 0 } : c));
     } catch {}
@@ -177,20 +215,31 @@ export default function AdminChatPage() {
     setSending(true);
     const text = newMessage.trim();
     setNewMessage('');
+    const conversationId = [adminId, selectedPartner.id].sort().join('_');
     const optimistic: DirectMessage = {
       id: `temp-${Date.now()}`, text,
       senderId: adminId, senderName: `📢 ${adminName}`, senderType: 'DISPATCHER',
       receiverId: selectedPartner.id, receiverName: selectedPartner.name, receiverType: 'DRIVER',
-      conversationId: [adminId, selectedPartner.id].sort().join('_'),
+      conversationId,
       isRead: false, createdAt: new Date().toISOString(),
     };
-    setDmMessages(prev => [...prev, optimistic]);
+    setConvMessages(prev => {
+      const existing = prev[conversationId] || [];
+      const next = [...existing, optimistic];
+      saveDmMessages(conversationId, next);
+      return { ...prev, [conversationId]: next };
+    });
     try {
       const { data } = await api.post('/dm/send', {
         text, senderId: adminId, senderName: `📢 ${adminName}`, senderType: 'DISPATCHER',
         receiverId: selectedPartner.id, receiverName: selectedPartner.name, receiverType: 'DRIVER',
       });
-      setDmMessages(prev => prev.map(m => m.id === optimistic.id ? data : m));
+      setConvMessages(prev => {
+        const existing = prev[conversationId] || [];
+        const next = existing.map(m => m.id === optimistic.id ? data : m);
+        saveDmMessages(conversationId, next);
+        return { ...prev, [conversationId]: next };
+      });
     } catch {} finally { setSending(false); }
   };
 
@@ -211,7 +260,7 @@ export default function AdminChatPage() {
   });
 
   const currentDmMessages = selectedPartner
-    ? dmMessages.filter(m => m.conversationId === [adminId, selectedPartner.id].sort().join('_'))
+    ? (convMessages[[adminId, selectedPartner.id].sort().join('_')] || [])
     : [];
 
   const totalUnread = conversations.reduce((s, c) => s + c.unreadCount, 0);
