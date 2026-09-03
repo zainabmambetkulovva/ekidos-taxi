@@ -48,7 +48,7 @@ export default function WelcomePage() {
       </div>
 
       {/* Role Selection Cards */}
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-xl mb-12">
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-xl mt-8 mb-12">
         <div
           onClick={() => router.push('/admin/login')}
           className="cursor-pointer group transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"

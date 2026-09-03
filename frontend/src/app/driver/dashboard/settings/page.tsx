@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Globe, Moon, Shield, Smartphone, Volume2 } from 'lucide-react';
+import { Bell, Globe, Volume2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useLanguageStore } from '@/store/useLanguageStore';
 
@@ -17,7 +16,7 @@ export default function DriverSettingsPage() {
       onClick={onChange}
       className={`w-12 h-7 rounded-full transition-colors relative ${value ? 'bg-green-500' : 'bg-muted'}`}
     >
-      <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-1'}`} />
+      <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-5' : 'translate-x-1'}`} />
     </button>
   );
 
@@ -92,48 +91,6 @@ export default function DriverSettingsPage() {
               <option value="kg">Кыргызча</option>
               <option value="en">English</option>
             </select>
-          </CardContent>
-        </Card>
-
-        {/* Security */}
-        <Card className="hover:border-white/20 transition-colors">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{t('security') || (lang === 'kg' ? 'Коопсуздук' : 'Security')}</p>
-                <p className="text-xs text-muted-foreground">
-                  {lang === 'ru' ? 'OTP аутентификация' : lang === 'kg' ? 'OTP аутентификациясы' : 'OTP Authentication'}
-                </p>
-              </div>
-            </div>
-            <Badge className="bg-green-500/20 text-green-400 border-0">
-              {lang === 'ru' ? 'Активно' : lang === 'kg' ? 'Активдүү' : 'Active'}
-            </Badge>
-          </CardContent>
-        </Card>
-
-        {/* Device */}
-        <Card className="hover:border-white/20 transition-colors">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-cyan-500/10 flex items-center justify-center">
-                <Smartphone className="w-5 h-5 text-cyan-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">
-                  {lang === 'ru' ? 'Устройство' : lang === 'kg' ? 'Түзмөк' : 'Device'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {lang === 'ru' ? 'Текущая сессия' : lang === 'kg' ? 'Учурдагы сессия' : 'Current session'}
-                </p>
-              </div>
-            </div>
-            <Badge className="bg-blue-500/20 text-blue-400 border-0">
-              {lang === 'ru' ? 'Активно' : lang === 'kg' ? 'Активдүү' : 'Active'}
-            </Badge>
           </CardContent>
         </Card>
       </div>
