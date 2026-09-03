@@ -124,7 +124,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
             {sidebarOpen && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <h2 className="text-lg font-extrabold tracking-wide">
-                  <span className="text-white">EKIDOS</span> <span className="text-[#7BBDE8]">Admin</span>
+                  <span className="text-white">EKIDOS</span> <span className="text-[#7BBDE8]">Админ</span>
                 </h2>
               </motion.div>
             )}
@@ -193,7 +193,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
               <div className="p-6 border-b border-[#35577D]/30 flex items-center justify-between">
                 <h2 className="font-bold text-lg">
                   <span className="text-white">EKIDOS</span>
-                  <span className="text-[#7BBDE8]"> Admin</span>
+                  <span className="text-[#7BBDE8]"> Админ</span>
                 </h2>
                 <button onClick={() => setMobileOpen(false)}>
                   <X className="w-5 h-5 text-white" />

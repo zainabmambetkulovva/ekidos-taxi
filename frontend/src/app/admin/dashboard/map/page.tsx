@@ -91,7 +91,7 @@ export default function LiveMapPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Карта</h1>
-        <p className="text-muted-foreground">Отслеживание водителей в реальном времени</p>
+        <p className="text-muted-foreground">Айдоочуларды чыныгы убакытта байкоо</p>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

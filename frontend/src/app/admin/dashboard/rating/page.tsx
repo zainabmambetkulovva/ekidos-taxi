@@ -4,16 +4,14 @@ import { useLanguageStore } from '@/store/useLanguageStore';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
-  ShoppingCart, DollarSign, TrendingUp, Users,
-  UserCheck, Star, Trophy, Medal,
+  ShoppingCart, TrendingUp, Users, UserCheck, Star, Medal,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/axios';
-import { formatCurrency } from '@/lib/utils';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
+  BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
 export default function RatingPage() {
@@ -37,21 +35,21 @@ export default function RatingPage() {
   });
 
   const statCards = [
-    { label: t("todayOrders"), value: stats?.todayOrders || 0, icon: ShoppingCart, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
-    { label: t("monthlyOrders"), value: stats?.monthlyOrders || 0, icon: TrendingUp, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
-    { label: t("activeDrivers"), value: stats?.activeDrivers || 0, icon: Users, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
-    { label: t("onlineDrivers"), value: stats?.onlineDrivers || 0, icon: UserCheck, color: 'text-[#7BBDE8]', bg: 'bg-[#35577D]/20' },
+    { label: t('todayOrders'), value: stats?.todayOrders ?? 0, icon: ShoppingCart },
+    { label: t('monthlyOrders'), value: stats?.monthlyOrders ?? 0, icon: TrendingUp },
+    { label: t('activeDrivers'), value: stats?.activeDrivers ?? 0, icon: Users },
+    { label: t('onlineDrivers'), value: stats?.onlineDrivers ?? 0, icon: UserCheck },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Рейтинг</h1>
-        <p className="text-muted-foreground">Показатели и лучшие водители</p>
+        <p className="text-muted-foreground">Көрсөткүчтөр жана мыкты айдоочулар</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Stats Grid — 2x2 */}
+      <div className="grid grid-cols-2 gap-4">
         {statCards.map((stat, index) => (
           <motion.div
             key={stat.label}
@@ -69,8 +67,8 @@ export default function RatingPage() {
                       <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
                       <p className="text-2xl font-bold mt-1">{stat.value}</p>
                     </div>
-                    <div className={`w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                      <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                    <div className="w-11 h-11 rounded-xl bg-[#35577D]/20 flex items-center justify-center">
+                      <stat.icon className="w-5 h-5 text-[#7BBDE8]" />
                     </div>
                   </div>
                 )}
@@ -80,52 +78,30 @@ export default function RatingPage() {
         ))}
       </div>
 
-      {/* {t('bestDriver')} */}
-      {stats?.bestDriver && (
-        <Card className="border-yellow-500/30 bg-gradient-to-r from-yellow-500/5 to-transparent">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center">
-                <Trophy className="w-8 h-8 text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-sm text-yellow-400 font-medium">{t('bestDriver')}</p>
-                <p className="text-xl font-bold">{stats.bestDriver.firstName} {stats.bestDriver.lastName}</p>
-                <p className="text-sm text-muted-foreground">
-                  {stats.bestDriver.totalOrders} {t('orders')} • Рейтинг: {stats.bestDriver.rating.toFixed(1)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Orders Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t('orders')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={charts?.dailyOrders || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
-                <XAxis dataKey="date" stroke="#7BBDE8" fontSize={12} />
-                <YAxis stroke="#7BBDE8" fontSize={12} />
-                <Tooltip contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }} />
-                <Bar dataKey="orders" fill="#35577D" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Orders Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Заказдар</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={charts?.dailyOrders || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#35577D30" />
+              <XAxis dataKey="date" stroke="#7BBDE8" fontSize={12} />
+              <YAxis stroke="#7BBDE8" fontSize={12} />
+              <Tooltip contentStyle={{ background: '#141E30', border: '1px solid #35577D', borderRadius: '8px' }} />
+              <Bar dataKey="orders" fill="#35577D" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Top 10 Drivers */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Medal className="w-5 h-5 text-yellow-400" />
-            Top 10 Drivers
+            Топ 10 Айдоочулар
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -152,10 +128,17 @@ export default function RatingPage() {
                     <p className="text-xs text-muted-foreground">
                       {driver.vehicle?.brand} {driver.vehicle?.model} • {driver.vehicle?.plateNumber}
                     </p>
+                    {/* Show rating only if > 0 (client has rated) */}
+                    {driver.rating > 0 && (
+                      <p className="text-xs text-yellow-400 flex items-center gap-1 mt-0.5">
+                        <Star className="w-3 h-3 fill-yellow-400" />
+                        {driver.rating.toFixed(1)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold">{driver.totalOrders} orders</p>
+                  <p className="font-bold">{driver.totalOrders} заказ</p>
                 </div>
               </motion.div>
             ))}
@@ -163,7 +146,7 @@ export default function RatingPage() {
             {(!stats?.topDrivers || stats.topDrivers.length === 0) && (
               <div className="text-center py-8 text-muted-foreground">
                 <Star className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>No driver data available yet</p>
+                <p>Маалымат жок</p>
               </div>
             )}
           </div>

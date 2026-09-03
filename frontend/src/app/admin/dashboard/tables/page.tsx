@@ -124,7 +124,6 @@ export default function TablesPage() {
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('pickup')}</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('destination')}</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('driver')}</th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('tariff')}</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('status')}</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground uppercase">{t('date')}</th>
                   </tr>
@@ -147,7 +146,6 @@ export default function TablesPage() {
                         <td className="p-4 text-sm text-muted-foreground max-w-[150px] truncate">{order.pickupAddress}</td>
                         <td className="p-4 text-sm text-muted-foreground max-w-[150px] truncate">{order.destAddress}</td>
                         <td className="p-4 text-sm">{order.driver ? `${order.driver.firstName} ${order.driver.lastName}` : '—'}</td>
-                        <td className="p-4 text-sm">{order.tariff}</td>
                         <td className="p-4">{getStatusBadge(order.status)}</td>
                         <td className="p-4 text-xs text-muted-foreground">{formatDate(order.createdAt)}</td>
                       </tr>

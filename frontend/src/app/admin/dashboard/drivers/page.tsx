@@ -336,7 +336,6 @@ export default function DriversPage() {
                 <div className="space-y-1.5"><Label>WhatsApp</Label><Input value={formData.whatsappNumber} onChange={e => f('whatsappNumber', e.target.value)} placeholder="+996..." /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                <div className="space-y-1.5"><Label>Telegram ID</Label><Input value={formData.telegramId} onChange={e => f('telegramId', e.target.value)} placeholder="123456789" /></div>
                 <div className="space-y-1.5">
                   <Label>Позывной (3 цифра)</Label>
                   <Input value={formData.callsign} onChange={e => f('callsign', e.target.value)} placeholder="123" maxLength={3} />
