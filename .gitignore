@@ -11,11 +11,20 @@ build/
 *.tsbuildinfo
 # dist/ intentionally NOT ignored — Railway needs it after npm run build
 
-# Environment
+# Environment — NEVER commit these
 .env
 .env.local
 .env.production
-prisma/.env
+.env.development
+.env*.local
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/.env.development
+frontend/.env*.local
+backend/.env
+backend/.env.local
+backend/.env.production
 
 # IDE
 .vscode/
