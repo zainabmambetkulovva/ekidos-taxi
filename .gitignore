@@ -26,6 +26,11 @@ backend/.env
 backend/.env.local
 backend/.env.production
 
+# Sensitive scripts — never commit
+backend/scripts/
+backend/cleanup.ts
+backend/create-otp.ts
+
 # IDE
 .vscode/
 .idea/

@@ -6,14 +6,17 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Create default admin
-  const hashedPassword = await bcrypt.hash('2108767676', 12);
+  // Admin credentials are set via environment variables or Railway dashboard
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@ekidos.local';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'change_me_in_production';
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 12);
   
   await prisma.admin.upsert({
-    where: { email: 'adminn0101js@gmail.com' },
+    where: { email: adminEmail },
     update: { password: hashedPassword },
     create: {
-      email: 'adminn0101js@gmail.com',
+      email: adminEmail,
       password: hashedPassword,
       firstName: 'Admin',
       lastName: 'EKIDOS',
@@ -33,8 +36,6 @@ async function main() {
   }).catch(() => {});
 
   console.log('✅ Seed completed!');
-  console.log('📧 Admin email: adminn0101js@gmail.com');
-  console.log('🔑 Admin password: 2108767676');
 }
 
 main()
