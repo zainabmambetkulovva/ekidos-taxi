@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, MessageCircle, Users, Search, Circle, Hash } from 'lucide-react';
 import { connectSocket } from '@/lib/socket';
 import api from '@/lib/axios';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 
 interface ChatMessage {
   id: string;
@@ -289,7 +287,292 @@ export default function AdminChatPage() {
   const totalUnread = conversations.reduce((s, c) => s + c.unreadCount, 0);
 
   return (
-    <div className="flex h-[calc(100vh-140px)] gap-0 rounded-xl overflow-hidden border border-border">
+    <div className="flex h-[calc(100vh-140px)] gap-0 rounded-xl overflow-hidden"
+      style={{ border: '1px solid rgba(56,189,248,0.15)', background: 'linear-gradient(135deg, #060d1a 0%, #0a1628 100%)' }}>
+
+      {/* ── LEFT PANE: contacts ── */}
+      <div className="w-[280px] flex-shrink-0 flex flex-col"
+        style={{ borderRight: '1px solid rgba(56,189,248,0.12)', background: 'linear-gradient(180deg, #0a1628 0%, #060d1a 100%)' }}>
+
+        {/* Header */}
+        <div className="p-3" style={{ borderBottom: '1px solid rgba(56,189,248,0.12)' }}>
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <MessageCircle className="w-4 h-4" style={{ color: '#38bdf8' }} />
+            Чат
+            {totalUnread > 0 && (
+              <span className="ml-auto text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                style={{ background: '#38bdf8', boxShadow: '0 0 8px rgba(56,189,248,0.5)' }}>
+                {totalUnread}
+              </span>
+            )}
+          </h2>
+        </div>
+
+        {/* Search */}
+        <div className="p-2" style={{ borderBottom: '1px solid rgba(56,189,248,0.08)' }}>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: '#38bdf8', opacity: 0.5 }} />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Издөө..."
+              className="w-full h-8 pl-8 pr-3 text-xs text-white placeholder-white/25 focus:outline-none rounded-lg transition-all"
+              style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.15)' }}
+            />
+          </div>
+        </div>
+
+        {/* Contacts list */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Group chat */}
+          {!searchQuery && (
+            <button
+              onClick={() => setActiveChat('general')}
+              className="w-full text-left px-3 py-3 flex items-center gap-2.5 transition-all"
+              style={{
+                borderBottom: '1px solid rgba(56,189,248,0.06)',
+                background: activeChat === 'general' ? 'rgba(56,189,248,0.1)' : 'transparent',
+                borderLeft: activeChat === 'general' ? '2px solid #38bdf8' : '2px solid transparent',
+                boxShadow: activeChat === 'general' ? 'inset 0 0 20px rgba(56,189,248,0.05)' : 'none',
+              }}
+            >
+              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.25)' }}>
+                <Hash className="w-4 h-4" style={{ color: '#38bdf8' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white">Группа</p>
+                <p className="text-xs truncate" style={{ color: 'rgba(56,189,248,0.5)' }}>Жалпы чат</p>
+              </div>
+            </button>
+          )}
+
+          {/* Drivers */}
+          {filteredDrivers.map(driver => {
+            const conv = conversations.find(c => c.partnerId === driver.id);
+            const isActive = activeChat === driver.id;
+            const isOnline = driver.status === 'ONLINE' || driver.status === 'BUSY';
+            return (
+              <button
+                key={driver.id}
+                onClick={() => openDm(driver)}
+                className="w-full text-left px-3 py-2.5 flex items-center gap-2.5 transition-all"
+                style={{
+                  background: isActive ? 'rgba(56,189,248,0.1)' : 'transparent',
+                  borderLeft: isActive ? '2px solid #38bdf8' : '2px solid transparent',
+                  boxShadow: isActive ? 'inset 0 0 20px rgba(56,189,248,0.05)' : 'none',
+                }}
+              >
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 relative"
+                  style={{ background: 'rgba(14,30,60,0.8)', border: `1px solid ${isActive ? 'rgba(56,189,248,0.4)' : 'rgba(56,189,248,0.15)'}` }}>
+                  <span className="text-xs font-bold text-white">
+                    {driver.callsign || driver.firstName.charAt(0)}
+                  </span>
+                  {isOnline && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400"
+                      style={{ boxShadow: '0 0 6px #4ade80' }} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-white truncate">{driver.firstName} {driver.lastName}</p>
+                    {conv && <span className="text-[9px]" style={{ color: 'rgba(56,189,248,0.4)' }}>{fmt(conv.lastMessage.createdAt)}</span>}
+                  </div>
+                  <p className="text-[10px] truncate" style={{ color: 'rgba(56,189,248,0.4)' }}>
+                    {conv ? conv.lastMessage.text : driver.phone}
+                  </p>
+                </div>
+                {conv && conv.unreadCount > 0 && (
+                  <span className="text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 font-bold"
+                    style={{ background: '#38bdf8', boxShadow: '0 0 8px rgba(56,189,248,0.6)' }}>
+                    {conv.unreadCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── RIGHT PANE: messages ── */}
+      <div className="flex-1 flex flex-col overflow-hidden"
+        style={{ background: 'linear-gradient(180deg, #0d1f3c 0%, #060d1a 100%)' }}>
+
+        {/* Chat header */}
+        <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0"
+          style={{
+            background: 'linear-gradient(90deg, #0a1628 0%, #0d1f3c 100%)',
+            borderBottom: '1px solid rgba(56,189,248,0.15)',
+            boxShadow: '0 1px 12px rgba(56,189,248,0.06)',
+          }}>
+          {activeChat === 'general' ? (
+            <>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)' }}>
+                <Hash className="w-4 h-4" style={{ color: '#38bdf8' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Группа</p>
+                <p className="text-[11px]" style={{ color: 'rgba(56,189,248,0.5)' }}>Жалпы чат</p>
+              </div>
+            </>
+          ) : selectedPartner ? (
+            <>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(14,30,60,0.8)', border: '1px solid rgba(56,189,248,0.3)' }}>
+                <span className="text-xs font-bold text-white">{selectedPartner.name.charAt(0)}</span>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">{selectedPartner.name}</p>
+                <p className="text-[11px]" style={{ color: 'rgba(56,189,248,0.5)' }}>Жеке билдирүү</p>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm" style={{ color: 'rgba(56,189,248,0.4)' }}>Чат тандаңыз</p>
+          )}
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {activeChat === 'general' ? (
+            <>
+              {messages.length === 0 && (
+                <div className="text-center py-16">
+                  <MessageCircle className="w-10 h-10 mx-auto mb-3" style={{ color: 'rgba(56,189,248,0.2)' }} />
+                  <p className="text-sm" style={{ color: 'rgba(56,189,248,0.4)' }}>Билдирүүлөр жок</p>
+                </div>
+              )}
+              {messages.map((msg, idx) => {
+                const isMe = msg.senderId === adminId && msg.senderType === 'DISPATCHER';
+                const showDate = idx === 0 || fmtDate(msg.createdAt) !== fmtDate(messages[idx - 1].createdAt);
+                return (
+                  <div key={msg.id}>
+                    {showDate && (
+                      <div className="text-center my-2">
+                        <span className="text-[10px] px-3 py-0.5 rounded-full"
+                          style={{ color: 'rgba(56,189,248,0.5)', background: 'rgba(56,189,248,0.08)' }}>
+                          {fmtDate(msg.createdAt)}
+                        </span>
+                      </div>
+                    )}
+                    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className="max-w-[70%] px-3 py-2"
+                        style={{
+                          background: isMe
+                            ? 'linear-gradient(135deg, rgba(30,64,120,0.95) 0%, rgba(14,40,90,0.95) 100%)'
+                            : 'rgba(15,35,70,0.85)',
+                          border: isMe ? '1px solid rgba(56,189,248,0.3)' : '1px solid rgba(56,189,248,0.1)',
+                          boxShadow: isMe ? '0 2px 12px rgba(56,189,248,0.1)' : '0 1px 6px rgba(0,0,0,0.3)',
+                          borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                        }}>
+                        {!isMe && (
+                          <p className="text-[10px] font-bold mb-0.5"
+                            style={{ color: msg.senderType === 'DISPATCHER' ? '#38bdf8' : 'rgba(56,189,248,0.7)' }}>
+                            {msg.senderName}
+                          </p>
+                        )}
+                        <p className="text-sm break-words text-white">{msg.text}</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{fmt(msg.createdAt)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          ) : selectedPartner ? (
+            <>
+              {currentDmMessages.length === 0 && (
+                <div className="text-center py-16">
+                  <MessageCircle className="w-10 h-10 mx-auto mb-3" style={{ color: 'rgba(56,189,248,0.2)' }} />
+                  <p className="text-sm" style={{ color: 'rgba(56,189,248,0.4)' }}>Билдирүүлөр жок</p>
+                  <p className="text-xs mt-1" style={{ color: 'rgba(56,189,248,0.3)' }}>Биринчи жазыңыз!</p>
+                </div>
+              )}
+              {currentDmMessages.map((msg, idx) => {
+                const isMe = msg.senderId === adminId;
+                const showDate = idx === 0 || fmtDate(msg.createdAt) !== fmtDate(currentDmMessages[idx - 1].createdAt);
+                return (
+                  <div key={msg.id}>
+                    {showDate && (
+                      <div className="text-center my-2">
+                        <span className="text-[10px] px-3 py-0.5 rounded-full"
+                          style={{ color: 'rgba(56,189,248,0.5)', background: 'rgba(56,189,248,0.08)' }}>
+                          {fmtDate(msg.createdAt)}
+                        </span>
+                      </div>
+                    )}
+                    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className="max-w-[70%] px-3 py-2"
+                        style={{
+                          background: isMe
+                            ? 'linear-gradient(135deg, rgba(30,64,120,0.95) 0%, rgba(14,40,90,0.95) 100%)'
+                            : 'rgba(15,35,70,0.85)',
+                          border: isMe ? '1px solid rgba(56,189,248,0.3)' : '1px solid rgba(56,189,248,0.1)',
+                          boxShadow: isMe ? '0 2px 12px rgba(56,189,248,0.1)' : '0 1px 6px rgba(0,0,0,0.3)',
+                          borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                        }}>
+                        <p className="text-sm break-words text-white">{msg.text}</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{fmt(msg.createdAt)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <Users className="w-12 h-12 mx-auto mb-3" style={{ color: 'rgba(56,189,248,0.2)' }} />
+                <p className="text-sm" style={{ color: 'rgba(56,189,248,0.4)' }}>Сол жагынан чат тандаңыз</p>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        {(activeChat === 'general' || selectedPartner) && (
+          <div className="p-3 flex-shrink-0"
+            style={{
+              background: 'linear-gradient(90deg, #0a1628 0%, #0d1f3c 100%)',
+              borderTop: '1px solid rgba(56,189,248,0.15)',
+            }}>
+            <div className="flex gap-2 items-center">
+              <input
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Билдирүү жазыңыз..."
+                maxLength={500}
+                autoFocus={activeChat !== 'general'}
+                className="flex-1 rounded-xl px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none transition-all"
+                style={{
+                  background: 'rgba(56,189,248,0.06)',
+                  border: '1px solid rgba(56,189,248,0.2)',
+                }}
+                onFocus={e => e.currentTarget.style.borderColor = 'rgba(56,189,248,0.5)'}
+                onBlur={e => e.currentTarget.style.borderColor = 'rgba(56,189,248,0.2)'}
+              />
+              <button
+                onClick={activeChat === 'general' ? handleSendGeneral : handleSendDm}
+                disabled={!newMessage.trim() || sending}
+                className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-95 transition-all flex-shrink-0"
+                style={{
+                  background: newMessage.trim() && !sending
+                    ? 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)'
+                    : 'rgba(56,189,248,0.15)',
+                  boxShadow: newMessage.trim() && !sending ? '0 0 14px rgba(56,189,248,0.4)' : 'none',
+                  border: '1px solid rgba(56,189,248,0.3)',
+                }}
+              >
+                <Send className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
       {/* ── LEFT PANE: contacts ── */}
       <div className="w-[280px] flex-shrink-0 flex flex-col border-r border-border bg-[#111827]">
