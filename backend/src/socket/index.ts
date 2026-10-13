@@ -154,6 +154,15 @@ export function setupSocketHandlers(io: Server) {
     // Driver accepts order
     socket.on('order:accept', async (data: { orderId: string; driverId: string }) => {
       try {
+        // Check driver does NOT already have an active order
+        const activeOrder = await prisma.order.findFirst({
+          where: { driverId: data.driverId, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
+        });
+        if (activeOrder) {
+          socket.emit('order:accept-error', { error: 'Алгачкы заказды бүтүрүңүз, анан жаңы заказ алыңыз' });
+          return;
+        }
+
         const order = await prisma.order.update({
           where: { id: data.orderId },
           data: {

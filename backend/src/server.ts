@@ -469,6 +469,15 @@ async function dispatchPendingOrders() {
 
     if (onlineDrivers.length === 0) return;
 
+    // Filter out drivers who already have an active order
+    const busyDriverIds = (await prisma.order.findMany({
+      where: { status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
+      select: { driverId: true },
+    })).map(o => o.driverId).filter(Boolean) as string[];
+
+    const freeDrivers = onlineDrivers.filter(d => !busyDriverIds.includes(d.id));
+    if (freeDrivers.length === 0) return;
+
     for (const order of pendingOrders) {
       // Skip if already being dispatched
       if (activeDispatchOrders.has(order.id)) continue;
@@ -476,7 +485,7 @@ async function dispatchPendingOrders() {
       activeDispatchOrders.add(order.id);
       console.log(`🔄 Re-dispatching PENDING order #${order.orderNumber} to ${onlineDrivers.length} drivers`);
 
-      const candidates = onlineDrivers.map(d => ({ ...d, distance: 0 }));
+      const candidates = freeDrivers.map(d => ({ ...d, distance: 0 }));
 
       // Pick a random driver and send fullscreen order
       let triedDrivers: string[] = [];

@@ -402,14 +402,25 @@ router.post('/', async (req: Request, res: Response) => {
       });
 
       if (onlineDrivers.length > 0) {
-        // Calculate distance if coords available, otherwise distance=0
-        const candidates = onlineDrivers.map(d => ({
-          ...d,
-          distance: 0,
-        }));
+        // Filter out drivers who already have an active order
+        const busyDriverIds = (await prisma.order.findMany({
+          where: { status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
+          select: { driverId: true },
+        })).map(o => o.driverId).filter(Boolean) as string[];
 
-        console.log(`🚀 Auto-assign: ${candidates.length} online drivers for order #${orderNumber}`);
-        startOrderAssignment(order, candidates, io);
+        const freeDrivers = onlineDrivers.filter(d => !busyDriverIds.includes(d.id));
+
+        if (freeDrivers.length > 0) {
+          const candidates = freeDrivers.map(d => ({ ...d, distance: 0 }));
+          console.log(`🚀 Auto-assign: ${candidates.length} free drivers (${onlineDrivers.length - freeDrivers.length} busy) for order #${orderNumber}`);
+          startOrderAssignment(order, candidates, io);
+        } else {
+          io.to('admin-room').emit('notification', {
+            title: 'Бош водитель жок',
+            message: `#${orderNumber} — бардык онлайн водительдер башка заказда`,
+            type: 'no_drivers',
+          });
+        }
 
         // Also broadcast to ALL online drivers as available order (backup)
         io.emit('order:available', order);
@@ -460,6 +471,14 @@ router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Res
     if (!driverCheck) return res.status(404).json({ error: 'Driver not found' });
     if ((driverCheck.balance || 0) < 20) {
       return res.status(400).json({ error: 'Балансыңыз жетишсиз (20 баланс керек)' });
+    }
+
+    // Check driver does NOT already have an active order
+    const activeOrder = await prisma.order.findFirst({
+      where: { driverId, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
+    });
+    if (activeOrder) {
+      return res.status(400).json({ error: 'Алгачкы заказды бүтүрүңүз, анан жаңы заказ алыңыз' });
     }
 
     // ATOMIC accept — only update if still PENDING (prevents race condition / double assignment)
