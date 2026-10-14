@@ -135,7 +135,7 @@ router.get('/:id/public', async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const driver = await prisma.driver.findUnique({
       where: { id },
-      select: { firstName: true, lastName: true, phone: true, latitude: true, longitude: true, vehicle: true },
+      select: { firstName: true, lastName: true, phone: true, latitude: true, longitude: true, vehicle: true, balance: true, callsign: true },
     });
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
     return res.json(driver);

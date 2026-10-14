@@ -18,14 +18,55 @@ import api from '@/lib/axios';
 
 // Header Balance component - shows just the number in blue banner
 function DriverHeaderBalance() {
-  const [balance, setBalance] = useState<number | null>(null);
+  const [balance, setBalance] = useState<number | null>(() => {
+    // Load from localStorage immediately so balance shows instantly
+    if (typeof window === 'undefined') return null;
+    try {
+      const info = localStorage.getItem('driverInfo');
+      if (info) {
+        const parsed = JSON.parse(info);
+        if (typeof parsed.balance === 'number') return parsed.balance;
+      }
+    } catch {}
+    return null;
+  });
 
   useEffect(() => {
+    // Also load from localStorage on mount (for SSR)
+    try {
+      const info = localStorage.getItem('driverInfo');
+      if (info) {
+        const parsed = JSON.parse(info);
+        if (typeof parsed.balance === 'number') setBalance(parsed.balance);
+      }
+    } catch {}
+
     const fetchBalance = async () => {
       try {
         const { data } = await api.get('/auth/me');
-        if (typeof data.balance === 'number') setBalance(data.balance);
-      } catch {}
+        if (typeof data.balance === 'number') {
+          setBalance(data.balance);
+          // Update localStorage too
+          try {
+            const info = localStorage.getItem('driverInfo');
+            if (info) {
+              const parsed = JSON.parse(info);
+              parsed.balance = data.balance;
+              localStorage.setItem('driverInfo', JSON.stringify(parsed));
+            }
+          } catch {}
+        }
+      } catch {
+        // /auth/me failed — try fetching balance via public driver endpoint
+        try {
+          const info = localStorage.getItem('driverInfo');
+          const driverId = info ? JSON.parse(info).id : null;
+          if (driverId) {
+            const { data } = await api.get(`/drivers/${driverId}/public`);
+            if (typeof data.balance === 'number') setBalance(data.balance);
+          }
+        } catch {}
+      }
     };
     fetchBalance();
     const iv = setInterval(fetchBalance, 30000);
