@@ -288,9 +288,9 @@ router.delete('/clear-all', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/driver/active', authenticateToken, async (req: Request, res: Response) => {
+router.get('/driver/active', async (req: Request, res: Response) => {
   try {
-    const driverId = (req as any).user?.id;
+    const driverId = req.query.driverId as string;
     if (!driverId) return res.status(400).json({ error: 'driverId required' });
 
     const activeOrder = await prisma.order.findFirst({
@@ -466,7 +466,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Accept order
-router.patch('/:id/accept', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.patch('/:id/accept', async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
     const { driverId } = req.body;

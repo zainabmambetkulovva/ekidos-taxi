@@ -137,7 +137,10 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   useEffect(() => {
     const checkActiveOrder = async () => {
       try {
-        const { data } = await api.get('/orders/driver/active');
+        const driverInfo = typeof window !== 'undefined' ? localStorage.getItem('driverInfo') : null;
+        const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+        if (!driverId) return;
+        const { data } = await api.get('/orders/driver/active', { params: { driverId } });
         setHasActiveOrder(!!(data && data.id));
       } catch { setHasActiveOrder(false); }
     };
