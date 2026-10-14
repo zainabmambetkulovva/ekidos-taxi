@@ -661,7 +661,8 @@ router.patch('/:id/cancel', authenticateToken, async (req: AuthRequest, res: Res
     });
 
     const blockDriverId = driverId || order.driverId;
-    if (blockDriverId) {
+    // Only block driver if the cancel was initiated by the DRIVER themselves, not by admin
+    if (blockDriverId && req.user?.role === 'DRIVER') {
       const blockedUntil = new Date(Date.now() + 5 * 60 * 60 * 1000); // +5 hours
       await prisma.driver.update({
         where: { id: blockDriverId },
@@ -679,10 +680,12 @@ router.patch('/:id/cancel', authenticateToken, async (req: AuthRequest, res: Res
     }
 
     io.emit('order:cancelled', { orderId: id });
-    io.to('admin-room').emit('driver:blocked-notification', {
-      driverId: blockDriverId,
-      blockedUntil: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
-    });
+    if (blockDriverId && req.user?.role === 'DRIVER') {
+      io.to('admin-room').emit('driver:blocked-notification', {
+        driverId: blockDriverId,
+        blockedUntil: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
+      });
+    }
 
     return res.json({
       warning: false,
