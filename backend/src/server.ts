@@ -558,6 +558,54 @@ async function dispatchPendingOrders() {
 setInterval(dispatchPendingOrders, 5000);
 // ===== END PENDING ORDER REASSIGNMENT ENGINE =====
 
+// ===== AUTO CLEANUP: stuck orders + blocked drivers =====
+async function autoCleanup() {
+  try {
+    // 1. Complete any ASSIGNED orders older than 30 minutes (stuck)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const stuckOrders = await prisma.order.findMany({
+      where: {
+        status: { in: ['ASSIGNED', 'IN_PROGRESS'] },
+        updatedAt: { lt: thirtyMinutesAgo },
+      },
+      select: { id: true, orderNumber: true, driverId: true },
+    });
+
+    for (const order of stuckOrders) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'COMPLETED', completedAt: new Date() },
+      });
+      console.log(`🧹 Auto-completed stuck order #${order.orderNumber}`);
+    }
+
+    // 2. Unblock any drivers whose blockedUntil has passed
+    const now = new Date();
+    const expiredBlocks = await prisma.driver.findMany({
+      where: {
+        accountStatus: 'BLOCKED',
+        blockedUntil: { lt: now },
+      },
+      select: { id: true, firstName: true, lastName: true },
+    });
+
+    for (const driver of expiredBlocks) {
+      await prisma.driver.update({
+        where: { id: driver.id },
+        data: { accountStatus: 'ACTIVE', blockedUntil: null },
+      });
+      console.log(`🔓 Auto-unblocked driver ${driver.firstName} ${driver.lastName}`);
+    }
+  } catch (e) {
+    console.error('autoCleanup error:', e);
+  }
+}
+
+// Run every 2 minutes
+setInterval(autoCleanup, 2 * 60 * 1000);
+autoCleanup(); // Run immediately on startup
+// ===== END AUTO CLEANUP =====
+
 // ===== AUTO MIGRATION: add options column if missing =====
 async function ensureOptionsColumn() {
   try {
