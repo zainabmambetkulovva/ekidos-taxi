@@ -112,6 +112,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const { lineStatus } = useDriverStore();
   const [authChecked, setAuthChecked] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hasActiveOrder, setHasActiveOrder] = useState(false);
 
   // AUTH GUARD: check token exists, redirect to login if not
   useEffect(() => {
@@ -131,6 +132,35 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     document.addEventListener('touchstart', playOnce, { once: true });
     document.addEventListener('click', playOnce, { once: true });
   }, [router]);
+
+  // Check if driver has active order (ASSIGNED or IN_PROGRESS)
+  useEffect(() => {
+    const checkActiveOrder = async () => {
+      try {
+        const { data } = await api.get('/orders/driver/active');
+        setHasActiveOrder(!!(data && data.id));
+      } catch { setHasActiveOrder(false); }
+    };
+    if (authChecked) {
+      checkActiveOrder();
+      const iv = setInterval(checkActiveOrder, 10000);
+
+      // Also update instantly via socket events
+      const socket = connectSocket();
+      const onAccepted = () => setHasActiveOrder(true);
+      const onCompleted = () => { setHasActiveOrder(false); checkActiveOrder(); };
+      socket.on('order:accepted', onAccepted);
+      socket.on('order:completed', onCompleted);
+      socket.on('order:cancelled', onCompleted);
+
+      return () => {
+        clearInterval(iv);
+        socket.off('order:accepted', onAccepted);
+        socket.off('order:completed', onCompleted);
+        socket.off('order:cancelled', onCompleted);
+      };
+    }
+  }, [authChecked]);
 
   // Listen for incoming DMs and count unread
   useEffect(() => {
@@ -198,7 +228,13 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       {/* Top Nav - neon glow when on duty */}
       <header className="sticky top-0 z-[5000] px-4 py-3"
       style={
-        lineStatus === 'ONLINE'
+        lineStatus === 'ONLINE' && hasActiveOrder
+          ? {
+              background: 'linear-gradient(180deg, #2e0d0d 0%, #1a2740 100%)',
+              borderBottom: '4px solid #ff0000',
+              boxShadow: '0 0 50px #ff0000cc, 0 0 100px #ff000077, 0 8px 40px #ff0000bb, inset 0 -3px 25px #ff000066'
+            }
+          : lineStatus === 'ONLINE'
           ? {
               background: 'linear-gradient(180deg, #0d2e0d 0%, #1a2740 100%)',
               borderBottom: '4px solid #00ff00',
@@ -315,7 +351,13 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       <div
         className="fixed bottom-0 left-0 right-0 z-[5000] px-1 py-1.5"
         style={
-          lineStatus === 'ONLINE'
+          lineStatus === 'ONLINE' && hasActiveOrder
+            ? {
+                background: 'linear-gradient(0deg, #2e0d0d 0%, #1a2740 100%)',
+                borderTop: '4px solid #ff0000',
+                boxShadow: '0 0 50px #ff0000cc, 0 0 100px #ff000077, 0 -8px 40px #ff0000bb, inset 0 3px 25px #ff000066'
+              }
+            : lineStatus === 'ONLINE'
             ? {
                 background: 'linear-gradient(0deg, #0d2e0d 0%, #1a2740 100%)',
                 borderTop: '4px solid #00ff00',
@@ -344,7 +386,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                 }}
                 className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all relative ${
                   isActive
-                    ? lineStatus === 'ONLINE' ? 'text-[#39ff14]' : lineStatus === 'BUSY_PERSONAL' ? 'text-[#ff6a00]' : 'text-[#7BBDE8]'
+                    ? lineStatus === 'ONLINE' && hasActiveOrder ? 'text-[#ff3333]' : lineStatus === 'ONLINE' ? 'text-[#39ff14]' : lineStatus === 'BUSY_PERSONAL' ? 'text-[#ff6a00]' : 'text-[#7BBDE8]'
                     : 'text-gray-400'
                 }`}
               >

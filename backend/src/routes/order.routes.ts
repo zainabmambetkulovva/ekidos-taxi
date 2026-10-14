@@ -288,6 +288,21 @@ router.delete('/clear-all', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/driver/active', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const driverId = (req as any).user?.id;
+    if (!driverId) return res.status(400).json({ error: 'driverId required' });
+
+    const activeOrder = await prisma.order.findFirst({
+      where: { driverId, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return res.json(activeOrder || null);
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/available', async (req: Request, res: Response) => {
   try {
     const orders = await prisma.order.findMany({
