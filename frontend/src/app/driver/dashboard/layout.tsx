@@ -54,7 +54,7 @@ function LineStatusButton({ status }: { status: 'ONLINE' | 'OFFLINE' | 'BUSY_PER
       inactiveClass: 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent',
     },
     BUSY_PERSONAL: {
-      label: 'По делам',
+      label: 'Занят',
       icon: Coffee,
       activeClass: 'bg-orange-500/30 text-orange-300 border-2 border-orange-400 shadow-lg shadow-orange-500/30',
       inactiveClass: 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent',
@@ -82,7 +82,7 @@ function LineStatusButton({ status }: { status: 'ONLINE' | 'OFFLINE' | 'BUSY_PER
     if (status === 'ONLINE') {
       toast.success('Линияга чыктыңыз! Заказдар келет.');
     } else if (status === 'BUSY_PERSONAL') {
-      toast('По делам. Заказдар келбейт.', { icon: '☕' });
+      toast('Занят. Заказдар келбейт.', { icon: '☕' });
     } else {
       toast('Линия бүттү.', { icon: '🔴' });
     }
@@ -217,13 +217,12 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
             <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 hover:bg-[#35577D]/20 rounded-lg">
               <Menu className="w-5 h-5 text-white" />
             </button>
-            <h1 className="font-bold text-lg">
+            <h1 className="font-bold text-lg flex items-center gap-2">
               <span className="text-white">EKIDOS</span>
               <span className="text-[#7BBDE8]"> {t('driver')}</span>
+              <DriverHeaderBalance />
             </h1>
           </div>
-          {/* Balance in header */}
-          <DriverHeaderBalance />
         </div>
       </header>
 
