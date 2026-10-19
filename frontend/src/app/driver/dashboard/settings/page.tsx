@@ -14,9 +14,9 @@ export default function DriverSettingsPage() {
   const Toggle = ({ value, onChange }: { value: boolean; onChange: () => void }) => (
     <button
       onClick={onChange}
-      className={`w-12 h-7 rounded-full transition-colors relative ${value ? 'bg-green-500' : 'bg-muted'}`}
+      className={`w-12 h-7 rounded-full transition-colors relative overflow-hidden flex-shrink-0 ${value ? 'bg-green-500' : 'bg-gray-600'}`}
     >
-      <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-5' : 'translate-x-1'}`} />
+      <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${value ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
   );
 

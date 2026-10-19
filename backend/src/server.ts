@@ -485,13 +485,27 @@ async function dispatchPendingOrders() {
       activeDispatchOrders.add(order.id);
       console.log(`🔄 Re-dispatching PENDING order #${order.orderNumber} to ${onlineDrivers.length} drivers`);
 
-      const candidates = freeDrivers.map(d => ({ ...d, distance: 0 }));
+      const candidates = freeDrivers.map(d => {
+        let dist = 999;
+        if (d.latitude && d.longitude && order.pickupLat && order.pickupLng) {
+          const R = 6371;
+          const dLat = (order.pickupLat - d.latitude) * Math.PI / 180;
+          const dLng = (order.pickupLng - d.longitude) * Math.PI / 180;
+          const a = Math.sin(dLat/2)**2 + Math.cos(d.latitude * Math.PI/180) * Math.cos(order.pickupLat * Math.PI/180) * Math.sin(dLng/2)**2;
+          dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+        return { ...d, distance: dist };
+      }).sort((a, b) => a.distance - b.distance);
+
+      // Only send to nearby drivers (within 5km), skip if all far
+      const nearCandidates = candidates.filter(d => d.distance <= 5);
+      const toDispatch = nearCandidates.length > 0 ? nearCandidates : candidates;
 
       // Pick a random driver and send fullscreen order
       let triedDrivers: string[] = [];
 
       function assignToNext() {
-        const remaining = candidates.filter(d => !triedDrivers.includes(d.id));
+        const remaining = toDispatch.filter(d => !triedDrivers.includes(d.id));
         if (remaining.length === 0) {
           activeDispatchOrders.delete(order.id);
           return;

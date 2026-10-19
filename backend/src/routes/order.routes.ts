@@ -426,9 +426,42 @@ router.post('/', async (req: Request, res: Response) => {
         const freeDrivers = onlineDrivers.filter(d => !busyDriverIds.includes(d.id));
 
         if (freeDrivers.length > 0) {
-          const candidates = freeDrivers.map(d => ({ ...d, distance: 0 }));
-          console.log(`🚀 Auto-assign: ${candidates.length} free drivers (${onlineDrivers.length - freeDrivers.length} busy) for order #${orderNumber}`);
-          startOrderAssignment(order, candidates, io);
+          // Calculate real GPS distance for each driver
+          const candidatesWithDistance = freeDrivers.map(d => {
+            let dist = 999; // default far away
+            if (d.latitude && d.longitude && finalPickupLat && finalPickupLng) {
+              dist = calculateDistance(d.latitude, d.longitude, finalPickupLat, finalPickupLng);
+            }
+            return { ...d, distance: dist };
+          });
+
+          // Sort by distance — nearest first
+          candidatesWithDistance.sort((a, b) => a.distance - b.distance);
+
+          // Nearest driver threshold: 5km
+          const NEAR_THRESHOLD_KM = 5;
+          const nearDrivers = candidatesWithDistance.filter(d => d.distance <= NEAR_THRESHOLD_KM);
+          const farDrivers = candidatesWithDistance.filter(d => d.distance > NEAR_THRESHOLD_KM);
+
+          if (nearDrivers.length > 0) {
+            // Send to nearest drivers only
+            console.log(`🚀 Auto-assign: nearest ${nearDrivers.length} drivers for order #${orderNumber} (closest: ${(nearDrivers[0].distance).toFixed(1)}km)`);
+            startOrderAssignment(order, nearDrivers, io);
+          } else {
+            // No nearby drivers — put in available orders for all drivers
+            console.log(`📋 No nearby drivers for #${orderNumber} — adding to available orders`);
+            io.to('admin-room').emit('notification', {
+              title: 'Жакын водитель жок',
+              message: `#${orderNumber} — бардык водительдер алыс. Доступные заказыга кошулду.`,
+              type: 'no_nearby_drivers',
+            });
+          }
+
+          // Broadcast to ALL free drivers as available order (backup)
+          freeDrivers.forEach(d => {
+            io.to(`driver:${d.id}`).emit('order:available', order);
+          });
+
         } else {
           io.to('admin-room').emit('notification', {
             title: 'Бош водитель жок',
