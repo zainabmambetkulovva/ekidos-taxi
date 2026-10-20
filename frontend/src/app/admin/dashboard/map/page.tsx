@@ -22,7 +22,7 @@ export default function LiveMapPage() {
 
   const drivers = driversData?.drivers || [];
   const onlineCount = drivers.filter((d: any) => d.status === 'ONLINE').length;
-  const busyCount = drivers.filter((d: any) => d.status === 'BUSY').length;
+  const busyCount = drivers.filter((d: any) => d.status === 'BUSY' || d.status === 'BUSY_PERSONAL').length;
   const offlineCount = drivers.filter((d: any) => d.status === 'OFFLINE').length;
 
   // Load Leaflet
@@ -69,7 +69,7 @@ export default function LiveMapPage() {
       .filter((d: any) => d.latitude && d.longitude)
       .forEach((driver: any) => {
         const color = driver.status === 'ONLINE' ? '#22c55e' : driver.status === 'BUSY' ? '#ef4444' : driver.status === 'BUSY_PERSONAL' ? '#f97316' : '#6b7280';
-        const statusLabel = driver.status === 'ONLINE' ? 'Бош' : driver.status === 'BUSY' ? 'Заказда' : driver.status === 'BUSY_PERSONAL' ? 'По делам' : 'Оффлайн';
+        const statusLabel = driver.status === 'ONLINE' ? 'Бош' : driver.status === 'BUSY' ? 'Заказда' : driver.status === 'BUSY_PERSONAL' ? 'Занят' : 'Оффлайн';
         const offlineTime = driver.status === 'OFFLINE' && driver.lastLocationUpdate
           ? ` (${new Date(driver.lastLocationUpdate).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })})`
           : '';

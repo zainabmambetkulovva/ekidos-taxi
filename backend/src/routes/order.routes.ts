@@ -323,6 +323,8 @@ router.post('/', async (req: Request, res: Response) => {
       from, to, addressFrom, addressTo,
       // Order options
       options,
+      // Targeted dispatch — dispatcher can specify a callsign
+      targetCallsign,
     } = req.body;
 
     // Support client app format: from={lat,lng}, addressFrom="..."
@@ -406,15 +408,63 @@ router.post('/', async (req: Request, res: Response) => {
       // Client creation may fail if phone format issue, non-critical
     }
 
-    // Auto-assign: pick random online driver (exclude BUSY_PERSONAL and BUSY)
+    // Auto-assign: pick nearest online driver or target by callsign
     try {
       const onlineDrivers = await prisma.driver.findMany({
         where: {
-          status: 'ONLINE',  // Only ONLINE — not BUSY, not BUSY_PERSONAL
+          status: 'ONLINE',
           accountStatus: 'ACTIVE',
         },
-        select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
+        select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true, callsign: true },
       });
+
+      // === TARGETED DISPATCH: specific callsign ===
+      if (targetCallsign && targetCallsign.trim()) {
+        const targetDriver = await prisma.driver.findFirst({
+          where: { callsign: targetCallsign.trim(), accountStatus: 'ACTIVE' },
+          select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true, callsign: true, status: true },
+        });
+
+        if (!targetDriver) {
+          io.to('admin-room').emit('notification', {
+            title: '⚠️ Позывной табылган жок',
+            message: `Позывной "${targetCallsign}" менен водитель жок`,
+            type: 'error',
+          });
+        } else if (targetDriver.status !== 'ONLINE') {
+          io.to('admin-room').emit('notification', {
+            title: '⚠️ Водитель онлайн эмес',
+            message: `${targetDriver.firstName} (${targetDriver.callsign}) — статусу: ${targetDriver.status}`,
+            type: 'warning',
+          });
+          // Still send — will appear in available orders
+          io.to(`driver:${targetDriver.id}`).emit('order:available', order);
+        } else {
+          // Check not already busy
+          const activeOrderCheck = await prisma.order.findFirst({
+            where: { driverId: targetDriver.id, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
+          });
+          if (activeOrderCheck) {
+            io.to('admin-room').emit('notification', {
+              title: '⚠️ Водитель башка заказда',
+              message: `${targetDriver.firstName} (${targetDriver.callsign}) — учурда башка заказда. Бошогондо жиберилет.`,
+              type: 'warning',
+            });
+          }
+          // Send to targeted driver + fallback chain if rejected
+          const candidates = [{ ...targetDriver, distance: 0 }, ...onlineDrivers
+            .filter(d => d.id !== targetDriver.id)
+            .map(d => ({ ...d, distance: 999 }))];
+          startOrderAssignment(order, candidates, io);
+          io.to('admin-room').emit('notification', {
+            title: '🎯 Заказ жөнөтүлдү',
+            message: `#${orderNumber} → ${targetDriver.firstName} (${targetDriver.callsign})`,
+            type: 'targeted_dispatch',
+          });
+        }
+        io.emit('order:available', order);
+        return res.status(201).json(order);
+      }
 
       if (onlineDrivers.length > 0) {
         // Filter out drivers who already have an active order

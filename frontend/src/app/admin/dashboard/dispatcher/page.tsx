@@ -109,6 +109,7 @@ export default function DispatcherPage() {
     pickupAddress: '',
     destAddress: '',
     clientPhone: '',
+    targetCallsign: '',
     tariff: 'Standard',
     comment: '',
     paymentMethod: 'CASH',
@@ -131,7 +132,7 @@ export default function DispatcherPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
       setIsOrderFormOpen(false);
-      setOrderForm({ pickupAddress: '', destAddress: '', clientPhone: '', tariff: 'Standard', comment: '', paymentMethod: 'CASH' });
+      setOrderForm({ pickupAddress: '', destAddress: '', clientPhone: '', targetCallsign: '', tariff: 'Standard', comment: '', paymentMethod: 'CASH' });
       setSelectedOptions([]);
       setErrors({});
       toast.success(t('createOrder') + ' ✓');
@@ -166,6 +167,7 @@ export default function DispatcherPage() {
       ...orderForm,
       clientName: orderForm.clientPhone,
       options: selectedOptions,
+      targetCallsign: orderForm.targetCallsign.trim() || undefined,
     });
   };
 
@@ -307,6 +309,26 @@ export default function DispatcherPage() {
                 />
               </div>
               {errors.destAddress && <p className="text-xs text-red-400">{errors.destAddress}</p>}
+            </div>
+
+            {/* Позывной (опционально) */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Позывной водителя
+                <span className="text-xs text-muted-foreground font-normal">(милдеттүү эмес)</span>
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+                <Input
+                  value={orderForm.targetCallsign}
+                  onChange={(e) => setOrderForm({...orderForm, targetCallsign: e.target.value})}
+                  placeholder="Мисалы: 001, 003..."
+                  className="pl-10"
+                />
+              </div>
+              {orderForm.targetCallsign.trim() && (
+                <p className="text-xs text-blue-400">⚡ Заказ позывной <b>{orderForm.targetCallsign.trim()}</b> дегенге гана жиберилет</p>
+              )}
             </div>
 
             {/* Номер */}
