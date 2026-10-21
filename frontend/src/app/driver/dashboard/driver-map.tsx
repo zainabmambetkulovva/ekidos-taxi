@@ -338,7 +338,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
       const color = getDriverColor(driverStatus);
 
       // Always show callsign inside circle; fallback to first letter of name
-      const label = driverCallsign || (driverName ? driverName.charAt(0).toUpperCase() : '?');
+      const label = driverCallsign ? (parseInt(driverCallsign, 10) || driverCallsign).toString() : (driverName ? driverName.charAt(0).toUpperCase() : '?');
       const fontSize = label.length <= 2 ? '13px' : label.length <= 3 ? '11px' : '9px';
 
       const makeIconHtml = () =>

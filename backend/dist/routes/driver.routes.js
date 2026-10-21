@@ -130,7 +130,7 @@ router.get('/:id/public', async (req, res) => {
         const id = req.params.id;
         const driver = await server_1.prisma.driver.findUnique({
             where: { id },
-            select: { firstName: true, lastName: true, phone: true, latitude: true, longitude: true, vehicle: true },
+            select: { firstName: true, lastName: true, phone: true, latitude: true, longitude: true, vehicle: true, balance: true, callsign: true },
         });
         if (!driver)
             return res.status(404).json({ error: 'Driver not found' });
@@ -220,28 +220,31 @@ router.post('/', auth_middleware_1.authenticateToken, (0, auth_middleware_1.auth
 router.put('/:id', auth_middleware_1.authenticateToken, async (req, res) => {
     try {
         const id = req.params.id;
-        const { firstName, lastName, middleName, birthDate, phone, whatsappNumber, passportNumber, passportPhoto, licenseNumber, licensePhoto, techPassportNumber, techPassportPhoto, driverPhoto, notes, accountStatus, vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber, telegramId, callsign, } = req.body;
+        const { firstName, lastName, middleName, birthDate, phone, whatsappNumber, passportNumber, passportPhoto, licenseNumber, licensePhoto, techPassportNumber, techPassportPhoto, driverPhoto, notes, accountStatus, vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber, telegramId, callsign, blockedUntil, balance, } = req.body;
+        const updateData = {
+            firstName,
+            lastName,
+            middleName,
+            birthDate: birthDate ? new Date(birthDate) : undefined,
+            phone,
+            whatsappNumber,
+            telegramId: telegramId && telegramId.toString().trim() ? BigInt(telegramId.toString().trim()) : undefined,
+            passportNumber,
+            passportPhoto,
+            licenseNumber,
+            licensePhoto,
+            techPassportNumber,
+            techPassportPhoto,
+            driverPhoto,
+            notes,
+            accountStatus,
+            callsign: callsign || undefined,
+            blockedUntil: blockedUntil === null ? null : (blockedUntil ? new Date(blockedUntil) : undefined),
+            ...(balance !== undefined ? { balance: Number(balance) } : {}),
+        };
         const driver = await server_1.prisma.driver.update({
             where: { id },
-            data: {
-                firstName,
-                lastName,
-                middleName,
-                birthDate: birthDate ? new Date(birthDate) : undefined,
-                phone,
-                whatsappNumber,
-                telegramId: telegramId && telegramId.toString().trim() ? BigInt(telegramId.toString().trim()) : undefined,
-                passportNumber,
-                passportPhoto,
-                licenseNumber,
-                licensePhoto,
-                techPassportNumber,
-                techPassportPhoto,
-                driverPhoto,
-                notes,
-                accountStatus,
-                callsign: callsign || undefined,
-            },
+            data: updateData,
             include: { vehicle: true },
         });
         if (vehicleBrand && driver.vehicle) {
@@ -399,7 +402,15 @@ router.patch('/:id/balance', auth_middleware_1.authenticateToken, async (req, re
     }
     try {
         const id = req.params.id;
-        const { amount } = req.body;
+        const { amount, setBalance } = req.body;
+        // setBalance — absolute value set (admin reset)
+        if (setBalance !== undefined) {
+            const driver = await server_1.prisma.driver.update({
+                where: { id },
+                data: { balance: Number(setBalance) },
+            });
+            return res.json({ success: true, driverName: `${driver.firstName} ${driver.lastName}`, callsign: driver.callsign, newBalance: driver.balance });
+        }
         if (!amount || amount <= 0) {
             return res.status(400).json({ error: 'Valid amount is required' });
         }

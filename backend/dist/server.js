@@ -55,6 +55,8 @@ const upload_routes_1 = __importDefault(require("./routes/upload.routes"));
 const report_routes_1 = __importDefault(require("./routes/report.routes"));
 const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
+const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
+const dm_routes_1 = __importDefault(require("./routes/dm.routes"));
 const socket_1 = require("./socket");
 dotenv_1.default.config();
 // BigInt JSON serialization support
@@ -96,6 +98,8 @@ app.use('/api/upload', upload_routes_1.default);
 app.use('/api/reports', report_routes_1.default);
 app.use('/api/notifications', notification_routes_1.default);
 app.use('/api/admins', admin_routes_1.default);
+app.use('/api/chat', chat_routes_1.default);
+app.use('/api/dm', dm_routes_1.default);
 // ===== INLINE TOPUP ROUTES =====
 // POST /api/topup — from bot
 app.post('/api/topup', async (req, res) => {
@@ -194,10 +198,17 @@ app.post('/api/auth/callsign-login', async (req, res) => {
         const { callsign, password } = req.body;
         if (!callsign || !password)
             return res.status(400).json({ error: 'Позывной жана пароль керек' });
-        const driver = await exports.prisma.driver.findFirst({
-            where: { callsign: callsign.toString().trim() },
-            include: { vehicle: true },
-        });
+        let driver;
+        try {
+            driver = await exports.prisma.driver.findFirst({
+                where: { callsign: callsign.toString().trim() },
+                include: { vehicle: true },
+            });
+        }
+        catch (dbErr) {
+            console.error('DB query error in callsign-login:', dbErr.message);
+            return res.status(500).json({ error: 'Database error', detail: dbErr.message });
+        }
         if (!driver)
             return res.status(404).json({ error: 'Позывной табылган жок. Диспетчерге кайрылыңыз.' });
         if (driver.accountStatus === 'BLOCKED')
@@ -219,8 +230,8 @@ app.post('/api/auth/callsign-login', async (req, res) => {
         });
     }
     catch (error) {
-        console.error('Callsign login error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error('Callsign login error:', error.message, error.stack);
+        return res.status(500).json({ error: 'Internal server error', detail: error.message });
     }
 });
 // ===== SAVE CALLSIGN (inline) =====
@@ -232,6 +243,89 @@ app.patch('/api/drivers/:id/callsign', async (req, res) => {
         return res.json({ success: true });
     }
     catch (error) {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// ===== SAVE PUSH TOKEN =====
+app.patch('/api/drivers/:id/push-token', async (req, res) => {
+    try {
+        const { pushToken } = req.body;
+        const { id } = req.params;
+        if (!pushToken)
+            return res.status(400).json({ error: 'pushToken required' });
+        // TODO: Enable after pushToken field added to production DB
+        // await prisma.driver.update({ where: { id }, data: { pushToken } });
+        console.log(`📱 Push token received for driver ${id} (not saved - field not in DB yet)`);
+        return res.json({ success: true });
+    }
+    catch (error) {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// ===== END PUSH TOKEN =====
+// ===== CLIENT AUTH (email + password) =====
+app.post('/api/auth/client/register', async (req, res) => {
+    try {
+        const { email, password, name, phone } = req.body;
+        if (!email || !email.includes('@'))
+            return res.status(400).json({ error: 'Email туура эмес' });
+        if (!password || password.length < 6)
+            return res.status(400).json({ error: 'Пароль минимум 6 символ' });
+        if (!name)
+            return res.status(400).json({ error: 'Аты-жөнү керек' });
+        const clientPhone = phone || `email:${email.toLowerCase().trim()}`;
+        const hashedPassword = await bcrypt_1.default.hash(password, 10);
+        // Check if client exists - if yes, update their password and let them in
+        let client = await exports.prisma.client.findUnique({ where: { phone: clientPhone } });
+        if (client) {
+            // Update name and set/update password
+            client = await exports.prisma.client.update({ where: { phone: clientPhone }, data: { name } });
+            // Upsert password in OTP table
+            const existingPw = await exports.prisma.oTP.findFirst({ where: { phone: clientPhone, isUsed: false } });
+            if (existingPw) {
+                await exports.prisma.oTP.update({ where: { id: existingPw.id }, data: { code: hashedPassword } });
+            }
+            else {
+                await exports.prisma.oTP.create({ data: { phone: clientPhone, code: hashedPassword, expiresAt: new Date('2099-01-01'), isUsed: false } });
+            }
+        }
+        else {
+            // Create new client
+            await exports.prisma.oTP.create({ data: { phone: clientPhone, code: hashedPassword, expiresAt: new Date('2099-01-01'), isUsed: false } });
+            client = await exports.prisma.client.create({ data: { name, phone: clientPhone } });
+        }
+        const token = jsonwebtoken_1.default.sign({ id: client.id, phone: client.phone, role: 'CLIENT' }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+        return res.json({ token, client: { id: client.id, name: client.name, phone: clientPhone, email } });
+    }
+    catch (error) {
+        console.error('Client register error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+app.post('/api/auth/client/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password)
+            return res.status(400).json({ error: 'Email жана пароль керек' });
+        const clientPhone = `email:${email.toLowerCase().trim()}`;
+        const client = await exports.prisma.client.findUnique({ where: { phone: clientPhone } });
+        if (!client)
+            return res.status(404).json({ error: 'Аккаунт табылган жок. Катталыңыз.' });
+        // Find password hash from OTP table
+        const otpRecord = await exports.prisma.oTP.findFirst({
+            where: { phone: clientPhone, isUsed: false },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (!otpRecord)
+            return res.status(401).json({ error: 'Пароль туура эмес' });
+        const isValid = await bcrypt_1.default.compare(password, otpRecord.code);
+        if (!isValid)
+            return res.status(401).json({ error: 'Пароль туура эмес' });
+        const token = jsonwebtoken_1.default.sign({ id: client.id, phone: client.phone, role: 'CLIENT' }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+        return res.json({ token, client: { id: client.id, name: client.name, phone: clientPhone, email } });
+    }
+    catch (error) {
+        console.error('Client login error:', error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -295,12 +389,232 @@ app.post('/api/auth/client/verify-otp', async (req, res) => {
     }
 });
 // ===== END CLIENT AUTH =====
-app.get('/api/health', (_, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// ===== RATING =====
+app.post('/api/orders/:id/rate', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rating, comment } = req.body;
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: 'Rating must be 1-5' });
+        }
+        const order = await exports.prisma.order.findUnique({ where: { id: id } });
+        if (!order)
+            return res.status(404).json({ error: 'Order not found' });
+        if (!order.driverId)
+            return res.status(400).json({ error: 'No driver assigned' });
+        // Save rating to order comment field (rating field not in DB yet)
+        await exports.prisma.order.update({
+            where: { id: id },
+            data: { comment: `rating:${rating}${comment ? ' ' + comment : ''}` },
+        });
+        return res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Rating error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// ===== END RATING =====
+// ===== TARIFF MANAGEMENT =====
+app.get('/api/tariffs', (req, res) => {
+    const { TARIFFS, COMPANY_COMMISSION } = require('./lib/tariff');
+    return res.json({ tariffs: TARIFFS, commission: COMPANY_COMMISSION });
+});
+app.put('/api/tariffs', async (req, res) => {
+    // TODO: Enable after tariffs field added to settings table
+    return res.json({ success: true, message: 'Tariff update not yet available' });
+});
+// ===== END TARIFF MANAGEMENT =====
+app.get('/api/health', async (_, res) => {
+    try {
+        // Test database connection
+        const driverCount = await exports.prisma.driver.count();
+        const orderCount = await exports.prisma.order.count();
+        res.json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            db: { drivers: driverCount, orders: orderCount },
+        });
+    }
+    catch (dbError) {
+        res.json({
+            status: 'db_error',
+            timestamp: new Date().toISOString(),
+            error: dbError.message,
+        });
+    }
 });
 // Socket.IO
 (0, socket_1.setupSocketHandlers)(exports.io);
 const PORT = parseInt(process.env.PORT || '5000', 10);
+// ===== PENDING ORDER REASSIGNMENT ENGINE =====
+// Every 5 seconds: find PENDING orders with no active assignment chain, dispatch to ONLINE drivers
+// Tracks which orders are already being dispatched to avoid duplicate chains
+const activeDispatchOrders = new Set();
+async function dispatchPendingOrders() {
+    try {
+        const pendingOrders = await exports.prisma.order.findMany({
+            where: { status: 'PENDING' },
+            orderBy: { createdAt: 'asc' },
+        });
+        if (pendingOrders.length === 0)
+            return;
+        const onlineDrivers = await exports.prisma.driver.findMany({
+            where: { status: 'ONLINE', accountStatus: 'ACTIVE' }, // Only ONLINE, not BUSY
+            select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
+        });
+        if (onlineDrivers.length === 0)
+            return;
+        // Filter out drivers who already have an active order
+        const busyDriverIds = (await exports.prisma.order.findMany({
+            where: { status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
+            select: { driverId: true },
+        })).map(o => o.driverId).filter(Boolean);
+        const freeDrivers = onlineDrivers.filter(d => !busyDriverIds.includes(d.id));
+        if (freeDrivers.length === 0)
+            return;
+        for (const order of pendingOrders) {
+            // Skip if already being dispatched
+            if (activeDispatchOrders.has(order.id))
+                continue;
+            activeDispatchOrders.add(order.id);
+            console.log(`🔄 Re-dispatching PENDING order #${order.orderNumber} to ${onlineDrivers.length} drivers`);
+            const candidates = freeDrivers.map(d => {
+                let dist = 999;
+                if (d.latitude && d.longitude && order.pickupLat && order.pickupLng) {
+                    const R = 6371;
+                    const dLat = (order.pickupLat - d.latitude) * Math.PI / 180;
+                    const dLng = (order.pickupLng - d.longitude) * Math.PI / 180;
+                    const a = Math.sin(dLat / 2) ** 2 + Math.cos(d.latitude * Math.PI / 180) * Math.cos(order.pickupLat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+                    dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                }
+                return { ...d, distance: dist };
+            }).sort((a, b) => a.distance - b.distance);
+            // Only send to nearby drivers (within 5km), skip if all far
+            const nearCandidates = candidates.filter(d => d.distance <= 5);
+            const toDispatch = nearCandidates.length > 0 ? nearCandidates : candidates;
+            // Pick a random driver and send fullscreen order
+            let triedDrivers = [];
+            function assignToNext() {
+                const remaining = toDispatch.filter(d => !triedDrivers.includes(d.id));
+                if (remaining.length === 0) {
+                    activeDispatchOrders.delete(order.id);
+                    return;
+                }
+                const selected = remaining[Math.floor(Math.random() * remaining.length)];
+                triedDrivers.push(selected.id);
+                // Skip if driver became BUSY since we fetched the list
+                exports.prisma.driver.findUnique({ where: { id: selected.id }, select: { status: true } })
+                    .then(freshDriver => {
+                    if (freshDriver && freshDriver.status !== 'ONLINE') {
+                        assignToNext();
+                        return;
+                    }
+                    exports.io.to(`driver:${selected.id}`).emit('order:incoming', {
+                        ...order,
+                        assignedDriverId: selected.id,
+                        distanceMeters: 0,
+                        timeoutSeconds: 20,
+                    });
+                    exports.io.to('admin-room').emit('notification', {
+                        title: 'Заказ кайра жөнөтүлдү',
+                        message: `#${order.orderNumber} → ${selected.firstName} — 20 сек`,
+                        type: 'auto_assigned',
+                    });
+                    const t = setTimeout(async () => {
+                        try {
+                            const fresh = await exports.prisma.order.findUnique({ where: { id: order.id } });
+                            if (fresh && fresh.status === 'PENDING') {
+                                exports.io.to(`driver:${selected.id}`).emit('order:expired', { orderId: order.id });
+                                assignToNext();
+                            }
+                            else {
+                                activeDispatchOrders.delete(order.id);
+                            }
+                        }
+                        catch {
+                            activeDispatchOrders.delete(order.id);
+                        }
+                    }, 20000);
+                    const cleanupHandler = (data) => {
+                        if (data.orderId === order.id) {
+                            clearTimeout(t);
+                            activeDispatchOrders.delete(order.id);
+                            exports.io.off('order:accepted', cleanupHandler);
+                        }
+                    };
+                    exports.io.on('order:accepted', cleanupHandler);
+                })
+                    .catch(() => assignToNext());
+            }
+            assignToNext();
+        }
+    }
+    catch (e) {
+        console.error('dispatchPendingOrders error:', e);
+    }
+}
+// Run every 5 seconds
+setInterval(dispatchPendingOrders, 5000);
+// ===== END PENDING ORDER REASSIGNMENT ENGINE =====
+// ===== AUTO CLEANUP: stuck orders + blocked drivers =====
+async function autoCleanup() {
+    try {
+        // 1. Complete any ASSIGNED orders older than 30 minutes (stuck)
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+        const stuckOrders = await exports.prisma.order.findMany({
+            where: {
+                status: { in: ['ASSIGNED', 'IN_PROGRESS'] },
+                updatedAt: { lt: thirtyMinutesAgo },
+            },
+            select: { id: true, orderNumber: true, driverId: true },
+        });
+        for (const order of stuckOrders) {
+            await exports.prisma.order.update({
+                where: { id: order.id },
+                data: { status: 'COMPLETED', completedAt: new Date() },
+            });
+            console.log(`🧹 Auto-completed stuck order #${order.orderNumber}`);
+        }
+        // 2. Unblock any drivers whose blockedUntil has passed
+        const now = new Date();
+        const expiredBlocks = await exports.prisma.driver.findMany({
+            where: {
+                accountStatus: 'BLOCKED',
+                blockedUntil: { lt: now },
+            },
+            select: { id: true, firstName: true, lastName: true },
+        });
+        for (const driver of expiredBlocks) {
+            await exports.prisma.driver.update({
+                where: { id: driver.id },
+                data: { accountStatus: 'ACTIVE', blockedUntil: null },
+            });
+            console.log(`🔓 Auto-unblocked driver ${driver.firstName} ${driver.lastName}`);
+        }
+    }
+    catch (e) {
+        console.error('autoCleanup error:', e);
+    }
+}
+// Run every 2 minutes
+setInterval(autoCleanup, 2 * 60 * 1000);
+autoCleanup(); // Run immediately on startup
+// ===== END AUTO CLEANUP =====
+// ===== AUTO MIGRATION: add options column if missing =====
+async function ensureOptionsColumn() {
+    try {
+        await exports.prisma.$executeRawUnsafe(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS options TEXT[] DEFAULT '{}';
+    `);
+        console.log('✅ options column ensured');
+    }
+    catch (e) {
+        console.error('Migration options column error:', e);
+    }
+}
+ensureOptionsColumn();
+// ===== END AUTO MIGRATION =====
 // @ts-ignore
 httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);

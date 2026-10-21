@@ -9,20 +9,26 @@
  * - Minivan: 25 сом/км, минимум 150 сом
  * - Междугород: 12 сом/км, минимум 300 сом
  *
- * Комиссия компании: 15%
+ * Комиссия компании: 12 сом (кундузу 06:00-00:00), 14 сом (түнкүсү 00:00-06:00)
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.COMPANY_COMMISSION = exports.TARIFFS = void 0;
+exports.getCommissionAmount = getCommissionAmount;
 exports.calculatePrice = calculatePrice;
 exports.calculateDistance = calculateDistance;
 exports.TARIFFS = {
-    Standard: { perKm: 15, minimum: 80, name: 'Стандарт' },
-    Comfort: { perKm: 20, minimum: 120, name: 'Комфорт' },
-    Business: { perKm: 30, minimum: 200, name: 'Бизнес' },
-    Minivan: { perKm: 25, minimum: 150, name: 'Минивэн' },
-    Intercity: { perKm: 12, minimum: 300, name: 'Междугород' },
+    Standard: { perKm: 18, minimum: 110, name: 'Стандарт' },
 };
-exports.COMPANY_COMMISSION = 0.15; // 15%
+/**
+ * Комиссия суммасын убакытка жараша кайтарат
+ * Түнкүсү (00:00 - 06:00): 14 сом
+ * Кундузу (06:00 - 00:00): 12 сом
+ */
+function getCommissionAmount() {
+    const hour = new Date().getHours();
+    return (hour >= 0 && hour < 7) ? 14 : 12;
+}
+exports.COMPANY_COMMISSION = 0.15; // legacy — keep for compatibility
 /**
  * Баа эсептөө
  * @param distanceKm — аралык километрде
@@ -36,7 +42,9 @@ function calculatePrice(distanceKm, tariffKey) {
         total = tariff.minimum;
     // Тегерек санга тегеректөө (10-го)
     total = Math.ceil(total / 10) * 10;
-    const companyCommission = Math.round(total * exports.COMPANY_COMMISSION);
+    // Убакытка жараша комиссия: кундузу 12 сом, түнкүсү 14 сом
+    const commissionAmount = getCommissionAmount();
+    const companyCommission = commissionAmount;
     const driverEarning = total - companyCommission;
     return {
         total,
@@ -45,6 +53,7 @@ function calculatePrice(distanceKm, tariffKey) {
         tariffName: tariff.name,
         perKm: tariff.perKm,
         distanceKm,
+        commissionAmount,
     };
 }
 /**

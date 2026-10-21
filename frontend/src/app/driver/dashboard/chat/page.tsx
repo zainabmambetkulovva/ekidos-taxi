@@ -322,7 +322,7 @@ export default function DriverChatPage() {
                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 relative"
                       style={{ background: 'rgba(14,30,60,0.8)', border: `1px solid ${isActive ? 'rgba(56,189,248,0.4)' : 'rgba(56,189,248,0.15)'}` }}>
                       <span className="text-[10px] font-bold text-white">
-                        {d.callsign || (idx + 1)}
+                        {d.callsign ? (parseInt(d.callsign, 10) || d.callsign) : (idx + 1)}
                       </span>
                       {isOnline && (
                         <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400"
