@@ -21,12 +21,15 @@ exports.TARIFFS = {
 };
 /**
  * Комиссия суммасын убакытка жараша кайтарат
- * Түнкүсү (00:00 - 06:00): 14 сом
- * Кундузу (06:00 - 00:00): 12 сом
+ * Кыргызстан UTC+6
+ * Түнкүсү (00:00 - 07:00 КГ убакыты): 14 сом
+ * Кундузу (07:00 - 00:00 КГ убакыты): 12 сом
  */
 function getCommissionAmount() {
-    const hour = new Date().getHours();
-    return (hour >= 0 && hour < 7) ? 14 : 12;
+    // Convert UTC to Kyrgyzstan time (UTC+6)
+    const utcHour = new Date().getUTCHours();
+    const kgHour = (utcHour + 6) % 24;
+    return (kgHour >= 0 && kgHour < 7) ? 14 : 12;
 }
 exports.COMPANY_COMMISSION = 0.15; // legacy — keep for compatibility
 /**

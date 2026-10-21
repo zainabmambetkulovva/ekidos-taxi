@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { getCommissionAmount } from './lib/tariff';
 
 import authRoutes from './routes/auth.routes';
 import driverRoutes from './routes/driver.routes';
@@ -590,6 +591,22 @@ async function autoCleanup() {
         where: { id: order.id },
         data: { status: 'COMPLETED', completedAt: new Date() },
       });
+
+      // Деduct commission from driver balance
+      if (order.driverId) {
+        const commission = getCommissionAmount();
+        const driver = await prisma.driver.findUnique({ where: { id: order.driverId }, select: { balance: true, status: true } });
+        if (driver) {
+          await prisma.driver.update({
+            where: { id: order.driverId },
+            data: {
+              balance: Math.max(0, (driver.balance || 0) - commission),
+              status: driver.status === 'BUSY' ? 'ONLINE' : driver.status,
+              totalOrders: { increment: 1 },
+            },
+          });
+        }
+      }
       console.log(`🧹 Auto-completed stuck order #${order.orderNumber}`);
     }
 

@@ -45,6 +45,7 @@ const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const client_1 = require("@prisma/client");
+const tariff_1 = require("./lib/tariff");
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const driver_routes_1 = __importDefault(require("./routes/driver.routes"));
 const order_routes_1 = __importDefault(require("./routes/order.routes"));
@@ -574,6 +575,21 @@ async function autoCleanup() {
                 where: { id: order.id },
                 data: { status: 'COMPLETED', completedAt: new Date() },
             });
+            // Деduct commission from driver balance
+            if (order.driverId) {
+                const commission = (0, tariff_1.getCommissionAmount)();
+                const driver = await exports.prisma.driver.findUnique({ where: { id: order.driverId }, select: { balance: true, status: true } });
+                if (driver) {
+                    await exports.prisma.driver.update({
+                        where: { id: order.driverId },
+                        data: {
+                            balance: Math.max(0, (driver.balance || 0) - commission),
+                            status: driver.status === 'BUSY' ? 'ONLINE' : driver.status,
+                            totalOrders: { increment: 1 },
+                        },
+                    });
+                }
+            }
             console.log(`🧹 Auto-completed stuck order #${order.orderNumber}`);
         }
         // 2. Unblock any drivers whose blockedUntil has passed
