@@ -121,8 +121,27 @@ export default function DispatcherPage() {
       const { data } = await api.get('/orders', { params: { limit: 50 } });
       return data;
     },
-    refetchInterval: 10000,
+    refetchInterval: 5000,
   });
+
+  // Realtime socket updates — заказ кабыл алынса/бүтсө дароо жаңырсын
+  useEffect(() => {
+    const { connectSocket } = require('@/lib/socket');
+    const socket = connectSocket();
+    socket.emit('admin:join', 'admin');
+
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
+    socket.on('order:accepted', refresh);
+    socket.on('order:completed', refresh);
+    socket.on('order:cancelled', refresh);
+    socket.on('order:new', refresh);
+    return () => {
+      socket.off('order:accepted', refresh);
+      socket.off('order:completed', refresh);
+      socket.off('order:cancelled', refresh);
+      socket.off('order:new', refresh);
+    };
+  }, [queryClient]);
 
   const createOrderMutation = useMutation({
     mutationFn: async (order: any) => {

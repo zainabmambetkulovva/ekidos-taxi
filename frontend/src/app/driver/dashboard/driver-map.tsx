@@ -310,10 +310,10 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     // Color based on status
     const getDriverColor = (status: string) => {
       switch (status) {
-        case 'BUSY': return '#ef4444'; // red
-        case 'ONLINE': return '#22c55e'; // green
-        case 'BUSY_PERSONAL': return '#f97316'; // orange
-        default: return '#6b7280'; // gray
+        case 'BUSY': return '#ef4444';         // кызыл — заказда
+        case 'ONLINE': return '#22c55e';        // жашыл — бош
+        case 'BUSY_PERSONAL': return '#f59e0b'; // сары — занят
+        default: return '#6b7280';              // боз — оффлайн
       }
     };
 
@@ -321,7 +321,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
       switch (status) {
         case 'BUSY': return 'Заказда';
         case 'ONLINE': return 'Бош';
-        case 'BUSY_PERSONAL': return 'По делам';
+        case 'BUSY_PERSONAL': return 'Занят';
         default: return status;
       }
     };

@@ -8,7 +8,7 @@
  * - Minivan: 25 сом/км, минимум 150 сом
  * - Междугород: 12 сом/км, минимум 300 сом
  * 
- * Комиссия компании: 15%
+ * Комиссия компании: 12 сом (кундузу 06:00-00:00), 14 сом (түнкүсү 00:00-06:00)
  */
 
 export interface TariffConfig {
@@ -21,7 +21,17 @@ export const TARIFFS: Record<string, TariffConfig> = {
   Standard: { perKm: 18, minimum: 110, name: 'Стандарт' },
 };
 
-export const COMPANY_COMMISSION = 0.15; // 15%
+/**
+ * Комиссия суммасын убакытка жараша кайтарат
+ * Түнкүсү (00:00 - 06:00): 14 сом
+ * Кундузу (06:00 - 00:00): 12 сом
+ */
+export function getCommissionAmount(): number {
+  const hour = new Date().getHours();
+  return (hour >= 0 && hour < 6) ? 14 : 12;
+}
+
+export const COMPANY_COMMISSION = 0.15; // legacy — keep for compatibility
 
 /**
  * Баа эсептөө
@@ -38,7 +48,9 @@ export function calculatePrice(distanceKm: number, tariffKey: string) {
   // Тегерек санга тегеректөө (10-го)
   total = Math.ceil(total / 10) * 10;
 
-  const companyCommission = Math.round(total * COMPANY_COMMISSION);
+  // Убакытка жараша комиссия: кундузу 12 сом, түнкүсү 14 сом
+  const commissionAmount = getCommissionAmount();
+  const companyCommission = commissionAmount;
   const driverEarning = total - companyCommission;
 
   return {
@@ -48,6 +60,7 @@ export function calculatePrice(distanceKm: number, tariffKey: string) {
     tariffName: tariff.name,
     perKm: tariff.perKm,
     distanceKm,
+    commissionAmount,
   };
 }
 

@@ -68,7 +68,10 @@ export default function LiveMapPage() {
     drivers
       .filter((d: any) => d.latitude && d.longitude)
       .forEach((driver: any) => {
-        const color = driver.status === 'ONLINE' ? '#22c55e' : driver.status === 'BUSY' ? '#ef4444' : driver.status === 'BUSY_PERSONAL' ? '#f97316' : '#6b7280';
+        const color = driver.status === 'ONLINE' ? '#22c55e'
+          : driver.status === 'BUSY' ? '#ef4444'
+          : driver.status === 'BUSY_PERSONAL' ? '#f59e0b'
+          : '#6b7280';
         const statusLabel = driver.status === 'ONLINE' ? 'Бош' : driver.status === 'BUSY' ? 'Заказда' : driver.status === 'BUSY_PERSONAL' ? 'Занят' : 'Оффлайн';
         const offlineTime = driver.status === 'OFFLINE' && driver.lastLocationUpdate
           ? ` (${new Date(driver.lastLocationUpdate).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })})`
@@ -103,8 +106,8 @@ export default function LiveMapPage() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <span className="w-3 h-3 rounded-full bg-yellow-500" />
-            <div><p className="text-2xl font-bold">{busyCount}</p><p className="text-xs text-muted-foreground">Занят</p></div>
+            <span className="w-3 h-3 rounded-full bg-red-500" />
+            <div><p className="text-2xl font-bold">{busyCount}</p><p className="text-xs text-muted-foreground">Заказда / Занят</p></div>
           </CardContent>
         </Card>
         <Card>

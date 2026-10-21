@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../server';
 import { io } from '../server';
 import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
-import { calculatePrice, calculateDistance, TARIFFS, COMPANY_COMMISSION } from '../lib/tariff';
+import { calculatePrice, calculateDistance, TARIFFS, COMPANY_COMMISSION, getCommissionAmount } from '../lib/tariff';
 
 // Safe import — if push module fails, orders still work
 let sendPushToAllOnlineDrivers: any = async () => 0;
@@ -643,9 +643,10 @@ router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: R
     });
 
     if (updated.driverId) {
-      // Deduct 12 from balance, but never go below 0
+      // Деduct commission from balance: 12 сом кундузу (06:00-00:00), 14 сом түнкүсү (00:00-06:00)
+      const commissionAmount = getCommissionAmount();
       const driver = await prisma.driver.findUnique({ where: { id: updated.driverId } });
-      const newBalance = Math.max(0, (driver?.balance || 0) - 12);
+      const newBalance = Math.max(0, (driver?.balance || 0) - commissionAmount);
 
       await prisma.driver.update({
         where: { id: updated.driverId },

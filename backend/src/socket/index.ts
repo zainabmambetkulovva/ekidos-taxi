@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from '../server';
+import { getCommissionAmount } from '../lib/tariff';
 
 // Safe import — if push module fails, socket still works
 let sendPushToAllOnlineDrivers: any = async () => 0;
@@ -217,9 +218,10 @@ export function setupSocketHandlers(io: Server) {
           },
         });
 
-        // Deduct 12, never below 0
+        // Убакытка жараша комиссия: кундузу 12 сом, түнкүсү 14 сом
+        const commissionAmount = getCommissionAmount();
         const driverData = await prisma.driver.findUnique({ where: { id: data.driverId } });
-        const newBalance = Math.max(0, (driverData?.balance || 0) - 12);
+        const newBalance = Math.max(0, (driverData?.balance || 0) - commissionAmount);
 
         await prisma.driver.update({
           where: { id: data.driverId },
