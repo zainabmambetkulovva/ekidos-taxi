@@ -239,12 +239,10 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
       passportNumber, passportPhoto, licenseNumber, licensePhoto,
       techPassportNumber, techPassportPhoto, driverPhoto, notes, accountStatus,
       vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber,
-      telegramId, callsign,
+      telegramId, callsign, blockedUntil, balance,
     } = req.body;
 
-    const driver = await prisma.driver.update({
-      where: { id },
-      data: {
+    const updateData: any = {
         firstName,
         lastName,
         middleName,
@@ -262,7 +260,13 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
         notes,
         accountStatus,
         callsign: callsign || undefined,
-      },
+        blockedUntil: blockedUntil === null ? null : (blockedUntil ? new Date(blockedUntil) : undefined),
+        ...(balance !== undefined ? { balance: Number(balance) } : {}),
+    };
+
+    const driver = await prisma.driver.update({
+      where: { id },
+      data: updateData,
       include: { vehicle: true },
     });
 
