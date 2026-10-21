@@ -616,9 +616,24 @@ async function ensureOptionsColumn() {
 ensureOptionsColumn();
 // ===== END AUTO MIGRATION =====
 // @ts-ignore
-httpServer.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 EKIDOS TAXI Server running on 0.0.0.0:${PORT}`);
     console.log(`📡 Socket.IO ready`);
+    // One-time fix: reset Исхак's corrupted balance to 1000
+    try {
+        const iskhak = await exports.prisma.driver.findUnique({
+            where: { id: 'ad82e29e-f397-4f11-a4ee-8c3233627037' },
+            select: { balance: true, firstName: true },
+        });
+        if (iskhak && iskhak.balance > 1000000) {
+            await exports.prisma.driver.update({
+                where: { id: 'ad82e29e-f397-4f11-a4ee-8c3233627037' },
+                data: { balance: 1000 },
+            });
+            console.log('✅ Fixed Исхак balance: 1000');
+        }
+    }
+    catch (e) { /* ignore */ }
 });
 process.on('SIGINT', async () => { await exports.prisma.$disconnect(); process.exit(0); });
 process.on('SIGTERM', async () => { await exports.prisma.$disconnect(); process.exit(0); });
