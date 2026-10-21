@@ -568,6 +568,7 @@ router.patch('/:id/accept', async (req, res) => {
         server_2.io.emit('order:taken', { orderId: id, driverId });
         server_2.io.to('admin-room').emit('order:taken', { orderId: id, driverId });
         server_2.io.to('admin-room').emit('order:accepted', finalOrder);
+        server_2.io.to('admin-room').emit('order:status-changed', { orderId: id, status: 'ASSIGNED', order: finalOrder });
         return res.json(finalOrder);
     }
     catch (error) {

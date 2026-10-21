@@ -155,11 +155,12 @@ function setupSocketHandlers(io) {
                 io.to('admin-room').emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
                 // Notify client who placed this order (broadcast with order details + driver info)
                 io.emit('order:accepted', order);
-                // Notify admin
+                // Notify admin — full order object so dispatcher can update status immediately
                 io.to('admin-room').emit('order:accepted', order);
+                io.to('admin-room').emit('order:status-changed', { orderId: order.id, status: 'ASSIGNED', order });
                 io.to('admin-room').emit('notification', {
-                    title: 'Order Accepted',
-                    message: `Order #${order.orderNumber} accepted by ${order.driver?.firstName}`,
+                    title: 'Заказ кабыл алынды',
+                    message: `#${order.orderNumber} — ${order.driver?.firstName} ${order.driver?.lastName}`,
                     type: 'order_accepted',
                 });
             }

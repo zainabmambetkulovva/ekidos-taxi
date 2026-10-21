@@ -162,28 +162,19 @@ export default function DriverHomePage() {
   const [incomingOrder, setIncomingOrder] = useState<any>(null);
   const [incomingTimer, setIncomingTimer] = useState(0);
 
-  // Fetch driver balance
+  // Fetch driver balance — read from localStorage (layout.tsx syncs via API)
   useEffect(() => {
-    const fetchBalance = async () => {
+    const syncBalance = () => {
       try {
-        const { data } = await api.get('/auth/me');
-        const b = data.balance;
-        if (typeof b === 'number') {
-          setBalance(b);
-          // Update localStorage with fresh balance
-          const info = localStorage.getItem('driverInfo');
-          if (info) {
-            const parsed = JSON.parse(info);
-            parsed.balance = b;
-            localStorage.setItem('driverInfo', JSON.stringify(parsed));
-          }
+        const info = localStorage.getItem('driverInfo');
+        if (info) {
+          const b = JSON.parse(info).balance;
+          if (typeof b === 'number') setBalance(b);
         }
-      } catch {
-        // Don't set balance to 0 on error - keep null (loading)
-      }
+      } catch {}
     };
-    fetchBalance();
-    const iv = setInterval(fetchBalance, 30000);
+    syncBalance();
+    const iv = setInterval(syncBalance, 5000);
     return () => clearInterval(iv);
   }, []);
 

@@ -137,10 +137,10 @@ export default function DispatcherPage() {
     socket.on('order:completed', refresh);
     socket.on('order:cancelled', refresh);
     socket.on('order:new', refresh);
-    socket.on('order:taken', refresh);      // водитель кабыл алды
-    socket.on('order:assigned', refresh);   // назначен
+    socket.on('order:taken', refresh);
+    socket.on('order:assigned', refresh);
+    socket.on('order:status-changed', refresh);
     socket.on('notification', (data: any) => {
-      // order статусу өзгөрсө refresh
       if (data.type === 'order_accepted' || data.type === 'order_completed' || data.type === 'auto_assigned' || data.type === 'targeted_dispatch') {
         refresh();
       }
@@ -153,6 +153,7 @@ export default function DispatcherPage() {
       socket.off('order:new', refresh);
       socket.off('order:taken', refresh);
       socket.off('order:assigned', refresh);
+      socket.off('order:status-changed', refresh);
       socket.off('notification');
     };
   }, [queryClient]);

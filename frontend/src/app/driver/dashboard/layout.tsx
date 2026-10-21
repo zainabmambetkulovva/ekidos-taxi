@@ -19,34 +19,23 @@ import api from '@/lib/axios';
 // Header Balance component - shows just the number in blue banner
 function DriverHeaderBalance() {
   const [balance, setBalance] = useState<number | null>(() => {
-    // Load from localStorage immediately so balance shows instantly
     if (typeof window === 'undefined') return null;
     try {
       const info = localStorage.getItem('driverInfo');
       if (info) {
-        const parsed = JSON.parse(info);
-        if (typeof parsed.balance === 'number') return parsed.balance;
+        const b = JSON.parse(info).balance;
+        if (typeof b === 'number') return b;
       }
     } catch {}
     return null;
   });
 
   useEffect(() => {
-    // Also load from localStorage on mount (for SSR)
-    try {
-      const info = localStorage.getItem('driverInfo');
-      if (info) {
-        const parsed = JSON.parse(info);
-        if (typeof parsed.balance === 'number') setBalance(parsed.balance);
-      }
-    } catch {}
-
     const fetchBalance = async () => {
       try {
         const { data } = await api.get('/auth/me');
         if (typeof data.balance === 'number') {
-          setBalance(data.balance);
-          // Update localStorage too
+          // Sync to localStorage
           try {
             const info = localStorage.getItem('driverInfo');
             if (info) {
@@ -55,21 +44,21 @@ function DriverHeaderBalance() {
               localStorage.setItem('driverInfo', JSON.stringify(parsed));
             }
           } catch {}
+          setBalance(data.balance);
         }
       } catch {
-        // /auth/me failed — try fetching balance via public driver endpoint
+        // fallback: read from localStorage only (no secondary API call)
         try {
           const info = localStorage.getItem('driverInfo');
-          const driverId = info ? JSON.parse(info).id : null;
-          if (driverId) {
-            const { data } = await api.get(`/drivers/${driverId}/public`);
-            if (typeof data.balance === 'number') setBalance(data.balance);
+          if (info) {
+            const b = JSON.parse(info).balance;
+            if (typeof b === 'number') setBalance(b);
           }
         } catch {}
       }
     };
     fetchBalance();
-    const iv = setInterval(fetchBalance, 30000);
+    const iv = setInterval(fetchBalance, 60000); // 60s — not 30s
     return () => clearInterval(iv);
   }, []);
 

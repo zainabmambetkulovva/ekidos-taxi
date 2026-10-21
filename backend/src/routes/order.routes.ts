@@ -607,6 +607,7 @@ router.patch('/:id/accept', async (req: Request, res: Response) => {
     io.emit('order:taken', { orderId: id, driverId });
     io.to('admin-room').emit('order:taken', { orderId: id, driverId });
     io.to('admin-room').emit('order:accepted', finalOrder);
+    io.to('admin-room').emit('order:status-changed', { orderId: id, status: 'ASSIGNED', order: finalOrder });
 
     return res.json(finalOrder);
   } catch (error) {
