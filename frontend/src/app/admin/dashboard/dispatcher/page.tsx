@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import api from '@/lib/axios';
+import { connectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { useLanguageStore } from '@/store/useLanguageStore';
@@ -126,20 +127,33 @@ export default function DispatcherPage() {
 
   // Realtime socket updates — заказ кабыл алынса/бүтсө дароо жаңырсын
   useEffect(() => {
-    const { connectSocket } = require('@/lib/socket');
     const socket = connectSocket();
-    socket.emit('admin:join', 'admin');
+    socket.emit('admin:join', 'dispatcher');
 
     const refresh = () => queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
+
+    // Backend жиберген бардык order event'терди тыңша
     socket.on('order:accepted', refresh);
     socket.on('order:completed', refresh);
     socket.on('order:cancelled', refresh);
     socket.on('order:new', refresh);
+    socket.on('order:taken', refresh);      // водитель кабыл алды
+    socket.on('order:assigned', refresh);   // назначен
+    socket.on('notification', (data: any) => {
+      // order статусу өзгөрсө refresh
+      if (data.type === 'order_accepted' || data.type === 'order_completed' || data.type === 'auto_assigned' || data.type === 'targeted_dispatch') {
+        refresh();
+      }
+    });
+
     return () => {
       socket.off('order:accepted', refresh);
       socket.off('order:completed', refresh);
       socket.off('order:cancelled', refresh);
       socket.off('order:new', refresh);
+      socket.off('order:taken', refresh);
+      socket.off('order:assigned', refresh);
+      socket.off('notification');
     };
   }, [queryClient]);
 

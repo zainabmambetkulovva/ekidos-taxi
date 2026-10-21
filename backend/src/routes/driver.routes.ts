@@ -426,7 +426,16 @@ router.patch('/:id/balance', authenticateToken, async (req: AuthRequest, res: Re
   }
   try {
     const id = req.params.id as string;
-    const { amount } = req.body;
+    const { amount, setBalance } = req.body;
+
+    // setBalance — absolute value set (admin reset)
+    if (setBalance !== undefined) {
+      const driver = await prisma.driver.update({
+        where: { id },
+        data: { balance: Number(setBalance) },
+      });
+      return res.json({ success: true, driverName: `${driver.firstName} ${driver.lastName}`, callsign: driver.callsign, newBalance: driver.balance });
+    }
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'Valid amount is required' });

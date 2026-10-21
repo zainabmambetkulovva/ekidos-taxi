@@ -28,7 +28,7 @@ export const TARIFFS: Record<string, TariffConfig> = {
  */
 export function getCommissionAmount(): number {
   const hour = new Date().getHours();
-  return (hour >= 0 && hour < 6) ? 14 : 12;
+  return (hour >= 0 && hour < 7) ? 14 : 12;
 }
 
 export const COMPANY_COMMISSION = 0.15; // legacy — keep for compatibility
