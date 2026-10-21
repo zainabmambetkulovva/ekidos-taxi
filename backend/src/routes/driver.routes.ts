@@ -463,4 +463,24 @@ router.patch('/:id/balance', authenticateToken, async (req: AuthRequest, res: Re
   }
 });
 
+// Admin: force set driver balance to exact amount (reset)
+router.patch('/:id/balance-reset', authenticateToken, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role === 'DRIVER') {
+    return res.status(403).json({ error: 'Access denied.' });
+  }
+  try {
+    const { value } = req.body;
+    if (value === undefined || value === null) {
+      return res.status(400).json({ error: 'value required' });
+    }
+    const driver = await prisma.driver.update({
+      where: { id: req.params.id as string },
+      data: { balance: Number(value) },
+    });
+    return res.json({ success: true, driverName: `${driver.firstName} ${driver.lastName}`, newBalance: driver.balance });
+  } catch (e) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;
