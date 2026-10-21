@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "clean": "rimraf dist",
-    "build": "npx prisma generate && tsc --skipLibCheck",
+    "build": "npx prisma generate",
     "start": "node dist/server.js"
   },
   "dependencies": {
