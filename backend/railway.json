@@ -1,1 +1,1 @@
-{"build":{"builder":"NIXPACKS","buildCommand":"npx prisma generate && npx prisma db push"},"deploy":{"startCommand":"node dist/server.js","restartPolicyType":"ON_FAILURE","restartPolicyMaxRetries":10}}
+{"build":{"builder":"NIXPACKS","buildCommand":"npx prisma generate && npx prisma db push && echo 'Build complete'"},"deploy":{"startCommand":"node dist/server.js","restartPolicyType":"ON_FAILURE","restartPolicyMaxRetries":10}}
