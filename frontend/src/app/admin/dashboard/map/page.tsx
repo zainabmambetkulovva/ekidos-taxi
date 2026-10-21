@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/axios';
+import { connectSocket } from '@/lib/socket';
 
 export default function LiveMapPage() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapRef = useRef<any>(null);
+  const queryClient = useQueryClient();
 
   const { data: driversData } = useQuery({
     queryKey: ['map-drivers'],
@@ -17,8 +19,25 @@ export default function LiveMapPage() {
       const { data } = await api.get('/drivers', { params: { limit: 200 } });
       return data;
     },
-    refetchInterval: 15000,
+    refetchInterval: 5000,
   });
+
+  // Realtime: listen for driver status/location changes
+  useEffect(() => {
+    const socket = connectSocket();
+    socket.emit('admin:join', 'map');
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['map-drivers'] });
+    socket.on('driver:status-changed', refresh);
+    socket.on('driver:location-updated', refresh);
+    socket.on('order:accepted', refresh);
+    socket.on('order:completed', refresh);
+    return () => {
+      socket.off('driver:status-changed', refresh);
+      socket.off('driver:location-updated', refresh);
+      socket.off('order:accepted', refresh);
+      socket.off('order:completed', refresh);
+    };
+  }, []);
 
   const drivers = driversData?.drivers || [];
   const onlineCount = drivers.filter((d: any) => d.status === 'ONLINE').length;
@@ -64,10 +83,9 @@ export default function LiveMapPage() {
       attribution: '© OpenStreetMap',
     }).addTo(map);
 
-    // Driver markers - car icons with color-coded status
-    drivers
-      .filter((d: any) => d.latitude && d.longitude)
-      .forEach((driver: any) => {
+    const driversWithCoords = drivers.filter((d: any) => d.latitude && d.longitude);
+
+    driversWithCoords.forEach((driver: any) => {
         const color = driver.status === 'ONLINE' ? '#22c55e'
           : driver.status === 'BUSY' ? '#ef4444'
           : driver.status === 'BUSY_PERSONAL' ? '#f59e0b'
@@ -85,6 +103,12 @@ export default function LiveMapPage() {
         L.marker([driver.latitude, driver.longitude], { icon }).addTo(map)
           .bindPopup(`<div style="font-family:sans-serif;min-width:140px"><b>${driver.firstName} ${driver.lastName}</b>${driver.callsign ? `<br><span style="color:#ef4444;font-weight:700">Позывной: ${driver.callsign}</span>` : ''}<br>${driver.phone || ''}<br>${driver.vehicle ? `${driver.vehicle.brand} ${driver.vehicle.model}<br><b>${driver.vehicle.plateNumber}</b>` : ''}<br><span style="color:${color};font-weight:700">${statusLabel}${offlineTime}</span></div>`);
       });
+
+    // Auto-fit map to show all drivers
+    if (driversWithCoords.length > 0) {
+      const bounds = L.latLngBounds(driversWithCoords.map((d: any) => [d.latitude, d.longitude]));
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    }
 
     setTimeout(() => map.invalidateSize(), 300);
     return () => { map.remove(); mapRef.current = null; };
