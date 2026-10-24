@@ -122,13 +122,20 @@ export default function DispatcherPage() {
       const { data } = await api.get('/orders', { params: { limit: 50 } });
       return data;
     },
-    refetchInterval: 5000,
+    refetchInterval: 3000, // poll every 3s — reliable fallback
   });
 
   // Realtime socket updates — заказ кабыл алынса/бүтсө дароо жаңырсын
   useEffect(() => {
     const socket = connectSocket();
-    socket.emit('admin:join', 'dispatcher');
+
+    // Join admin room (belt-and-suspenders — layout also does this)
+    const adminInfo = typeof window !== 'undefined' ? localStorage.getItem('adminInfo') : null;
+    const adminId = adminInfo ? JSON.parse(adminInfo || '{}').id || 'admin' : 'admin';
+    socket.emit('admin:join', adminId);
+    // Re-join on reconnect
+    const rejoin = () => socket.emit('admin:join', adminId);
+    socket.on('connect', rejoin);
 
     const refresh = () => queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
 
@@ -147,6 +154,7 @@ export default function DispatcherPage() {
     });
 
     return () => {
+      socket.off('connect', rejoin);
       socket.off('order:accepted', refresh);
       socket.off('order:completed', refresh);
       socket.off('order:cancelled', refresh);

@@ -58,7 +58,7 @@ function DriverHeaderBalance() {
       }
     };
     fetchBalance();
-    const iv = setInterval(fetchBalance, 60000); // 60s — not 30s
+    const iv = setInterval(fetchBalance, 5000); // every 5s for reliability
 
     // Realtime balance update via socket
     const socket = connectSocket();
