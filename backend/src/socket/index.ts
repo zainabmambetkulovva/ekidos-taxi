@@ -179,6 +179,16 @@ export function setupSocketHandlers(io: Server) {
           data: { status: 'BUSY' },
         });
 
+        // Деduct commission immediately on accept
+        const commission = getCommissionAmount();
+        const freshDriver = await prisma.driver.findUnique({ where: { id: data.driverId }, select: { balance: true } });
+        const newBalance = Math.max(0, (freshDriver?.balance || 0) - commission);
+        await prisma.driver.update({
+          where: { id: data.driverId },
+          data: { balance: newBalance },
+        });
+        io.to(`driver:${data.driverId}`).emit('balance:updated', { balance: newBalance });
+
         // Notify all drivers to remove this order
         io.emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
         io.to('admin-room').emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
@@ -214,24 +224,16 @@ export function setupSocketHandlers(io: Server) {
       try {
         const order = await prisma.order.update({
           where: { id: data.orderId },
-          data: {
-            status: 'COMPLETED',
-            completedAt: new Date(),
-          },
+          data: { status: 'COMPLETED', completedAt: new Date() },
         });
 
-        // Убакытка жараша комиссия: кундузу 12 сом, түнкүсү 14 сом
-        const commissionAmount = getCommissionAmount();
-        const driverData = await prisma.driver.findUnique({ where: { id: data.driverId } });
-        const newBalance = Math.max(0, (driverData?.balance || 0) - commissionAmount);
-
+        // Баланс accept'те чегерилди — complete'та статус жана статистика гана жаңыртылат
         await prisma.driver.update({
           where: { id: data.driverId },
           data: {
             status: 'ONLINE',
             totalOrders: { increment: 1 },
             totalEarnings: { increment: order.price },
-            balance: newBalance,
           },
         });
 

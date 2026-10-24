@@ -59,7 +59,28 @@ function DriverHeaderBalance() {
     };
     fetchBalance();
     const iv = setInterval(fetchBalance, 60000); // 60s — not 30s
-    return () => clearInterval(iv);
+
+    // Realtime balance update via socket
+    const socket = connectSocket();
+    const handleBalanceUpdate = (data: { balance: number }) => {
+      if (typeof data.balance === 'number') {
+        setBalance(data.balance);
+        try {
+          const info = localStorage.getItem('driverInfo');
+          if (info) {
+            const parsed = JSON.parse(info);
+            parsed.balance = data.balance;
+            localStorage.setItem('driverInfo', JSON.stringify(parsed));
+          }
+        } catch {}
+      }
+    };
+    socket.on('balance:updated', handleBalanceUpdate);
+
+    return () => {
+      clearInterval(iv);
+      socket.off('balance:updated', handleBalanceUpdate);
+    };
   }, []);
 
   if (balance === null) return null;

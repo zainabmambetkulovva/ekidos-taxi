@@ -564,6 +564,16 @@ router.patch('/:id/accept', async (req, res) => {
             where: { id: driverId },
             data: { status: 'BUSY' },
         });
+        // Деduct commission immediately on accept
+        const commission = (0, tariff_1.getCommissionAmount)();
+        const freshDriver = await server_1.prisma.driver.findUnique({ where: { id: driverId }, select: { balance: true } });
+        const newBalance = Math.max(0, (freshDriver?.balance || 0) - commission);
+        await server_1.prisma.driver.update({
+            where: { id: driverId },
+            data: { balance: newBalance },
+        });
+        // Update localStorage balance via socket so driver sees it immediately
+        server_2.io.to(`driver:${driverId}`).emit('balance:updated', { balance: newBalance });
         // Notify all to remove this order
         server_2.io.emit('order:taken', { orderId: id, driverId });
         server_2.io.to('admin-room').emit('order:taken', { orderId: id, driverId });
@@ -602,17 +612,13 @@ router.patch('/:id/complete', auth_middleware_1.authenticateToken, async (req, r
             },
         });
         if (updated.driverId) {
-            // Деduct commission from balance: 12 сом кундузу (06:00-00:00), 14 сом түнкүсү (00:00-06:00)
-            const commissionAmount = (0, tariff_1.getCommissionAmount)();
-            const driver = await server_1.prisma.driver.findUnique({ where: { id: updated.driverId } });
-            const newBalance = Math.max(0, (driver?.balance || 0) - commissionAmount);
+            // Баланс accept'те чегерилди — complete'та статус жана статистика гана
             await server_1.prisma.driver.update({
                 where: { id: updated.driverId },
                 data: {
                     status: 'ONLINE',
                     totalOrders: { increment: 1 },
                     totalEarnings: { increment: updated.driverEarning || finalPrice },
-                    balance: newBalance,
                 },
             });
         }

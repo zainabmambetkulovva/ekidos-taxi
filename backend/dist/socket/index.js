@@ -150,6 +150,15 @@ function setupSocketHandlers(io) {
                     where: { id: data.driverId },
                     data: { status: 'BUSY' },
                 });
+                // Деduct commission immediately on accept
+                const commission = (0, tariff_1.getCommissionAmount)();
+                const freshDriver = await server_1.prisma.driver.findUnique({ where: { id: data.driverId }, select: { balance: true } });
+                const newBalance = Math.max(0, (freshDriver?.balance || 0) - commission);
+                await server_1.prisma.driver.update({
+                    where: { id: data.driverId },
+                    data: { balance: newBalance },
+                });
+                io.to(`driver:${data.driverId}`).emit('balance:updated', { balance: newBalance });
                 // Notify all drivers to remove this order
                 io.emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
                 io.to('admin-room').emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
@@ -182,22 +191,15 @@ function setupSocketHandlers(io) {
             try {
                 const order = await server_1.prisma.order.update({
                     where: { id: data.orderId },
-                    data: {
-                        status: 'COMPLETED',
-                        completedAt: new Date(),
-                    },
+                    data: { status: 'COMPLETED', completedAt: new Date() },
                 });
-                // Убакытка жараша комиссия: кундузу 12 сом, түнкүсү 14 сом
-                const commissionAmount = (0, tariff_1.getCommissionAmount)();
-                const driverData = await server_1.prisma.driver.findUnique({ where: { id: data.driverId } });
-                const newBalance = Math.max(0, (driverData?.balance || 0) - commissionAmount);
+                // Баланс accept'те чегерилди — complete'та статус жана статистика гана жаңыртылат
                 await server_1.prisma.driver.update({
                     where: { id: data.driverId },
                     data: {
                         status: 'ONLINE',
                         totalOrders: { increment: 1 },
                         totalEarnings: { increment: order.price },
-                        balance: newBalance,
                     },
                 });
                 io.to('admin-room').emit('order:completed', order);
