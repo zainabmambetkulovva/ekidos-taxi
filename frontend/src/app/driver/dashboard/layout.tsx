@@ -62,6 +62,17 @@ function DriverHeaderBalance() {
 
     // Realtime balance update via socket
     const socket = connectSocket();
+
+    // Make sure driver is in their room to receive balance:updated
+    try {
+      const info = localStorage.getItem('driverInfo');
+      const driverId = info ? JSON.parse(info).id : null;
+      if (driverId) {
+        socket.emit('driver:join', driverId);
+        socket.on('connect', () => socket.emit('driver:join', driverId));
+      }
+    } catch {}
+
     const handleBalanceUpdate = (data: { balance: number }) => {
       if (typeof data.balance === 'number') {
         setBalance(data.balance);
@@ -80,6 +91,7 @@ function DriverHeaderBalance() {
     return () => {
       clearInterval(iv);
       socket.off('balance:updated', handleBalanceUpdate);
+      socket.off('connect');
     };
   }, []);
 
