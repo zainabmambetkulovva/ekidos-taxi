@@ -230,15 +230,17 @@ model Settings {
 }
 
 model TopupRequest {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   driverId    String
-  telegramId  BigInt
-  driverName  String
+  telegramId  BigInt?
+  driverName  String?
   photoUrl    String?
   amount      Float?
-  status      String   @default("PENDING")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String    @default("PENDING")
+  note        String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
 

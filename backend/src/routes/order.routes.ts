@@ -567,8 +567,16 @@ router.patch('/:id/accept', async (req: Request, res: Response) => {
     // Check driver balance before accepting
     const driverCheck = await prisma.driver.findUnique({ where: { id: driverId } });
     if (!driverCheck) return res.status(404).json({ error: 'Driver not found' });
-    if ((driverCheck.balance || 0) < 20) {
-      return res.status(400).json({ error: 'Балансыңыз жетишсиз (20 баланс керек)' });
+
+    // Threshold: кундузу 12 сом, түнкүсү 14 сом (UTC+6)
+    const minBalance = getCommissionAmount();
+    if ((driverCheck.balance || 0) < minBalance) {
+      return res.status(400).json({
+        error: `Балансыңыз жетишсиз. Кеминде ${minBalance} сом болушу керек. Азыр: ${driverCheck.balance} сом`,
+        balanceLow: true,
+        required: minBalance,
+        current: driverCheck.balance,
+      });
     }
 
     // Check driver does NOT already have an active order
@@ -614,6 +622,16 @@ router.patch('/:id/accept', async (req: Request, res: Response) => {
 
     // Update localStorage balance via socket so driver sees it immediately
     io.to(`driver:${driverId}`).emit('balance:updated', { balance: newBalance });
+
+    // Warn driver if balance is getting low after deduction
+    const nextMin = getCommissionAmount();
+    if (newBalance < nextMin) {
+      io.to(`driver:${driverId}`).emit('balance:low', {
+        balance: newBalance,
+        required: nextMin,
+        message: `Балансыңыз аз калды: ${newBalance} сом. Толуктаңыз!`,
+      });
+    }
 
     // Notify all to remove this order
     io.emit('order:taken', { orderId: id, driverId });

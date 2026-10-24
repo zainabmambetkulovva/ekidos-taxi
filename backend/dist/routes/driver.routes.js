@@ -396,34 +396,49 @@ router.patch('/:id/reset-password', auth_middleware_1.authenticateToken, (0, aut
 });
 // Direct balance topup by admin (no topup request needed)
 router.patch('/:id/balance', auth_middleware_1.authenticateToken, async (req, res) => {
-    // Must be authenticated admin/dispatcher — not a driver
     if (!req.user || req.user.role === 'DRIVER') {
         return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
     }
     try {
         const id = req.params.id;
         const { amount, setBalance } = req.body;
+        let driver;
         // setBalance — absolute value set (admin reset)
         if (setBalance !== undefined) {
-            const driver = await server_1.prisma.driver.update({
+            driver = await server_1.prisma.driver.update({
                 where: { id },
                 data: { balance: Number(setBalance) },
             });
-            return res.json({ success: true, driverName: `${driver.firstName} ${driver.lastName}`, callsign: driver.callsign, newBalance: driver.balance });
         }
-        if (!amount || amount <= 0) {
-            return res.status(400).json({ error: 'Valid amount is required' });
+        else {
+            if (!amount || amount <= 0) {
+                return res.status(400).json({ error: 'Valid amount is required' });
+            }
+            driver = await server_1.prisma.driver.update({
+                where: { id },
+                data: { balance: { increment: amount } },
+            });
         }
-        const driver = await server_1.prisma.driver.update({
-            where: { id },
-            data: { balance: { increment: amount } },
-        });
+        // Notify driver in realtime via socket
+        server_2.io.to(`driver:${id}`).emit('balance:updated', { balance: driver.balance });
+        // Save topup to TopupRequest history
+        try {
+            await server_1.prisma.topupRequest.create({
+                data: {
+                    driverId: id,
+                    amount: amount || setBalance || 0,
+                    status: 'APPROVED',
+                    note: `Админ тарабынан кошулду`,
+                },
+            });
+        }
+        catch { }
         return res.json({
             success: true,
             driverName: `${driver.firstName} ${driver.lastName}`,
             callsign: driver.callsign,
             newBalance: driver.balance,
-            amount,
+            amount: amount || setBalance,
         });
     }
     catch (error) {

@@ -424,7 +424,6 @@ router.patch('/:id/reset-password', authenticateToken, authorizeRoles('ADMIN', '
 
 // Direct balance topup by admin (no topup request needed)
 router.patch('/:id/balance', authenticateToken, async (req: AuthRequest, res: Response) => {
-  // Must be authenticated admin/dispatcher — not a driver
   if (!req.user || req.user.role === 'DRIVER') {
     return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
   }
@@ -432,30 +431,45 @@ router.patch('/:id/balance', authenticateToken, async (req: AuthRequest, res: Re
     const id = req.params.id as string;
     const { amount, setBalance } = req.body;
 
+    let driver;
+
     // setBalance — absolute value set (admin reset)
     if (setBalance !== undefined) {
-      const driver = await prisma.driver.update({
+      driver = await prisma.driver.update({
         where: { id },
         data: { balance: Number(setBalance) },
       });
-      return res.json({ success: true, driverName: `${driver.firstName} ${driver.lastName}`, callsign: driver.callsign, newBalance: driver.balance });
+    } else {
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Valid amount is required' });
+      }
+      driver = await prisma.driver.update({
+        where: { id },
+        data: { balance: { increment: amount } },
+      });
     }
 
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ error: 'Valid amount is required' });
-    }
+    // Notify driver in realtime via socket
+    io.to(`driver:${id}`).emit('balance:updated', { balance: driver.balance });
 
-    const driver = await prisma.driver.update({
-      where: { id },
-      data: { balance: { increment: amount } },
-    });
+    // Save topup to TopupRequest history
+    try {
+      await prisma.topupRequest.create({
+        data: {
+          driverId: id,
+          amount: amount || setBalance || 0,
+          status: 'APPROVED',
+          note: `Админ тарабынан кошулду`,
+        },
+      });
+    } catch {}
 
     return res.json({
       success: true,
       driverName: `${driver.firstName} ${driver.lastName}`,
       callsign: driver.callsign,
       newBalance: driver.balance,
-      amount,
+      amount: amount || setBalance,
     });
   } catch (error) {
     console.error('Direct balance topup error:', error);

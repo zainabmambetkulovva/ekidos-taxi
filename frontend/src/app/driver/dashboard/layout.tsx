@@ -88,9 +88,18 @@ function DriverHeaderBalance() {
     };
     socket.on('balance:updated', handleBalanceUpdate);
 
+    // Low balance warning
+    const handleBalanceLow = (data: { balance: number; required: number; message: string }) => {
+      import('sonner').then(({ toast }) => {
+        toast.warning(`⚠️ ${data.message}`, { duration: 8000 });
+      });
+    };
+    socket.on('balance:low', handleBalanceLow);
+
     return () => {
       clearInterval(iv);
       socket.off('balance:updated', handleBalanceUpdate);
+      socket.off('balance:low', handleBalanceLow);
       socket.off('connect');
     };
   }, []);

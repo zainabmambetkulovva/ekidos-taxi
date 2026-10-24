@@ -189,6 +189,16 @@ export function setupSocketHandlers(io: Server) {
         });
         io.to(`driver:${data.driverId}`).emit('balance:updated', { balance: newBalance });
 
+        // Warn if balance low
+        const nextMin = getCommissionAmount();
+        if (newBalance < nextMin) {
+          io.to(`driver:${data.driverId}`).emit('balance:low', {
+            balance: newBalance,
+            required: nextMin,
+            message: `Балансыңыз аз калды: ${newBalance} сом. Толуктаңыз!`,
+          });
+        }
+
         // Notify all drivers to remove this order
         io.emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
         io.to('admin-room').emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
