@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setupSocketHandlers = setupSocketHandlers;
 const server_1 = require("../server");
-const tariff_1 = require("../lib/tariff");
+const orders_1 = require("../lib/orders");
 // Safe import — if push module fails, socket still works
 let sendPushToAllOnlineDrivers = async () => 0;
 try {
@@ -38,32 +38,27 @@ function setupSocketHandlers(io) {
             socket.join('admin-room');
             console.log(`👨‍💼 Admin ${adminId} joined`);
         });
-        // Driver location update
+        // Driver location update — 1 запрос, 1 broadcast
         socket.on('driver:location', async (data) => {
             try {
-                await server_1.prisma.driver.update({
+                if (!data?.driverId || typeof data.lat !== 'number' || typeof data.lng !== 'number')
+                    return;
+                const driver = await server_1.prisma.driver.update({
                     where: { id: data.driverId },
                     data: {
                         latitude: data.lat,
                         longitude: data.lng,
                         lastLocationUpdate: new Date(),
                     },
-                });
-                // Fetch driver status/name for broadcast
-                const driver = await server_1.prisma.driver.findUnique({
-                    where: { id: data.driverId },
                     select: { status: true, firstName: true, lastName: true, callsign: true },
                 });
-                const broadcastData = {
+                // Админ жана башка водительдер (io.emit admin-room'ду да камтыйт)
+                io.emit('driver:location-updated', {
                     ...data,
-                    status: driver?.status || 'ONLINE',
-                    name: driver ? `${driver.firstName} ${driver.lastName}` : '',
-                    callsign: driver?.callsign || '',
-                };
-                // Broadcast to admin room
-                io.to('admin-room').emit('driver:location-updated', broadcastData);
-                // Broadcast to ALL connected clients (other drivers see each other)
-                io.emit('driver:location-updated', broadcastData);
+                    status: driver.status,
+                    name: `${driver.firstName} ${driver.lastName}`,
+                    callsign: driver.callsign || '',
+                });
                 // Broadcast to all clients watching this driver (via active order)
                 io.emit('driver:location-live', { driverId: data.driverId, lat: data.lat, lng: data.lng });
             }
@@ -77,18 +72,19 @@ function setupSocketHandlers(io) {
                 // Map BUSY_PERSONAL to BUSY_PERSONAL in DB, rest as before
                 const validStatuses = ['ONLINE', 'OFFLINE', 'BUSY', 'BUSY_PERSONAL'];
                 const status = validStatuses.includes(data.status) ? data.status : 'OFFLINE';
-                await server_1.prisma.driver.update({
-                    where: { id: data.driverId },
-                    data: { status: status },
-                });
-                await server_1.prisma.driverStatusLog.create({
-                    data: {
-                        driverId: data.driverId,
-                        status: status,
-                    },
-                });
-                io.to('admin-room').emit('driver:status-changed', { ...data, status });
-                // Broadcast to all drivers so they see updated status on map
+                await Promise.all([
+                    server_1.prisma.driver.update({
+                        where: { id: data.driverId },
+                        data: { status: status },
+                    }),
+                    server_1.prisma.driverStatusLog.create({
+                        data: {
+                            driverId: data.driverId,
+                            status: status,
+                        },
+                    }),
+                ]);
+                // Admin + бардык водительдер картада дароо көрсүн
                 io.emit('driver:status-changed', { ...data, status });
                 io.to('admin-room').emit('notification', {
                     title: status === 'ONLINE' ? 'Линияга чыкты' :
@@ -126,61 +122,12 @@ function setupSocketHandlers(io) {
                 console.error('Push notification error:', err);
             });
         });
-        // Driver accepts order
+        // Driver accepts order (HTTP менен бирдей логика — атомдук, баланс текшерилет)
         socket.on('order:accept', async (data) => {
             try {
-                // Check driver does NOT already have an active order
-                const activeOrder = await server_1.prisma.order.findFirst({
-                    where: { driverId: data.driverId, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
-                });
-                if (activeOrder) {
-                    socket.emit('order:accept-error', { error: 'Алгачкы заказды бүтүрүңүз, анан жаңы заказ алыңыз' });
-                    return;
-                }
-                const order = await server_1.prisma.order.update({
-                    where: { id: data.orderId },
-                    data: {
-                        driverId: data.driverId,
-                        status: 'ASSIGNED',
-                        assignedAt: new Date(),
-                    },
-                    include: { driver: true },
-                });
-                await server_1.prisma.driver.update({
-                    where: { id: data.driverId },
-                    data: { status: 'BUSY' },
-                });
-                // Деduct commission immediately on accept
-                const commission = (0, tariff_1.getCommissionAmount)();
-                const freshDriver = await server_1.prisma.driver.findUnique({ where: { id: data.driverId }, select: { balance: true } });
-                const newBalance = Math.max(0, (freshDriver?.balance || 0) - commission);
-                await server_1.prisma.driver.update({
-                    where: { id: data.driverId },
-                    data: { balance: newBalance },
-                });
-                io.to(`driver:${data.driverId}`).emit('balance:updated', { balance: newBalance });
-                // Warn if balance low
-                const nextMin = (0, tariff_1.getCommissionAmount)();
-                if (newBalance < nextMin) {
-                    io.to(`driver:${data.driverId}`).emit('balance:low', {
-                        balance: newBalance,
-                        required: nextMin,
-                        message: `Балансыңыз аз калды: ${newBalance} сом. Толуктаңыз!`,
-                    });
-                }
-                // Notify all drivers to remove this order
-                io.emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
-                io.to('admin-room').emit('order:taken', { orderId: data.orderId, driverId: data.driverId });
-                // Notify client who placed this order (broadcast with order details + driver info)
-                io.emit('order:accepted', order);
-                // Notify admin — full order object so dispatcher can update status immediately
-                io.to('admin-room').emit('order:accepted', order);
-                io.to('admin-room').emit('order:status-changed', { orderId: order.id, status: 'ASSIGNED', order });
-                io.to('admin-room').emit('notification', {
-                    title: 'Заказ кабыл алынды',
-                    message: `#${order.orderNumber} — ${order.driver?.firstName} ${order.driver?.lastName}`,
-                    type: 'order_accepted',
-                });
+                const result = await (0, orders_1.acceptOrder)(data?.orderId, data?.driverId);
+                if (!result.ok)
+                    socket.emit('order:accept-error', result.body);
             }
             catch (error) {
                 console.error('Order accept error:', error);
@@ -188,6 +135,8 @@ function setupSocketHandlers(io) {
         });
         // Driver rejects order
         socket.on('order:reject', (data) => {
+            if (data?.orderId && data?.driverId)
+                (0, orders_1.rejectOffer)(data.orderId, data.driverId);
             io.to('admin-room').emit('order:rejected', data);
             io.to('admin-room').emit('notification', {
                 title: 'Order Rejected',
@@ -198,21 +147,9 @@ function setupSocketHandlers(io) {
         // Order completed
         socket.on('order:complete', async (data) => {
             try {
-                const order = await server_1.prisma.order.update({
-                    where: { id: data.orderId },
-                    data: { status: 'COMPLETED', completedAt: new Date() },
-                });
-                // Баланс accept'те чегерилди — complete'та статус жана статистика гана жаңыртылат
-                await server_1.prisma.driver.update({
-                    where: { id: data.driverId },
-                    data: {
-                        status: 'ONLINE',
-                        totalOrders: { increment: 1 },
-                        totalEarnings: { increment: order.price },
-                    },
-                });
-                io.to('admin-room').emit('order:completed', order);
-                io.to(`driver:${data.driverId}`).emit('order:completed-confirmation', order);
+                const result = await (0, orders_1.completeOrder)(data?.orderId);
+                if (result.ok)
+                    io.to(`driver:${data.driverId}`).emit('order:completed-confirmation', result.order);
             }
             catch (error) {
                 console.error('Order complete error:', error);
@@ -228,10 +165,10 @@ function setupSocketHandlers(io) {
                 });
                 if (!order || !driver)
                     return;
-                // Update order - mark arrived time for 2-min free wait tracking
+                // Mark arrived time for 2-min free wait tracking (assignedAt — кабыл алган убакыт сакталат)
                 await server_1.prisma.order.update({
                     where: { id: data.orderId },
-                    data: { assignedAt: new Date() }, // reuse assignedAt as arrivedAt
+                    data: { arrivedAt: new Date() },
                 });
                 // Emit to ALL connected clients (they filter by orderId)
                 io.emit('driver:arrived', {
@@ -373,7 +310,6 @@ function setupSocketHandlers(io) {
                                 data: { driverId, status: 'OFFLINE' },
                             });
                             // Notify admin and other drivers
-                            io.to('admin-room').emit('driver:status-changed', { driverId, status: 'OFFLINE' });
                             io.emit('driver:status-changed', { driverId, status: 'OFFLINE' });
                             io.to('admin-room').emit('notification', {
                                 title: 'Автоматтык оффлайн',

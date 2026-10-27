@@ -19,6 +19,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
   const orderMarkersRef = useRef<any[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const initedRef = useRef(false);
+  const lastHttpSentRef = useRef(0);
 
   // Load Leaflet CSS and JS once
   useEffect(() => {
@@ -122,7 +123,11 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
 
         // Don't auto-pan - only pan when location button is pressed
 
-        // Send location to backend via HTTP
+        // Send location to backend via HTTP — 15 сек сайын гана (socket негизги канал).
+        // Ар бир GPS өзгөрүүсүндө жиберүү серверди жүктөп, баарын жайлатчу.
+        const nowTs = Date.now();
+        if (nowTs - lastHttpSentRef.current < 15000) return;
+        lastHttpSentRef.current = nowTs;
         try {
           const driverInfo = localStorage.getItem('driverInfo');
           const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
@@ -312,7 +317,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
       switch (status) {
         case 'BUSY': return '#ef4444';         // кызыл — заказда
         case 'ONLINE': return '#22c55e';        // жашыл — бош
-        case 'BUSY_PERSONAL': return '#f59e0b'; // сары — занят
+        case 'BUSY_PERSONAL': return '#f97316'; // оранжевый — занят
         default: return '#6b7280';              // боз — оффлайн
       }
     };

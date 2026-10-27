@@ -145,9 +145,20 @@ export default function DriverOrdersPage() {
       const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
       if (!driverId) { toast.error('Кирүү керек'); return; }
 
-      await api.patch(`/orders/${order.id}/accept`, { driverId });
-      setActiveOrder(order);
+      const { data } = await api.patch(`/orders/${order.id}/accept`, { driverId });
+      setActiveOrder(data || order);
       setOrders([]);
+      if (typeof data?.newBalance === 'number') {
+        try {
+          const info = localStorage.getItem('driverInfo');
+          if (info) {
+            const parsed = JSON.parse(info);
+            parsed.balance = data.newBalance;
+            localStorage.setItem('driverInfo', JSON.stringify(parsed));
+          }
+        } catch {}
+        window.dispatchEvent(new CustomEvent('driverBalance', { detail: data.newBalance }));
+      }
       toast.success('Заказ принят! Направляйтесь к клиенту.');
       router.push('/driver/dashboard');
     } catch (error: any) {

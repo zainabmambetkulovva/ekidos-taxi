@@ -45,7 +45,6 @@ const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const client_1 = require("@prisma/client");
-const tariff_1 = require("./lib/tariff");
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const driver_routes_1 = __importDefault(require("./routes/driver.routes"));
 const order_routes_1 = __importDefault(require("./routes/order.routes"));
@@ -59,6 +58,7 @@ const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
 const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
 const dm_routes_1 = __importDefault(require("./routes/dm.routes"));
 const socket_1 = require("./socket");
+const orders_1 = require("./lib/orders");
 dotenv_1.default.config();
 // BigInt JSON serialization support
 BigInt.prototype.toJSON = function () {
@@ -85,7 +85,13 @@ const loginLimiter = (0, express_rate_limit_1.default)({
 });
 app.use('/api/auth/admin/login', loginLimiter);
 app.use('/api/auth/driver/login', loginLimiter);
-app.use('/api', (0, express_rate_limit_1.default)({ windowMs: 60 * 1000, max: 100 }));
+// Көп водитель бир мобилдик IP'ден (NAT) чыгат жана GPS тез-тез жиберилет —
+// 100/мүн чеги 429 ката берип, баарын жайлатчу. Чекти көтөрдүк, GPS'ти чектен чыгардык.
+app.use('/api', (0, express_rate_limit_1.default)({
+    windowMs: 60 * 1000,
+    max: 2000,
+    skip: (req) => req.method === 'PATCH' && /^\/drivers\/[^/]+\/location$/.test(req.path),
+}));
 app.use(express_1.default.json({ limit: '50mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
 // Routes
@@ -156,11 +162,14 @@ app.patch('/api/topup/:id/approve', async (req, res) => {
             return res.status(404).json({ error: 'Request not found' });
         if (request.status !== 'PENDING')
             return res.status(400).json({ error: 'Already processed' });
-        await exports.prisma.topupRequest.update({ where: { id: id }, data: { status: 'APPROVED', amount } });
-        const driver = await exports.prisma.driver.update({
-            where: { id: request.driverId },
-            data: { balance: { increment: amount } },
-        });
+        const [, driver] = await Promise.all([
+            exports.prisma.topupRequest.update({ where: { id: id }, data: { status: 'APPROVED', amount } }),
+            exports.prisma.driver.update({
+                where: { id: request.driverId },
+                data: { balance: { increment: amount } },
+            }),
+        ]);
+        exports.io.to(`driver:${driver.id}`).emit('balance:updated', { balance: driver.balance });
         return res.json({ success: true, driverName: `${driver.firstName} ${driver.lastName}`, newBalance: driver.balance, amount });
     }
     catch (error) {
@@ -449,114 +458,9 @@ app.get('/api/health', async (_, res) => {
 (0, socket_1.setupSocketHandlers)(exports.io);
 const PORT = parseInt(process.env.PORT || '5000', 10);
 // ===== PENDING ORDER REASSIGNMENT ENGINE =====
-// Every 5 seconds: find PENDING orders with no active assignment chain, dispatch to ONLINE drivers
-// Tracks which orders are already being dispatched to avoid duplicate chains
-const activeDispatchOrders = new Set();
-async function dispatchPendingOrders() {
-    try {
-        const pendingOrders = await exports.prisma.order.findMany({
-            where: { status: 'PENDING' },
-            orderBy: { createdAt: 'asc' },
-        });
-        if (pendingOrders.length === 0)
-            return;
-        const onlineDrivers = await exports.prisma.driver.findMany({
-            where: { status: 'ONLINE', accountStatus: 'ACTIVE' }, // Only ONLINE, not BUSY
-            select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true },
-        });
-        if (onlineDrivers.length === 0)
-            return;
-        // Filter out drivers who already have an active order
-        const busyDriverIds = (await exports.prisma.order.findMany({
-            where: { status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
-            select: { driverId: true },
-        })).map(o => o.driverId).filter(Boolean);
-        const freeDrivers = onlineDrivers.filter(d => !busyDriverIds.includes(d.id));
-        if (freeDrivers.length === 0)
-            return;
-        for (const order of pendingOrders) {
-            // Skip if already being dispatched
-            if (activeDispatchOrders.has(order.id))
-                continue;
-            activeDispatchOrders.add(order.id);
-            console.log(`🔄 Re-dispatching PENDING order #${order.orderNumber} to ${onlineDrivers.length} drivers`);
-            const candidates = freeDrivers.map(d => {
-                let dist = 999;
-                if (d.latitude && d.longitude && order.pickupLat && order.pickupLng) {
-                    const R = 6371;
-                    const dLat = (order.pickupLat - d.latitude) * Math.PI / 180;
-                    const dLng = (order.pickupLng - d.longitude) * Math.PI / 180;
-                    const a = Math.sin(dLat / 2) ** 2 + Math.cos(d.latitude * Math.PI / 180) * Math.cos(order.pickupLat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-                    dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                }
-                return { ...d, distance: dist };
-            }).sort((a, b) => a.distance - b.distance);
-            // Only send to nearby drivers (within 5km), skip if all far
-            const nearCandidates = candidates.filter(d => d.distance <= 5);
-            const toDispatch = nearCandidates.length > 0 ? nearCandidates : candidates;
-            // Pick a random driver and send fullscreen order
-            let triedDrivers = [];
-            function assignToNext() {
-                const remaining = toDispatch.filter(d => !triedDrivers.includes(d.id));
-                if (remaining.length === 0) {
-                    activeDispatchOrders.delete(order.id);
-                    return;
-                }
-                const selected = remaining[Math.floor(Math.random() * remaining.length)];
-                triedDrivers.push(selected.id);
-                // Skip if driver became BUSY since we fetched the list
-                exports.prisma.driver.findUnique({ where: { id: selected.id }, select: { status: true } })
-                    .then(freshDriver => {
-                    if (freshDriver && freshDriver.status !== 'ONLINE') {
-                        assignToNext();
-                        return;
-                    }
-                    exports.io.to(`driver:${selected.id}`).emit('order:incoming', {
-                        ...order,
-                        assignedDriverId: selected.id,
-                        distanceMeters: 0,
-                        timeoutSeconds: 20,
-                    });
-                    exports.io.to('admin-room').emit('notification', {
-                        title: 'Заказ кайра жөнөтүлдү',
-                        message: `#${order.orderNumber} → ${selected.firstName} — 20 сек`,
-                        type: 'auto_assigned',
-                    });
-                    const t = setTimeout(async () => {
-                        try {
-                            const fresh = await exports.prisma.order.findUnique({ where: { id: order.id } });
-                            if (fresh && fresh.status === 'PENDING') {
-                                exports.io.to(`driver:${selected.id}`).emit('order:expired', { orderId: order.id });
-                                assignToNext();
-                            }
-                            else {
-                                activeDispatchOrders.delete(order.id);
-                            }
-                        }
-                        catch {
-                            activeDispatchOrders.delete(order.id);
-                        }
-                    }, 20000);
-                    const cleanupHandler = (data) => {
-                        if (data.orderId === order.id) {
-                            clearTimeout(t);
-                            activeDispatchOrders.delete(order.id);
-                            exports.io.off('order:accepted', cleanupHandler);
-                        }
-                    };
-                    exports.io.on('order:accepted', cleanupHandler);
-                })
-                    .catch(() => assignToNext());
-            }
-            assignToNext();
-        }
-    }
-    catch (e) {
-        console.error('dispatchPendingOrders error:', e);
-    }
-}
-// Run every 5 seconds
-setInterval(dispatchPendingOrders, 5000);
+// Every 5 seconds: PENDING заказдарды бош водительдерге кайра сунуштайт (lib/orders.ts).
+// Позывной менен берилген заказ ошол водительге гана кетет.
+setInterval(orders_1.dispatchPendingOrders, 5000);
 // ===== END PENDING ORDER REASSIGNMENT ENGINE =====
 // ===== AUTO CLEANUP: stuck orders + blocked drivers =====
 async function autoCleanup() {
@@ -571,25 +475,26 @@ async function autoCleanup() {
             select: { id: true, orderNumber: true, driverId: true },
         });
         for (const order of stuckOrders) {
-            await exports.prisma.order.update({
+            const updated = await exports.prisma.order.update({
                 where: { id: order.id },
                 data: { status: 'COMPLETED', completedAt: new Date() },
             });
-            // Деduct commission from driver balance
+            // Комиссия accept'те алынган — бул жерде кайра АЛЫНБАЙТ (мурун эки жолу алынып калчу)
             if (order.driverId) {
-                const commission = (0, tariff_1.getCommissionAmount)();
-                const driver = await exports.prisma.driver.findUnique({ where: { id: order.driverId }, select: { balance: true, status: true } });
-                if (driver) {
-                    await exports.prisma.driver.update({
+                await Promise.all([
+                    exports.prisma.driver.update({
                         where: { id: order.driverId },
-                        data: {
-                            balance: Math.max(0, (driver.balance || 0) - commission),
-                            status: driver.status === 'BUSY' ? 'ONLINE' : driver.status,
-                            totalOrders: { increment: 1 },
-                        },
-                    });
-                }
+                        data: { totalOrders: { increment: 1 } },
+                    }),
+                    exports.prisma.driver.updateMany({
+                        where: { id: order.driverId, status: 'BUSY' },
+                        data: { status: 'ONLINE' },
+                    }),
+                ]);
+                exports.io.to(`driver:${order.driverId}`).emit('order:completed', updated);
+                exports.io.emit('driver:status-changed', { driverId: order.driverId, status: 'ONLINE' });
             }
+            exports.io.to('admin-room').emit('order:completed', updated);
             console.log(`🧹 Auto-completed stuck order #${order.orderNumber}`);
         }
         // 2. Unblock any drivers whose blockedUntil has passed
@@ -623,6 +528,8 @@ async function ensureOptionsColumn() {
         await exports.prisma.$executeRawUnsafe(`
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS options TEXT[] DEFAULT '{}';
     `);
+        await exports.prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "targetDriverId" TEXT;`);
+        await exports.prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "arrivedAt" TIMESTAMP(3);`);
         console.log('✅ options column ensured');
     }
     catch (e) {

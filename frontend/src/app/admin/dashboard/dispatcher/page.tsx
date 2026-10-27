@@ -262,6 +262,9 @@ export default function DispatcherPage() {
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm font-bold text-red-400">#{order.orderNumber}</span>
                           {getStatusBadge(order.status)}
+                          {order.status === 'PENDING' && order.targetCallsign && (
+                            <Badge variant="info">🎯 {order.targetCallsign} гана</Badge>
+                          )}
                         </div>
                         <div className="flex items-start gap-2 text-sm">
                           <MapPin className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />

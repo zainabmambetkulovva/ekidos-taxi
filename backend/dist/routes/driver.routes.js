@@ -162,13 +162,19 @@ router.post('/', auth_middleware_1.authenticateToken, (0, auth_middleware_1.auth
         const { firstName, lastName, middleName, birthDate, phone, whatsappNumber, passportNumber, passportPhoto, licenseNumber, licensePhoto, techPassportNumber, techPassportPhoto, driverPhoto, notes, accountStatus, vehicleBrand, vehicleModel, vehicleYear, vehicleColor, plateNumber, insuranceNumber, telegramId, callsign, } = req.body;
         if (!phone)
             return res.status(400).json({ error: 'Phone number is required' });
-        const existing = await server_1.prisma.driver.findUnique({ where: { phone } });
+        // Generate unique password for this driver (hash параллель эсептелет)
+        const plainPassword = generatePassword();
+        const [existing, callsignTaken, hashedPassword] = await Promise.all([
+            server_1.prisma.driver.findUnique({ where: { phone }, select: { id: true } }),
+            callsign ? server_1.prisma.driver.findUnique({ where: { callsign }, select: { id: true } }) : Promise.resolve(null),
+            bcrypt_1.default.hash(plainPassword, 10),
+        ]);
         if (existing) {
             return res.status(400).json({ error: 'Водитель с таким номером уже существует' });
         }
-        // Generate unique password for this driver
-        const plainPassword = generatePassword();
-        const hashedPassword = await bcrypt_1.default.hash(plainPassword, 10);
+        if (callsignTaken) {
+            return res.status(400).json({ error: `Позывной ${callsign} уже занят` });
+        }
         const driver = await server_1.prisma.driver.create({
             data: {
                 firstName,
@@ -209,10 +215,15 @@ router.post('/', auth_middleware_1.authenticateToken, (0, auth_middleware_1.auth
             message: `Зарегистрирован ${firstName} ${lastName} — пароль: ${plainPassword}`,
             type: 'new_driver',
         });
-        return res.status(201).json({ ...driver, plainPassword });
+        server_2.io.to('admin-room').emit('driver:created', { id: driver.id });
+        return res.status(201).json(JSON.parse(JSON.stringify({ ...driver, plainPassword }, (_, v) => typeof v === 'bigint' ? v.toString() : v)));
     }
     catch (error) {
         console.error('Create driver error:', error);
+        if (error?.code === 'P2002') {
+            const field = (error.meta?.target || []).join(', ');
+            return res.status(400).json({ error: `Бул маалымат мурунтан бар (${field}): телефон, позывной же мамлекеттик номер кайталанды` });
+        }
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -273,11 +284,17 @@ router.put('/:id', auth_middleware_1.authenticateToken, async (req, res) => {
                 },
             });
         }
+        if (balance !== undefined) {
+            server_2.io.to(`driver:${id}`).emit('balance:updated', { balance: driver.balance });
+        }
         const updated = await server_1.prisma.driver.findUnique({ where: { id }, include: { vehicle: true } });
-        return res.json(updated);
+        return res.json(JSON.parse(JSON.stringify(updated, (_, v) => typeof v === 'bigint' ? v.toString() : v)));
     }
     catch (error) {
         console.error('Update driver error:', error);
+        if (error?.code === 'P2002') {
+            return res.status(400).json({ error: 'Телефон, позывной же мамлекеттик номер башка водительде бар' });
+        }
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -421,18 +438,15 @@ router.patch('/:id/balance', auth_middleware_1.authenticateToken, async (req, re
         }
         // Notify driver in realtime via socket
         server_2.io.to(`driver:${id}`).emit('balance:updated', { balance: driver.balance });
-        // Save topup to TopupRequest history
-        try {
-            await server_1.prisma.topupRequest.create({
-                data: {
-                    driverId: id,
-                    amount: amount || setBalance || 0,
-                    status: 'APPROVED',
-                    note: `Админ тарабынан кошулду`,
-                },
-            });
-        }
-        catch { }
+        // Save topup to TopupRequest history (фондо — жоопту кармабайт)
+        server_1.prisma.topupRequest.create({
+            data: {
+                driverId: id,
+                amount: amount || setBalance || 0,
+                status: 'APPROVED',
+                note: `Админ тарабынан кошулду`,
+            },
+        }).catch(() => { });
         return res.json({
             success: true,
             driverName: `${driver.firstName} ${driver.lastName}`,
@@ -460,6 +474,7 @@ router.patch('/:id/balance-reset', auth_middleware_1.authenticateToken, async (r
             where: { id: req.params.id },
             data: { balance: Number(value) },
         });
+        server_2.io.to(`driver:${driver.id}`).emit('balance:updated', { balance: driver.balance });
         return res.json({ success: true, driverName: `${driver.firstName} ${driver.lastName}`, newBalance: driver.balance });
     }
     catch (e) {

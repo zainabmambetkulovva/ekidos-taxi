@@ -2,91 +2,26 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../server';
 import { io } from '../server';
 import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
-import { calculatePrice, calculateDistance, TARIFFS, COMPANY_COMMISSION, getCommissionAmount } from '../lib/tariff';
-
-// Safe import — if push module fails, orders still work
-let sendPushToAllOnlineDrivers: any = async () => 0;
-try {
-  const pushModule = require('../lib/push');
-  sendPushToAllOnlineDrivers = pushModule.sendPushToAllOnlineDrivers;
-} catch (e) {
-  console.error('Push module failed to load:', e);
-}
+import jwt from 'jsonwebtoken';
+import { calculatePrice, calculateDistance, TARIFFS, COMPANY_COMMISSION } from '../lib/tariff';
+import {
+  SAFE_DRIVER_SELECT, dispatchOrder, stopDispatch, acceptOrder, completeOrder,
+  releaseDriver, findDriverByCallsign,
+} from '../lib/orders';
 
 const router = Router();
 
-// ===== ORDER ASSIGNMENT ENGINE =====
-// Picks a random driver from nearby list, sends fullscreen order
-// If not accepted in 25s → picks next random driver
-// Repeats until all candidates exhausted
-
-function startOrderAssignment(order: any, candidates: any[], ioServer: any) {
-  const triedDrivers: string[] = [];
-  let currentTimeout: NodeJS.Timeout | null = null;
-
-  function assignToNext() {
-    // Filter out already tried drivers
-    const remaining = candidates.filter(d => !triedDrivers.includes(d.id));
-    
-    if (remaining.length === 0) {
-      // All candidates exhausted — notify admin
-      ioServer.to('admin-room').emit('notification', {
-        title: 'Водитель табылган жок',
-        message: `#${order.orderNumber} — бардык жакын водительдер четке кагышты`,
-        type: 'no_drivers',
-      });
-      return;
-    }
-
-    // Pick random from remaining
-    const selected = remaining[Math.floor(Math.random() * remaining.length)];
-    triedDrivers.push(selected.id);
-
-    console.log(`🎯 Order #${order.orderNumber} → Driver ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}m)`);
-
-    // Send FULLSCREEN order to this specific driver only
-    ioServer.to(`driver:${selected.id}`).emit('order:incoming', {
-      ...order,
-      assignedDriverId: selected.id,
-      distanceMeters: Math.round(selected.distance * 1000),
-      timeoutSeconds: 20,
-    });
-
-    // Notify admin
-    ioServer.to('admin-room').emit('notification', {
-      title: 'Заказ жөнөтүлдү',
-      message: `#${order.orderNumber} → ${selected.firstName} (${(selected.distance * 1000).toFixed(0)}м) — 20 сек`,
-      type: 'auto_assigned',
-    });
-
-    // 20 second timeout — if not accepted, try next
-    currentTimeout = setTimeout(async () => {
-      try {
-        const freshOrder = await prisma.order.findUnique({ where: { id: order.id } });
-        if (freshOrder && freshOrder.status === 'PENDING') {
-          // Not accepted — notify this driver that time expired
-          ioServer.to(`driver:${selected.id}`).emit('order:expired', { orderId: order.id });
-          // Try next driver
-          assignToNext();
-        }
-      } catch {}
-    }, 20000);
+// Токен болсо — водительдин id'син кайтарат (милдеттүү эмес авторизация)
+function optionalDriverId(req: Request): string | null {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
+    return decoded?.role === 'DRIVER' ? decoded.id : null;
+  } catch {
+    return null;
   }
-
-  // Start the chain
-  assignToNext();
-
-  // Listen for acceptance (cancel the timeout)
-  ioServer.on('connection', (socket: any) => {
-    socket.on('order:accept', (data: any) => {
-      if (data.orderId === order.id && currentTimeout) {
-        clearTimeout(currentTimeout);
-        currentTimeout = null;
-      }
-    });
-  });
 }
-// ===== END ORDER ASSIGNMENT ENGINE =====
 
 // Generate order number
 function generateOrderNumber(): string {
@@ -150,7 +85,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
-        include: { driver: { include: { vehicle: true } } },
+        include: { driver: { select: SAFE_DRIVER_SELECT } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: parseInt(limit as string),
@@ -158,7 +93,17 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       prisma.order.count({ where }),
     ]);
 
-    return res.json({ orders, total, page: parseInt(page as string), limit: parseInt(limit as string) });
+    // Позывной менен берилген (али алына элек) заказдарга позывнойду кошобуз
+    const targetIds = Array.from(new Set(orders.filter(o => !o.driverId && o.targetDriverId).map(o => o.targetDriverId as string)));
+    const targets = targetIds.length
+      ? await prisma.driver.findMany({ where: { id: { in: targetIds } }, select: { id: true, callsign: true } })
+      : [];
+    const callsignById = new Map(targets.map(t => [t.id, t.callsign]));
+    const withTargets = orders.map(o => (
+      o.targetDriverId && !o.driverId ? { ...o, targetCallsign: callsignById.get(o.targetDriverId) || null } : o
+    ));
+
+    return res.json({ orders: withTargets, total, page: parseInt(page as string), limit: parseInt(limit as string) });
   } catch (error) {
     console.error('Get orders error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -305,8 +250,13 @@ router.get('/driver/active', async (req: Request, res: Response) => {
 
 router.get('/available', async (req: Request, res: Response) => {
   try {
+    // Позывной менен берилген заказды ошол водитель гана көрөт
+    const driverId = optionalDriverId(req) || (req.query.driverId as string) || null;
     const orders = await prisma.order.findMany({
-      where: { status: 'PENDING' },
+      where: {
+        status: 'PENDING',
+        OR: driverId ? [{ targetDriverId: null }, { targetDriverId: driverId }] : [{ targetDriverId: null }],
+      },
       orderBy: { createdAt: 'desc' },
     });
     return res.json(orders);
@@ -348,9 +298,20 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Цена должна быть от 0 до 50000 сом' });
     }
 
+    // Позывной көрсөтүлсө — алгач водительди табабыз. Табылбаса заказ түзүлбөйт.
+    let targetDriver: Awaited<ReturnType<typeof findDriverByCallsign>> = null;
+    if (targetCallsign && targetCallsign.toString().trim()) {
+      targetDriver = await findDriverByCallsign(targetCallsign);
+      if (!targetDriver) {
+        return res.status(400).json({ error: `Позывной "${targetCallsign}" менен водитель табылган жок` });
+      }
+      if (targetDriver.accountStatus !== 'ACTIVE') {
+        return res.status(400).json({ error: `Позывной ${targetDriver.callsign} — аккаунт активдүү эмес (${targetDriver.accountStatus})` });
+      }
+    }
+
     const orderNumber = generateOrderNumber();
 
-    // Skip geocoding for speed — assign order IMMEDIATELY
     let orderPrice = inputPrice;
     let driverEarning = 0;
     let companyCommission = 0;
@@ -392,254 +353,64 @@ router.post('/', async (req: Request, res: Response) => {
         driverEarning,
         companyCommission,
         distance,
+        targetDriverId: targetDriver?.id || null,
         // @ts-ignore — options field added via ALTER TABLE, Prisma client regenerated on deploy
         options: Array.isArray(options) ? options : [],
       },
     });
 
-    // Create or update client
-    try {
-      await prisma.client.upsert({
-        where: { phone: safeClientPhone },
-        update: { name: safeClientName, totalOrders: { increment: 1 } },
-        create: { name: safeClientName, phone: safeClientPhone, totalOrders: 1 },
-      });
-    } catch (e) {
-      // Client creation may fail if phone format issue, non-critical
-    }
+    // Жоопту дароо кайтарабыз — калганы фондо
+    res.status(201).json(order);
 
-    // Auto-assign: pick nearest online driver or target by callsign
-    try {
-      const onlineDrivers = await prisma.driver.findMany({
-        where: {
-          status: 'ONLINE',
-          accountStatus: 'ACTIVE',
-        },
-        select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true, callsign: true },
-      });
+    // Create or update client (non-critical)
+    prisma.client.upsert({
+      where: { phone: safeClientPhone },
+      update: { name: safeClientName, totalOrders: { increment: 1 } },
+      create: { name: safeClientName, phone: safeClientPhone, totalOrders: 1 },
+    }).catch(() => {});
 
-      // === TARGETED DISPATCH: specific callsign ===
-      if (targetCallsign && targetCallsign.trim()) {
-        const targetDriver = await prisma.driver.findFirst({
-          where: { callsign: targetCallsign.trim(), accountStatus: 'ACTIVE' },
-          select: { id: true, firstName: true, lastName: true, latitude: true, longitude: true, callsign: true, status: true },
+    io.to('admin-room').emit('order:new', order);
+
+    if (targetDriver) {
+      // === TARGETED DISPATCH: ошол позывнойго ГАНА ===
+      io.to(`driver:${targetDriver.id}`).emit('order:available', order);
+      if (targetDriver.status !== 'ONLINE') {
+        io.to('admin-room').emit('notification', {
+          title: '⚠️ Водитель онлайн эмес',
+          message: `#${orderNumber} → ${targetDriver.callsign} ${targetDriver.firstName} (${targetDriver.status}). Линияга чыкканда ага гана жиберилет.`,
+          type: 'warning',
         });
-
-        if (!targetDriver) {
-          io.to('admin-room').emit('notification', {
-            title: '⚠️ Позывной табылган жок',
-            message: `Позывной "${targetCallsign}" менен водитель жок`,
-            type: 'error',
-          });
-        } else if (targetDriver.status !== 'ONLINE') {
-          io.to('admin-room').emit('notification', {
-            title: '⚠️ Водитель онлайн эмес',
-            message: `${targetDriver.firstName} (${targetDriver.callsign}) — статусу: ${targetDriver.status}`,
-            type: 'warning',
-          });
-          // Still send — will appear in available orders
-          io.to(`driver:${targetDriver.id}`).emit('order:available', order);
-        } else {
-          // Check not already busy
-          const activeOrderCheck = await prisma.order.findFirst({
-            where: { driverId: targetDriver.id, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
-          });
-          if (activeOrderCheck) {
-            io.to('admin-room').emit('notification', {
-              title: '⚠️ Водитель башка заказда',
-              message: `${targetDriver.firstName} (${targetDriver.callsign}) — учурда башка заказда. Бошогондо жиберилет.`,
-              type: 'warning',
-            });
-          }
-          // Send to targeted driver + fallback chain if rejected
-          const candidates = [{ ...targetDriver, distance: 0 }, ...onlineDrivers
-            .filter(d => d.id !== targetDriver.id)
-            .map(d => ({ ...d, distance: 999 }))];
-          startOrderAssignment(order, candidates, io);
-          io.to('admin-room').emit('notification', {
-            title: '🎯 Заказ жөнөтүлдү',
-            message: `#${orderNumber} → ${targetDriver.firstName} (${targetDriver.callsign})`,
-            type: 'targeted_dispatch',
-          });
-        }
-        io.emit('order:available', order);
-        return res.status(201).json(order);
-      }
-
-      if (onlineDrivers.length > 0) {
-        // Filter out drivers who already have an active order
-        const busyDriverIds = (await prisma.order.findMany({
-          where: { status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
-          select: { driverId: true },
-        })).map(o => o.driverId).filter(Boolean) as string[];
-
-        const freeDrivers = onlineDrivers.filter(d => !busyDriverIds.includes(d.id));
-
-        if (freeDrivers.length > 0) {
-          // Calculate real GPS distance for each driver
-          const candidatesWithDistance = freeDrivers.map(d => {
-            let dist = 999; // default far away
-            if (d.latitude && d.longitude && finalPickupLat && finalPickupLng) {
-              dist = calculateDistance(d.latitude, d.longitude, finalPickupLat, finalPickupLng);
-            }
-            return { ...d, distance: dist };
-          });
-
-          // Sort by distance — nearest first
-          candidatesWithDistance.sort((a, b) => a.distance - b.distance);
-
-          // Nearest driver threshold: 5km
-          const NEAR_THRESHOLD_KM = 5;
-          const nearDrivers = candidatesWithDistance.filter(d => d.distance <= NEAR_THRESHOLD_KM);
-          const farDrivers = candidatesWithDistance.filter(d => d.distance > NEAR_THRESHOLD_KM);
-
-          if (nearDrivers.length > 0) {
-            // Send to nearest drivers only
-            console.log(`🚀 Auto-assign: nearest ${nearDrivers.length} drivers for order #${orderNumber} (closest: ${(nearDrivers[0].distance).toFixed(1)}km)`);
-            startOrderAssignment(order, nearDrivers, io);
-          } else {
-            // No nearby drivers — put in available orders for all drivers
-            console.log(`📋 No nearby drivers for #${orderNumber} — adding to available orders`);
-            io.to('admin-room').emit('notification', {
-              title: 'Жакын водитель жок',
-              message: `#${orderNumber} — бардык водительдер алыс. Доступные заказыга кошулду.`,
-              type: 'no_nearby_drivers',
-            });
-          }
-
-          // Broadcast to ALL free drivers as available order (backup)
-          freeDrivers.forEach(d => {
-            io.to(`driver:${d.id}`).emit('order:available', order);
-          });
-
-        } else {
-          io.to('admin-room').emit('notification', {
-            title: 'Бош водитель жок',
-            message: `#${orderNumber} — бардык онлайн водительдер башка заказда`,
-            type: 'no_drivers',
-          });
-        }
-
-        // Also broadcast to ALL online drivers as available order (backup)
-        io.emit('order:available', order);
       } else {
         io.to('admin-room').emit('notification', {
-          title: 'Водитель жок',
-          message: `#${orderNumber} — онлайн водитель табылган жок`,
-          type: 'no_drivers',
+          title: '🎯 Заказ жөнөтүлдү',
+          message: `#${orderNumber} → ${targetDriver.callsign} ${targetDriver.firstName} (башка водительге кетпейт)`,
+          type: 'targeted_dispatch',
         });
       }
-    } catch (e) {
-      console.error('Auto-assign error:', e);
+      dispatchOrder(order).catch(e => console.error('Targeted dispatch error:', e));
+      return;
     }
-    
-    // Notify admin room
-    io.to('admin-room').emit('order:new', order);
+
+    // === AUTO DISPATCH: жакын бош водительдер ===
+    io.emit('order:available', order);
+    dispatchOrder(order).catch(e => console.error('Auto-assign error:', e));
     io.to('admin-room').emit('notification', {
       title: 'New Order',
-      message: `Order #${orderNumber} - ${clientName}`,
+      message: `Order #${orderNumber} - ${safeClientName}`,
       type: 'new_order',
     });
-
-    return res.status(201).json(order);
   } catch (error) {
     console.error('Create order error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    if (!res.headersSent) return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Accept order
+// Accept order — баланстан 12 сом (00:00–07:00 — 14 сом) дароо алынат
 router.patch('/:id/accept', async (req: Request, res: Response) => {
   try {
-    const id = req.params.id as string;
-    const { driverId } = req.body;
-
-    const order = await prisma.order.findUnique({ where: { id } });
-    
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (order.status !== 'PENDING') {
-      return res.status(400).json({ error: 'Заказ башка водитель тарабынан алынган' });
-    }
-
-    // Check driver balance before accepting
-    const driverCheck = await prisma.driver.findUnique({ where: { id: driverId } });
-    if (!driverCheck) return res.status(404).json({ error: 'Driver not found' });
-
-    // Threshold: кундузу 12 сом, түнкүсү 14 сом (UTC+6)
-    const minBalance = getCommissionAmount();
-    if ((driverCheck.balance || 0) < minBalance) {
-      return res.status(400).json({
-        error: `Балансыңыз жетишсиз. Кеминде ${minBalance} сом болушу керек. Азыр: ${driverCheck.balance} сом`,
-        balanceLow: true,
-        required: minBalance,
-        current: driverCheck.balance,
-      });
-    }
-
-    // Check driver does NOT already have an active order
-    const activeOrder = await prisma.order.findFirst({
-      where: { driverId, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
-    });
-    if (activeOrder) {
-      return res.status(400).json({ error: 'Алгачкы заказды бүтүрүңүз, анан жаңы заказ алыңыз' });
-    }
-
-    // ATOMIC accept — only update if still PENDING (prevents race condition / double assignment)
-    const updatedOrder = await prisma.order.updateMany({
-      where: { id, status: 'PENDING' },
-      data: {
-        driverId,
-        status: 'ASSIGNED',
-        assignedAt: new Date(),
-      },
-    });
-
-    if (updatedOrder.count === 0) {
-      return res.status(400).json({ error: 'Заказ башка водитель тарабынан алынган' });
-    }
-
-    const finalOrder = await prisma.order.findUnique({
-      where: { id },
-      include: { driver: true },
-    });
-
-    await prisma.driver.update({
-      where: { id: driverId },
-      data: { status: 'BUSY' },
-    });
-
-    // Деduct commission immediately on accept
-    const commission = getCommissionAmount();
-    const freshDriver = await prisma.driver.findUnique({ where: { id: driverId }, select: { balance: true } });
-    const newBalance = Math.max(0, (freshDriver?.balance || 0) - commission);
-    await prisma.driver.update({
-      where: { id: driverId },
-      data: { balance: newBalance },
-    });
-
-    // Update localStorage balance via socket so driver sees it immediately
-    io.to(`driver:${driverId}`).emit('balance:updated', { balance: newBalance });
-
-    // Warn driver if balance is getting low after deduction
-    const nextMin = getCommissionAmount();
-    if (newBalance < nextMin) {
-      io.to(`driver:${driverId}`).emit('balance:low', {
-        balance: newBalance,
-        required: nextMin,
-        message: `Балансыңыз аз калды: ${newBalance} сом. Толуктаңыз!`,
-      });
-    }
-
-    // Notify all to remove this order
-    io.emit('order:taken', { orderId: id, driverId });
-    io.to('admin-room').emit('order:taken', { orderId: id, driverId });
-    io.to('admin-room').emit('order:accepted', finalOrder);
-    io.to('admin-room').emit('order:status-changed', { orderId: id, status: 'ASSIGNED', order: finalOrder });
-
-    return res.json(finalOrder);
+    const result = await acceptOrder(req.params.id as string, req.body.driverId);
+    if (!result.ok) return res.status(result.status).json(result.body);
+    return res.json({ ...result.order, newBalance: result.balance });
   } catch (error) {
     console.error('Accept order error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -649,57 +420,11 @@ router.patch('/:id/accept', async (req: Request, res: Response) => {
 // Complete order
 router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const id = req.params.id as string;
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-
-    // Calculate wait fee: if driver arrived more than 2 minutes ago, add 20 som
-    let waitFee = 0;
-    if (order.assignedAt) {
-      const waitMs = Date.now() - new Date(order.assignedAt).getTime();
-      const waitMinutes = waitMs / 60000;
-      if (waitMinutes > 2) {
-        waitFee = 20; // 20 som per extra wait
-      }
-    }
-
-    const finalPrice = order.price + waitFee;
-
-    const updated = await prisma.order.update({
-      where: { id },
-      data: {
-        status: 'COMPLETED',
-        completedAt: new Date(),
-        price: finalPrice,
-      },
-    });
-
-    if (updated.driverId) {
-      // Баланс accept'те чегерилди — complete'та статус жана статистика гана
-      await prisma.driver.update({
-        where: { id: updated.driverId },
-        data: {
-          status: 'ONLINE',
-          totalOrders: { increment: 1 },
-          totalEarnings: { increment: updated.driverEarning || finalPrice },
-        },
-      });
-    }
-
-    // Create payment record
-    await prisma.payment.create({
-      data: {
-        orderId: updated.id,
-        amount: finalPrice,
-        method: updated.paymentMethod,
-        status: 'completed',
-      },
-    });
-
-    io.to('admin-room').emit('order:completed', updated);
-
-    return res.json({ ...updated, waitFee });
+    const result = await completeOrder(req.params.id as string);
+    if (!result.ok) return res.status(result.status).json(result.body);
+    return res.json(result.order);
   } catch (error) {
+    console.error('Complete order error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -722,13 +447,11 @@ router.patch('/:id/client-cancel', async (req: Request, res: Response) => {
       where: { id },
       data: { status: 'CANCELLED', cancelledAt: new Date() },
     });
+    stopDispatch(id);
 
     // If driver was assigned, free them
     if (order.driverId) {
-      await prisma.driver.update({
-        where: { id: order.driverId },
-        data: { status: 'ONLINE' },
-      });
+      await releaseDriver(order.driverId, id);
       io.to(`driver:${order.driverId}`).emit('order:cancelled-by-client', { orderId: id });
     }
 
@@ -770,8 +493,13 @@ router.patch('/:id/cancel', authenticateToken, async (req: AuthRequest, res: Res
       where: { id },
       data: { status: 'CANCELLED', cancelledAt: new Date() },
     });
+    stopDispatch(id);
 
     const blockDriverId = driverId || order.driverId;
+    // Диспетчер отмена кылса — водитель кайра бош (ONLINE) болот
+    if (order.driverId && req.user?.role !== 'DRIVER') {
+      await releaseDriver(order.driverId, id);
+    }
     // Only block driver if the cancel was initiated by the DRIVER themselves, not by admin
     if (blockDriverId && req.user?.role === 'DRIVER') {
       const blockedUntil = new Date(Date.now() + 5 * 60 * 60 * 1000); // +5 hours
@@ -788,6 +516,7 @@ router.patch('/:id/cancel', authenticateToken, async (req: AuthRequest, res: Res
         blockedUntil: blockedUntil.toISOString(),
         reason: 'Заказды аяктабай отмена кылдыңыз',
       });
+      io.emit('driver:status-changed', { driverId: blockDriverId, status: 'OFFLINE' });
     }
 
     io.emit('order:cancelled', { orderId: id });

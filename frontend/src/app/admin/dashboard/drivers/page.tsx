@@ -50,22 +50,33 @@ export default function DriversPage() {
   const createMutation = useMutation({
     mutationFn: async (d: any) => {
       if (editingDriver) {
-        const { data } = await api.put(`/drivers/${editingDriver.id}`, d);
-        // Save callsign separately via inline endpoint
-        if (d.callsign !== undefined) {
-          await api.patch(`/drivers/${editingDriver.id}/callsign`, { callsign: d.callsign || null }).catch(() => {});
-        }
+        // PUT позывнойду да сактайт; өчүрүү (бош калтыруу) гана өзүнчө запрос
+        const clearCallsign = !d.callsign && editingDriver.callsign;
+        const [{ data }] = await Promise.all([
+          api.put(`/drivers/${editingDriver.id}`, d),
+          clearCallsign ? api.patch(`/drivers/${editingDriver.id}/callsign`, { callsign: null }) : Promise.resolve(null),
+        ]);
         return data;
       }
+      // POST позывнойду да бирге сактайт — кошумча запрос керек эмес
       const { data } = await api.post('/drivers', d);
-      // Save callsign for new driver too
-      if (d.callsign && data.id) {
-        await api.patch(`/drivers/${data.id}/callsign`, { callsign: d.callsign }).catch(() => {});
-      }
       return data;
     },
     onSuccess: (data) => {
+      // Тизмени дароо жаңыртабыз (серверден кайра жүктөөнү күтпөй)
+      if (data?.id) {
+        queryClient.setQueriesData({ queryKey: ['drivers'] }, (old: any) => {
+          if (!old?.drivers) return old;
+          const exists = old.drivers.some((x: any) => x.id === data.id);
+          return {
+            ...old,
+            drivers: exists ? old.drivers.map((x: any) => (x.id === data.id ? { ...x, ...data } : x)) : [data, ...old.drivers],
+            total: exists ? old.total : (old.total || 0) + 1,
+          };
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
+      queryClient.invalidateQueries({ queryKey: ['map-drivers'] });
       setIsFormOpen(false);
       setEditingDriver(null);
       setFormData({ ...emptyForm });

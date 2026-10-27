@@ -106,7 +106,9 @@ model Order {
   options         String[]  @default([])
   driverId        String?
   clientId        String?
+  targetDriverId  String?
   assignedAt      DateTime?
+  arrivedAt       DateTime?
   completedAt     DateTime?
   cancelledAt     DateTime?
   createdAt       DateTime  @default(now())

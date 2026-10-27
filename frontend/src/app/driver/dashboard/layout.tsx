@@ -45,6 +45,7 @@ function DriverHeaderBalance() {
             }
           } catch {}
           setBalance(data.balance);
+          window.dispatchEvent(new CustomEvent('driverBalance', { detail: data.balance }));
         }
       } catch {
         // fallback: read from localStorage only (no secondary API call)
@@ -58,7 +59,10 @@ function DriverHeaderBalance() {
       }
     };
     fetchBalance();
-    const iv = setInterval(fetchBalance, 5000); // every 5s for reliability
+    // Негизги жаңылоо socket аркылуу (дароо). Бул — резерв гана.
+    const iv = setInterval(fetchBalance, 30000);
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchBalance(); };
+    document.addEventListener('visibilitychange', onVisible);
 
     // Realtime balance update via socket
     const socket = connectSocket();
@@ -69,13 +73,15 @@ function DriverHeaderBalance() {
       const driverId = info ? JSON.parse(info).id : null;
       if (driverId) {
         socket.emit('driver:join', driverId);
-        socket.on('connect', () => socket.emit('driver:join', driverId));
       }
     } catch {}
+    // Кайра туташканда балансты дароо текшерүү
+    socket.on('connect', fetchBalance);
 
     const handleBalanceUpdate = (data: { balance: number }) => {
       if (typeof data.balance === 'number') {
         setBalance(data.balance);
+        window.dispatchEvent(new CustomEvent('driverBalance', { detail: data.balance }));
         try {
           const info = localStorage.getItem('driverInfo');
           if (info) {
@@ -96,11 +102,20 @@ function DriverHeaderBalance() {
     };
     socket.on('balance:low', handleBalanceLow);
 
+    // Заказ кабыл алынганда жооптон келген баланс (page.tsx жиберет)
+    const handleLocalBalance = (e: Event) => {
+      const b = (e as CustomEvent).detail;
+      if (typeof b === 'number') setBalance(b);
+    };
+    window.addEventListener('driverBalance', handleLocalBalance);
+
     return () => {
       clearInterval(iv);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('driverBalance', handleLocalBalance);
       socket.off('balance:updated', handleBalanceUpdate);
       socket.off('balance:low', handleBalanceLow);
-      socket.off('connect');
+      socket.off('connect', fetchBalance);
     };
   }, []);
 
@@ -181,7 +196,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useLanguageStore();
-  const { lineStatus } = useDriverStore();
+  const { lineStatus, activeOrder, setActiveOrder } = useDriverStore();
   const [authChecked, setAuthChecked] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasActiveOrder, setHasActiveOrder] = useState(false);
@@ -205,37 +220,68 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     document.addEventListener('click', playOnce, { once: true });
   }, [router]);
 
-  // Check if driver has active order (ASSIGNED or IN_PROGRESS)
+  // Активдүү заказ (ASSIGNED / IN_PROGRESS) — сервер + socket менен синхрон
   useEffect(() => {
+    if (!authChecked) return;
+    const driverInfo = localStorage.getItem('driverInfo');
+    const myId = driverInfo ? JSON.parse(driverInfo).id : null;
+    if (!myId) return;
+
     const checkActiveOrder = async () => {
       try {
-        const driverInfo = typeof window !== 'undefined' ? localStorage.getItem('driverInfo') : null;
-        const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
-        if (!driverId) return;
-        const { data } = await api.get('/orders/driver/active', { params: { driverId } });
-        setHasActiveOrder(!!(data && data.id));
-      } catch { setHasActiveOrder(false); }
+        const { data } = await api.get('/orders/driver/active', { params: { driverId: myId } });
+        const has = !!(data && data.id);
+        setHasActiveOrder(has);
+        // Диспетчер/сервер тараптан келген заказ — картада да көрүнсүн
+        const current = useDriverStore.getState().activeOrder;
+        if (has && !current) setActiveOrder(data);
+        // Телефон өчүк турганда заказ бүтүп/отмена болсо — эски заказды тазалайбыз
+        if (!has && current?.id) {
+          const { data: st } = await api.get(`/orders/${current.id}/status`).catch(() => ({ data: null }));
+          if ((st?.status === 'COMPLETED' || st?.status === 'CANCELLED') && useDriverStore.getState().activeOrder?.id === current.id) {
+            setActiveOrder(null);
+          }
+        }
+      } catch {}
     };
-    if (authChecked) {
-      checkActiveOrder();
-      const iv = setInterval(checkActiveOrder, 10000);
+    checkActiveOrder();
+    const iv = setInterval(checkActiveOrder, 15000);
 
-      // Also update instantly via socket events
-      const socket = connectSocket();
-      const onAccepted = () => setHasActiveOrder(true);
-      const onCompleted = () => { setHasActiveOrder(false); checkActiveOrder(); };
-      socket.on('order:accepted', onAccepted);
-      socket.on('order:completed', onCompleted);
-      socket.on('order:cancelled', onCompleted);
+    const socket = connectSocket();
+    const onAccepted = (order: any) => {
+      if (order?.driverId !== myId) return;
+      setHasActiveOrder(true);
+      if (!useDriverStore.getState().activeOrder) setActiveOrder(order);
+    };
+    const onFinished = (payload: any) => {
+      const orderId = payload?.orderId || payload?.id;
+      const current = useDriverStore.getState().activeOrder;
+      const mine = payload?.driverId === myId || (current && current.id === orderId);
+      if (!mine) return;
+      setHasActiveOrder(false);
+      if (current && current.id === orderId) setActiveOrder(null);
+    };
+    const onCancelled = (payload: any) => {
+      const current = useDriverStore.getState().activeOrder;
+      if (current && current.id === payload?.orderId) {
+        setActiveOrder(null);
+        setHasActiveOrder(false);
+        toast('Заказ диспетчер тарабынан отмена болду', { icon: '⚠️' });
+      }
+    };
+    socket.on('order:accepted', onAccepted);
+    socket.on('order:completed', onFinished);
+    socket.on('order:cancelled', onCancelled);
+    socket.on('connect', checkActiveOrder);
 
-      return () => {
-        clearInterval(iv);
-        socket.off('order:accepted', onAccepted);
-        socket.off('order:completed', onCompleted);
-        socket.off('order:cancelled', onCompleted);
-      };
-    }
-  }, [authChecked]);
+    return () => {
+      clearInterval(iv);
+      socket.off('order:accepted', onAccepted);
+      socket.off('order:completed', onFinished);
+      socket.off('order:cancelled', onCancelled);
+      socket.off('connect', checkActiveOrder);
+    };
+  }, [authChecked, setActiveOrder]);
 
   // Listen for incoming DMs and count unread
   useEffect(() => {
@@ -288,6 +334,14 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     );
   }
 
+  // Неон түсү: заказ бар — КЫЗЫЛ, бош (линияда) — ЖАШЫЛ, занят — ОРАНЖЕВЫЙ
+  const hasOrder = !!activeOrder || hasActiveOrder;
+  const glow: 'order' | 'free' | 'busy' | null =
+    hasOrder && lineStatus !== 'OFFLINE' ? 'order'
+    : lineStatus === 'ONLINE' ? 'free'
+    : lineStatus === 'BUSY_PERSONAL' ? 'busy'
+    : null;
+
   const driverMenu = [
     { icon: MapPin, label: t('dashboard'), href: '/driver/dashboard' },
     { icon: MessageCircle, label: 'Чат', href: '/driver/dashboard/chat' },
@@ -303,19 +357,19 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       {/* Top Nav - neon glow when on duty */}
       <header className="sticky top-0 z-[5000] px-4 py-3"
       style={
-        lineStatus === 'ONLINE' && hasActiveOrder
+        glow === 'order'
           ? {
               background: 'linear-gradient(180deg, #2e0d0d 0%, #1a2740 100%)',
               borderBottom: '4px solid #ff0000',
               boxShadow: '0 0 50px #ff0000cc, 0 0 100px #ff000077, 0 8px 40px #ff0000bb, inset 0 -3px 25px #ff000066'
             }
-          : lineStatus === 'ONLINE'
+          : glow === 'free'
           ? {
               background: 'linear-gradient(180deg, #0d2e0d 0%, #1a2740 100%)',
               borderBottom: '4px solid #00ff00',
               boxShadow: '0 0 50px #00ff00cc, 0 0 100px #00ff0077, 0 8px 40px #00ff00bb, inset 0 -3px 25px #00ff0066'
             }
-          : lineStatus === 'BUSY_PERSONAL'
+          : glow === 'busy'
           ? {
               background: 'linear-gradient(180deg, #2e1a00 0%, #1a2740 100%)',
               borderBottom: '4px solid #ff9500',
@@ -426,19 +480,19 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       <div
         className="fixed bottom-0 left-0 right-0 z-[5000] px-1 py-1.5"
         style={
-          lineStatus === 'ONLINE' && hasActiveOrder
+          glow === 'order'
             ? {
                 background: 'linear-gradient(0deg, #2e0d0d 0%, #1a2740 100%)',
                 borderTop: '4px solid #ff0000',
                 boxShadow: '0 0 50px #ff0000cc, 0 0 100px #ff000077, 0 -8px 40px #ff0000bb, inset 0 3px 25px #ff000066'
               }
-            : lineStatus === 'ONLINE'
+            : glow === 'free'
             ? {
                 background: 'linear-gradient(0deg, #0d2e0d 0%, #1a2740 100%)',
                 borderTop: '4px solid #00ff00',
                 boxShadow: '0 0 50px #00ff00cc, 0 0 100px #00ff0077, 0 -8px 40px #00ff00bb, inset 0 3px 25px #00ff0066'
               }
-            : lineStatus === 'BUSY_PERSONAL'
+            : glow === 'busy'
             ? {
                 background: 'linear-gradient(0deg, #2e1a00 0%, #1a2740 100%)',
                 borderTop: '4px solid #ff9500',
@@ -461,7 +515,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
                 }}
                 className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all relative ${
                   isActive
-                    ? lineStatus === 'ONLINE' && hasActiveOrder ? 'text-[#ff3333]' : lineStatus === 'ONLINE' ? 'text-[#39ff14]' : lineStatus === 'BUSY_PERSONAL' ? 'text-[#ff6a00]' : 'text-[#7BBDE8]'
+                    ? glow === 'order' ? 'text-[#ff3333]' : glow === 'free' ? 'text-[#39ff14]' : glow === 'busy' ? 'text-[#ff6a00]' : 'text-[#7BBDE8]'
                     : 'text-gray-400'
                 }`}
               >

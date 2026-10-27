@@ -174,8 +174,17 @@ export default function DriverHomePage() {
       } catch {}
     };
     syncBalance();
-    const iv = setInterval(syncBalance, 5000);
-    return () => clearInterval(iv);
+    // layout.tsx баланс өзгөргөндө дароо кабарлайт
+    const onBalance = (e: Event) => {
+      const b = (e as CustomEvent).detail;
+      if (typeof b === 'number') setBalance(b);
+    };
+    window.addEventListener('driverBalance', onBalance);
+    const iv = setInterval(syncBalance, 15000);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener('driverBalance', onBalance);
+    };
   }, []);
 
   // Listen for INCOMING ORDER (fullscreen) — ALWAYS active when logged in
@@ -316,37 +325,55 @@ export default function DriverHomePage() {
     const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
     if (!driverId) return;
 
-    // Immediately show active order (optimistic)
-    setActiveOrder(incomingOrder);
+    const order = incomingOrder;
+    // Дароо көрсөтөбүз (optimistic) — экран заматта кызыл болот
+    setActiveOrder(order);
     setIncomingOrder(null);
     setIncomingTimer(0);
-    toast.success('Заказ принят!');
 
-    // API call in background
     try {
-      await api.patch(`/orders/${incomingOrder.id}/accept`, { driverId });
-    } catch {
-      // Even if fails, keep the order active locally
+      const { data } = await api.patch(`/orders/${order.id}/accept`, { driverId });
+      setActiveOrder(data);
+      toast.success('Заказ принят!');
+      // Баланс дароо жаңырат (12 / түнкүсү 14 сом алынды)
+      if (typeof data?.newBalance === 'number') {
+        try {
+          const info = localStorage.getItem('driverInfo');
+          if (info) {
+            const parsed = JSON.parse(info);
+            parsed.balance = data.newBalance;
+            localStorage.setItem('driverInfo', JSON.stringify(parsed));
+          }
+        } catch {}
+        window.dispatchEvent(new CustomEvent('driverBalance', { detail: data.newBalance }));
+      }
+    } catch (error: any) {
+      // Кабыл алынбады (башка водитель алды / баланс жетишсиз) — артка кайтарабыз
+      if (useDriverStore.getState().activeOrder?.id === order.id) setActiveOrder(null);
+      toast.error(error?.response?.data?.error || 'Заказды кабыл алуу мүмкүн болбоду');
     }
   };
 
   const handleRejectIncoming = () => {
+    const order = incomingOrder;
     setIncomingOrder(null);
     setIncomingTimer(0);
-    // Server will auto-timeout and send to next driver
+    // Серверге кабарлайбыз — заказ дароо кийинки водительге кетет
+    const driverInfo = localStorage.getItem('driverInfo');
+    const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
+    if (order && driverId) connectSocket().emit('order:reject', { orderId: order.id, driverId });
   };
 
   const handleCompleteOrder = async () => {
     if (!activeOrder) return;
-    try {
-      await api.patch(`/orders/${activeOrder.id}/complete`);
-      setActiveOrder(null);
-      toast.success('Заказ выполнен! Молодец!');
-    } catch {
-      // Even if API fails, clear locally
-      setActiveOrder(null);
-      toast.success('Заказ выполнен!');
-    }
+    const orderId = activeOrder.id;
+    // Дароо бошотобуз — экран заматта жашыл болот
+    setActiveOrder(null);
+    toast.success('Заказ выполнен! Молодец!');
+    api.patch(`/orders/${orderId}/complete`).catch(() => {
+      // Тармак катасы — бир жолу кайра аракет
+      setTimeout(() => api.patch(`/orders/${orderId}/complete`).catch(() => {}), 2000);
+    });
   };
 
   return (
