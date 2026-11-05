@@ -413,6 +413,21 @@ router.patch('/:id/complete', auth_middleware_1.authenticateToken, async (req, r
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
+// Driver cancels an accepted order — заказ башка водительдерге кетет, комиссия кайтарылат
+router.patch('/:id/driver-cancel', auth_middleware_1.authenticateToken, async (req, res) => {
+    try {
+        if (req.user?.role !== 'DRIVER')
+            return res.status(403).json({ error: 'Водитель гана' });
+        const result = await (0, orders_1.driverCancelOrder)(req.params.id, req.user.id);
+        if (!result.ok)
+            return res.status(result.status).json(result.body);
+        return res.json({ success: true, newBalance: result.balance });
+    }
+    catch (error) {
+        console.error('Driver cancel error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
 // Cancel order by CLIENT — only within 14 seconds of creation
 router.patch('/:id/client-cancel', async (req, res) => {
     try {

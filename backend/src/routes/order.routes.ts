@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import { calculatePrice, calculateDistance, TARIFFS, COMPANY_COMMISSION } from '../lib/tariff';
 import {
   SAFE_DRIVER_SELECT, dispatchOrder, stopDispatch, acceptOrder, completeOrder,
-  releaseDriver, findDriverByCallsign,
+  releaseDriver, findDriverByCallsign, driverCancelOrder,
 } from '../lib/orders';
 
 const router = Router();
@@ -425,6 +425,19 @@ router.patch('/:id/complete', authenticateToken, async (req: AuthRequest, res: R
     return res.json(result.order);
   } catch (error) {
     console.error('Complete order error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Driver cancels an accepted order — заказ башка водительдерге кетет, комиссия кайтарылат
+router.patch('/:id/driver-cancel', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'DRIVER') return res.status(403).json({ error: 'Водитель гана' });
+    const result = await driverCancelOrder(req.params.id as string, req.user.id);
+    if (!result.ok) return res.status(result.status).json(result.body);
+    return res.json({ success: true, newBalance: result.balance });
+  } catch (error) {
+    console.error('Driver cancel error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

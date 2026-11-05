@@ -94,12 +94,12 @@ function notifyNoDriverOnce(order: any, message: string) {
 }
 
 /** Заказды водительдерге сунуштоо чынжырын баштайт (эгер азыр иштеп жатпаса). */
-export async function dispatchOrder(order: any) {
+export async function dispatchOrder(order: any, excludeDriverIds: string[] = []) {
   if (activeDispatches.has(order.id)) return;
   const cooldownStart = exhaustedAt.get(order.id);
   if (cooldownStart && Date.now() - cooldownStart < RETRY_COOLDOWN_MS) return;
 
-  const state: DispatchState = { timeout: null, tried: new Set(), currentDriverId: null, offerNext: async () => {} };
+  const state: DispatchState = { timeout: null, tried: new Set(excludeDriverIds), currentDriverId: null, offerNext: async () => {} };
   activeDispatches.set(order.id, state);
   exhaustedAt.delete(order.id);
 
@@ -295,6 +295,65 @@ export async function acceptOrder(orderId: string, driverId: string): Promise<Ac
   });
 
   return { ok: true, order: finalOrder, balance: newBalance };
+}
+
+// ===== DRIVER CANCEL =====
+
+/**
+ * Водитель кабыл алган заказын отмена кылат.
+ * Заказ кайра PENDING болуп, БАШКА водительдерге жиберилет; алынган комиссия водительге кайтарылат.
+ * Блоктоо жок.
+ */
+export async function driverCancelOrder(orderId: string, driverId: string): Promise<ActionResult> {
+  if (!orderId || !driverId) return fail(400, { error: 'orderId жана driverId керек' });
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return fail(404, { error: 'Order not found' });
+  if (order.driverId !== driverId || !ACTIVE_STATUSES.includes(order.status)) {
+    return fail(400, { error: 'Бул заказ сизде эмес же мурунтан бүткөн' });
+  }
+
+  // Атомдук: заказ ушул водительде болсо гана бошотобуз
+  const released = await prisma.order.updateMany({
+    where: { id: orderId, driverId, status: { in: ACTIVE_STATUSES } },
+    data: {
+      status: 'PENDING',
+      driverId: null,
+      targetDriverId: null,
+      assignedAt: null,
+      arrivedAt: null,
+    },
+  });
+  if (released.count === 0) return fail(400, { error: 'Бул заказ сизде эмес же мурунтан бүткөн' });
+
+  const refund = order.companyCommission || 0;
+  await prisma.driver.update({
+    where: { id: driverId },
+    data: { balance: { increment: refund } },
+  });
+  await prisma.driver.updateMany({ where: { id: driverId, status: 'BUSY' }, data: { status: 'ONLINE' } });
+
+  const [fresh, driver] = await Promise.all([
+    prisma.order.findUnique({ where: { id: orderId } }),
+    prisma.driver.findUnique({ where: { id: driverId }, select: { balance: true, callsign: true, firstName: true } }),
+  ]);
+  const newBalance = driver?.balance ?? 0;
+
+  io.to(`driver:${driverId}`).emit('balance:updated', { balance: newBalance });
+  io.emit('driver:status-changed', { driverId, status: 'ONLINE' });
+  io.to('admin-room').emit('order:status-changed', { orderId, status: 'PENDING', order: fresh });
+  io.to('admin-room').emit('notification', {
+    title: '↩️ Водитель заказды отмена кылды',
+    message: `#${order.orderNumber} — ${driver?.callsign ? `${driver.callsign} ` : ''}${driver?.firstName || ''}. Заказ башка водительдерге жиберилди.`,
+    type: 'driver_cancelled',
+  });
+
+  // Заказ кайра бош водительдерге (отмена кылган водительден башкасына)
+  stopDispatch(orderId);
+  io.emit('order:available', fresh);
+  dispatchOrder(fresh, [driverId]).catch(e => console.error('Re-dispatch after driver cancel error:', e));
+
+  return { ok: true, order: fresh, balance: newBalance };
 }
 
 // ===== COMPLETE =====

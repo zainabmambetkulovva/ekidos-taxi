@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Clock, CheckCircle2, Navigation, Phone, MapPin as MapPinIcon, Car } from 'lucide-react';
+import { Clock, CheckCircle2, Navigation, Phone, MapPin as MapPinIcon, Car, XCircle } from 'lucide-react';
 import { useDriverStore } from '@/store/useDriverStore';
 import { getClientDisplayName } from '@/lib/display-names';
 import { useLanguageStore } from '@/store/useLanguageStore';
@@ -13,8 +13,9 @@ import { useState, useEffect } from 'react';
 import { connectSocket } from '@/lib/socket';
 
 // Active Order Card with step-by-step flow
-function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => void }) {
+function ActiveOrderCard({ order, onComplete, onCancel }: { order: any; onComplete: () => void; onCancel: () => void }) {
   const [step, setStep] = useState<'driving' | 'arrived' | 'client_in_car'>('driving');
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [countdown, setCountdown] = useState(120);
   const [extraCharge, setExtraCharge] = useState(0);
 
@@ -139,6 +140,35 @@ function ActiveOrderCard({ order, onComplete }: { order: any; onComplete: () => 
         >
           <CheckCircle2 className="w-5 h-5" />
           Завершить заказ
+        </button>
+      )}
+
+      {/* Отмена — заказ башка водительдерге кетет */}
+      {confirmCancel ? (
+        <div className="mt-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
+          <p className="text-xs text-red-200 text-center mb-2">Заказды чын эле отмена кыласызбы? Заказ башка водительге берилет.</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirmCancel(false)}
+              className="flex-1 h-10 rounded-lg bg-white/10 text-white text-xs font-bold active:scale-[0.97] transition-all"
+            >
+              Жок
+            </button>
+            <button
+              onClick={() => { setConfirmCancel(false); onCancel(); }}
+              className="flex-1 h-10 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold active:scale-[0.97] transition-all"
+            >
+              Ооба, отмена
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setConfirmCancel(true)}
+          className="mt-2 w-full h-10 rounded-xl border border-red-500/30 text-red-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
+        >
+          <XCircle className="w-4 h-4" />
+          Отмена
         </button>
       )}
     </div>
@@ -376,6 +406,32 @@ export default function DriverHomePage() {
     });
   };
 
+  const handleCancelOrder = async () => {
+    if (!activeOrder) return;
+    const order = activeOrder;
+    // Дароо бошотобуз — экран заматта жашыл болот
+    setActiveOrder(null);
+    try {
+      const { data } = await api.patch(`/orders/${order.id}/driver-cancel`);
+      toast('Заказ отмена болду. Башка водительге берилди.', { icon: '↩️' });
+      if (typeof data?.newBalance === 'number') {
+        try {
+          const info = localStorage.getItem('driverInfo');
+          if (info) {
+            const parsed = JSON.parse(info);
+            parsed.balance = data.newBalance;
+            localStorage.setItem('driverInfo', JSON.stringify(parsed));
+          }
+        } catch {}
+        window.dispatchEvent(new CustomEvent('driverBalance', { detail: data.newBalance }));
+      }
+    } catch (error: any) {
+      // Отмена болбоду — заказды кайра көрсөтөбүз
+      if (!useDriverStore.getState().activeOrder) setActiveOrder(order);
+      toast.error(error?.response?.data?.error || 'Отмена кылуу мүмкүн болбоду');
+    }
+  };
+
   return (
     <div className="relative h-[calc(100vh-120px)]">
       {/* LOW BALANCE WARNING - shown when balance < 12 */}
@@ -506,7 +562,7 @@ export default function DriverHomePage() {
         {/* Active order card */}
         {isOnline && activeOrder && (
           <div className="px-3 pb-2">
-            <ActiveOrderCard order={activeOrder} onComplete={handleCompleteOrder} />
+            <ActiveOrderCard key={activeOrder.id} order={activeOrder} onComplete={handleCompleteOrder} onCancel={handleCancelOrder} />
           </div>
         )}
       </div>
