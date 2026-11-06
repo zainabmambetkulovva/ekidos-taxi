@@ -65,7 +65,7 @@ export function setupSocketHandlers(io: Server) {
             longitude: data.lng,
             lastLocationUpdate: new Date(),
           },
-          select: { status: true, firstName: true, lastName: true, callsign: true },
+          select: { status: true, firstName: true, lastName: true, callsign: true, phone: true },
         });
 
         // Админ жана башка водительдер (io.emit admin-room'ду да камтыйт)
@@ -74,6 +74,7 @@ export function setupSocketHandlers(io: Server) {
           status: driver.status,
           name: `${driver.firstName} ${driver.lastName}`,
           callsign: driver.callsign || '',
+          phone: driver.phone || '',
         });
 
         // Broadcast to all clients watching this driver (via active order)

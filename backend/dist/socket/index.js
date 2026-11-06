@@ -50,7 +50,7 @@ function setupSocketHandlers(io) {
                         longitude: data.lng,
                         lastLocationUpdate: new Date(),
                     },
-                    select: { status: true, firstName: true, lastName: true, callsign: true },
+                    select: { status: true, firstName: true, lastName: true, callsign: true, phone: true },
                 });
                 // Админ жана башка водительдер (io.emit admin-room'ду да камтыйт)
                 io.emit('driver:location-updated', {
@@ -58,6 +58,7 @@ function setupSocketHandlers(io) {
                     status: driver.status,
                     name: `${driver.firstName} ${driver.lastName}`,
                     callsign: driver.callsign || '',
+                    phone: driver.phone || '',
                 });
                 // Broadcast to all clients watching this driver (via active order)
                 io.emit('driver:location-live', { driverId: data.driverId, lat: data.lat, lng: data.lng });

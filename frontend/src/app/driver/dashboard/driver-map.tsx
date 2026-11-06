@@ -309,8 +309,8 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     const driverInfo = localStorage.getItem('driverInfo');
     const myDriverId = driverInfo ? JSON.parse(driverInfo).id : null;
 
-    // Store other driver markers and their status: { driverId: { marker, status, name, callsign } }
-    const otherDrivers: Record<string, { marker: any; status: string; name: string; callsign: string }> = {};
+    // Башка водительдердин маркерлери: { driverId: { marker, status, name, callsign, phone, html } }
+    const otherDrivers: Record<string, { marker: any; status: string; name: string; callsign: string; phone: string; html: string }> = {};
 
     // Color based on status
     const getDriverColor = (status: string) => {
@@ -322,55 +322,55 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
       }
     };
 
-    const getStatusLabel = (status: string) => {
-      switch (status) {
-        case 'BUSY': return 'Заказда';
-        case 'ONLINE': return 'Бош';
-        case 'BUSY_PERSONAL': return 'Занят';
-        default: return status;
-      }
-    };
+    const escapeHtml = (v: string) =>
+      v.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
-    // Create or update marker for a driver
-    const createOrUpdateMarker = (driverId: string, lat: number, lng: number, status?: string, name?: string, callsign?: string) => {
+    // Create or update marker for a driver. Келген маалымат (статус, позывной, телефон) ар дайым жаңыртылат.
+    const createOrUpdateMarker = (
+      driverId: string, lat: number, lng: number,
+      info: { status?: string; name?: string; callsign?: string; phone?: string } = {},
+    ) => {
       if (driverId === myDriverId) return;
       if (!lat || !lng) return;
 
       const existing = otherDrivers[driverId];
-      const driverStatus = status || existing?.status || 'ONLINE';
-      const driverName = name || existing?.name || '';
-      const driverCallsign = callsign !== undefined ? callsign : (existing?.callsign ?? '');
+      const driverStatus = info.status || existing?.status || 'ONLINE';
+      const driverName = info.name || existing?.name || '';
+      const driverCallsign = info.callsign || existing?.callsign || '';
+      const driverPhone = info.phone || existing?.phone || '';
       const color = getDriverColor(driverStatus);
 
-      // Always show callsign inside circle; fallback to first letter of name
+      // Тегеректин ичинде позывной; жок болсо — аттын биринчи тамгасы
       const label = driverCallsign ? (parseInt(driverCallsign, 10) || driverCallsign).toString() : (driverName ? driverName.charAt(0).toUpperCase() : '?');
       const fontSize = label.length <= 2 ? '13px' : label.length <= 3 ? '11px' : '9px';
+      const iconW = Math.max(34, label.length * 10 + 14);
+      const html =
+        `<div style="min-width:34px;height:34px;background:${color};border-radius:17px;border:2.5px solid white;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.45);font-size:${fontSize};font-weight:900;color:white;font-family:sans-serif;padding:0 6px;white-space:nowrap;letter-spacing:-0.5px">${escapeHtml(label)}</div>`;
 
-      const makeIconHtml = () =>
-        `<div style="min-width:34px;height:34px;background:${color};border-radius:17px;border:2.5px solid white;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.45);font-size:${fontSize};font-weight:900;color:white;font-family:sans-serif;padding:0 6px;white-space:nowrap;letter-spacing:-0.5px">${label}</div>`;
-
-      const makePopup = () =>
-        `<div style="font-family:sans-serif;min-width:100px">` +
-        `<b>${driverName}</b>` +
-        `${driverCallsign ? `<br><span style="color:#ef4444;font-weight:700">#${driverCallsign}</span>` : ''}` +
-        `<br><span style="color:${color};font-weight:600">${getStatusLabel(driverStatus)}</span>` +
+      // Popup: позывной жана телефон номери гана
+      const popup =
+        `<div style="font-family:sans-serif;min-width:120px;font-size:15px;line-height:1.5">` +
+        `<div><b>Позывной:</b> <span style="color:#ef4444;font-weight:800">${escapeHtml(driverCallsign || '—')}</span></div>` +
+        (driverPhone
+          ? `<div><b>Тел:</b> <a href="tel:${escapeHtml(driverPhone)}" style="color:#2563eb;font-weight:700;text-decoration:none">${escapeHtml(driverPhone)}</a></div>`
+          : '') +
         `</div>`;
 
-      const iconW = Math.max(34, label.length * 10 + 14);
       if (existing?.marker) {
         existing.marker.setLatLng([lat, lng]);
-        if (status && status !== existing.status) {
-          const newIcon = L.divIcon({ className: '', html: makeIconHtml(), iconSize: [iconW, 34], iconAnchor: [iconW / 2, 17] });
-          existing.marker.setIcon(newIcon);
-          existing.marker.setPopupContent(makePopup());
-          existing.status = driverStatus;
-          if (name) existing.name = name;
-          if (callsign !== undefined) existing.callsign = callsign;
+        if (existing.html !== html) {
+          existing.marker.setIcon(L.divIcon({ className: '', html, iconSize: [iconW, 34], iconAnchor: [iconW / 2, 17] }));
+          existing.html = html;
         }
+        existing.marker.setPopupContent(popup);
+        existing.status = driverStatus;
+        existing.name = driverName;
+        existing.callsign = driverCallsign;
+        existing.phone = driverPhone;
       } else {
-        const icon = L.divIcon({ className: '', html: makeIconHtml(), iconSize: [iconW, 34], iconAnchor: [iconW / 2, 17] });
-        const marker = L.marker([lat, lng], { icon }).addTo(map).bindPopup(makePopup());
-        otherDrivers[driverId] = { marker, status: driverStatus, name: driverName, callsign: driverCallsign };
+        const icon = L.divIcon({ className: '', html, iconSize: [iconW, 34], iconAnchor: [iconW / 2, 17] });
+        const marker = L.marker([lat, lng], { icon }).addTo(map).bindPopup(popup);
+        otherDrivers[driverId] = { marker, status: driverStatus, name: driverName, callsign: driverCallsign, phone: driverPhone, html };
       }
     };
 
@@ -385,7 +385,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
           const drivers = await res.json();
           drivers.forEach((d: any) => {
             if (d.id !== myDriverId && d.lat && d.lng) {
-              createOrUpdateMarker(d.id, d.lat, d.lng, d.status, d.name, d.callsign);
+              createOrUpdateMarker(d.id, d.lat, d.lng, { status: d.status, name: d.name, callsign: d.callsign, phone: d.phone });
             }
           });
         }
@@ -395,8 +395,11 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
     const fetchIv = setInterval(fetchDrivers, 30000);
 
     // Listen for location updates from other drivers
-    const handleDriverLocation = (data: { driverId: string; lat: number; lng: number }) => {
-      createOrUpdateMarker(data.driverId, data.lat, data.lng);
+    const handleDriverLocation = (data: { driverId: string; lat: number; lng: number; status?: string; name?: string; callsign?: string; phone?: string }) => {
+      if (data.status === 'OFFLINE') return;
+      createOrUpdateMarker(data.driverId, data.lat, data.lng, {
+        status: data.status, name: data.name, callsign: data.callsign, phone: data.phone,
+      });
     };
 
     socket.on('driver:location-updated', handleDriverLocation);
@@ -415,7 +418,7 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
         // Update marker color
         const existing = otherDrivers[data.driverId];
         if (existing) {
-          createOrUpdateMarker(data.driverId, existing.marker.getLatLng().lat, existing.marker.getLatLng().lng, data.status);
+          createOrUpdateMarker(data.driverId, existing.marker.getLatLng().lat, existing.marker.getLatLng().lng, { status: data.status });
         }
       }
     };

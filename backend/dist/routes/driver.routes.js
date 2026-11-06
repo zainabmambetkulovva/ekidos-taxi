@@ -106,6 +106,7 @@ router.get('/online-with-status', async (req, res) => {
                 firstName: true,
                 lastName: true,
                 callsign: true,
+                phone: true,
                 status: true,
                 latitude: true,
                 longitude: true,
@@ -118,6 +119,7 @@ router.get('/online-with-status', async (req, res) => {
             status: d.status,
             name: `${d.firstName} ${d.lastName}`,
             callsign: d.callsign || '',
+            phone: d.phone || '',
         })));
     }
     catch (error) {
