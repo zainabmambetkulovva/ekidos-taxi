@@ -9,6 +9,7 @@ import {
   ShoppingCart, XCircle, CheckCircle2,
 } from 'lucide-react';
 import { connectSocket } from '@/lib/socket';
+import { pick, orderStatusLabel, cancelledByLabel } from '@/lib/tx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,30 +20,14 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'yearly';
 type StatusFilter = 'ALL' | 'COMPLETED' | 'CANCELLED' | 'ACTIVE';
 
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Күтүүдө',
-  ASSIGNED: 'Аткарылууда',
-  IN_PROGRESS: 'Аткарылууда',
-  COMPLETED: 'Бүттү',
-  CANCELLED: 'Отмена',
-};
-
-// Ким отмена кылды
-const CANCELLED_BY_LABEL: Record<string, string> = {
-  DISPATCHER: 'Диспетчер отмена кылды',
-  CLIENT: 'Клиент отмена кылды',
-  DRIVER: 'Водитель отмена кылды',
-  SYSTEM: 'Система отмена кылды',
-};
-const cancelledByLabel = (v?: string | null) => (v && CANCELLED_BY_LABEL[v]) || 'Отмена (ким экени белгисиз)';
-
 const hhmm = (d?: string | null) =>
   d ? new Date(d).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
 
 const csvCell = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
 export default function ReportsPage() {
-  const { t } = useLanguageStore();
+  const { t, lang } = useLanguageStore();
+  const tx = (ru: string, kg: string, en: string) => pick(lang, ru, kg, en);
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState<PeriodType>('daily');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -94,7 +79,12 @@ export default function ReportsPage() {
   const exportData = (format: string) => {
     // Simple CSV export
     if (format === 'csv' && report?.orders) {
-      const headers = 'Заказ,Телефон,Адрес подачи,Адрес назначения,Позывной,Водитель,Статус,Ким отмена кылды,Баа,Түзүлдү,Бүттү/Отмена\n';
+      const headers = [
+        tx('Заказ', 'Заказ', 'Order'), tx('Телефон', 'Телефон', 'Phone'),
+        tx('Адрес подачи', 'Алуу дареги', 'Pickup'), tx('Адрес назначения', 'Баруучу дарек', 'Destination'),
+        tx('Позывной', 'Позывной', 'Callsign'), tx('Водитель', 'Айдоочу', 'Driver'), tx('Статус', 'Статус', 'Status'),
+        'Отмена', tx('Цена', 'Баа', 'Price'), tx('Создан', 'Түзүлдү', 'Created'), tx('Завершён / Отмена', 'Бүттү / Отмена', 'Finished / Отмена'),
+      ].map(csvCell).join(',') + '\n';
       const rows = report.orders.map((o: any) => [
         o.orderNumber,
         o.clientPhone,
@@ -102,8 +92,8 @@ export default function ReportsPage() {
         o.destAddress,
         o.driver?.callsign || '',
         o.driver ? `${o.driver.firstName} ${o.driver.lastName}` : '',
-        STATUS_LABEL[o.status] || o.status,
-        o.status === 'CANCELLED' ? cancelledByLabel(o.cancelledBy) : '',
+        orderStatusLabel(lang, o.status),
+        o.status === 'CANCELLED' ? cancelledByLabel(lang, o.cancelledBy) : '',
         o.price,
         formatDate(o.createdAt),
         formatDate(o.completedAt || o.cancelledAt),
@@ -185,11 +175,11 @@ export default function ReportsPage() {
                   <p className="text-2xl font-bold mt-1 text-red-400">{report?.cancelledOrders || 0}</p>
                   {(report?.cancelledOrders || 0) > 0 && (
                     <div className="mt-1 space-y-0.5 text-xs text-red-300/80">
-                      {cb.DISPATCHER > 0 && <p>Диспетчер: {cb.DISPATCHER}</p>}
-                      {cb.CLIENT > 0 && <p>Клиент: {cb.CLIENT}</p>}
-                      {cb.DRIVER > 0 && <p>Водитель: {cb.DRIVER}</p>}
-                      {cb.SYSTEM > 0 && <p>Система: {cb.SYSTEM}</p>}
-                      {cb.UNKNOWN > 0 && <p>Белгисиз: {cb.UNKNOWN}</p>}
+                      {cb.DISPATCHER > 0 && <p>{tx('Диспетчер', 'Диспетчер', 'Dispatcher')}: {cb.DISPATCHER}</p>}
+                      {cb.CLIENT > 0 && <p>{tx('Клиент', 'Клиент', 'Client')}: {cb.CLIENT}</p>}
+                      {cb.DRIVER > 0 && <p>{tx('Водитель', 'Айдоочу', 'Driver')}: {cb.DRIVER}</p>}
+                      {cb.SYSTEM > 0 && <p>{tx('Система', 'Система', 'System')}: {cb.SYSTEM}</p>}
+                      {cb.UNKNOWN > 0 && <p>{tx('Неизвестно', 'Белгисиз', 'Unknown')}: {cb.UNKNOWN}</p>}
                     </div>
                   )}
                 </div>
@@ -209,10 +199,10 @@ export default function ReportsPage() {
           </CardTitle>
           <div className="flex flex-wrap gap-2">
             {([
-              ['ALL', `Баары (${allOrders.length})`],
-              ['COMPLETED', `Бүттү (${report?.completedOrders || 0})`],
+              ['ALL', `${tx('Все', 'Баары', 'All')} (${allOrders.length})`],
+              ['COMPLETED', `${tx('Выполнен', 'Бүттү', 'Completed')} (${report?.completedOrders || 0})`],
               ['CANCELLED', `Отмена (${report?.cancelledOrders || 0})`],
-              ['ACTIVE', 'Активдүү'],
+              ['ACTIVE', tx('В работе', 'Аткарылууда', 'Active')],
             ] as [StatusFilter, string][]).map(([key, label]) => (
               <Button
                 key={key}
@@ -232,12 +222,12 @@ export default function ReportsPage() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">№</th>
-                  <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">Адрес</th>
-                  <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">Телефон</th>
+                  <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">{tx('Адрес', 'Дарек', 'Address')}</th>
+                  <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">{tx('Телефон', 'Телефон', 'Phone')}</th>
                   <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">{t('driver')}</th>
                   <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">{t('status')}</th>
-                  <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">Түзүлдү</th>
-                  <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">Бүттү / Отмена</th>
+                  <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">{tx('Создан', 'Түзүлдү', 'Created')}</th>
+                  <th className="text-left p-3 text-xs font-semibold text-muted-foreground uppercase">{tx('Завершён / Отмена', 'Бүттү / Отмена', 'Finished / Отмена')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,12 +256,12 @@ export default function ReportsPage() {
                       </td>
                       <td className="p-3">
                         <Badge variant={order.status === 'COMPLETED' ? 'success' : cancelled ? 'destructive' : 'secondary'}>
-                          {STATUS_LABEL[order.status] || order.status}
+                          {orderStatusLabel(lang, order.status)}
                         </Badge>
                         {cancelled && (
                           <p className="mt-1 text-xs font-semibold text-red-400 whitespace-nowrap">
                             <XCircle className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                            {cancelledByLabel(order.cancelledBy)}
+                            {cancelledByLabel(lang, order.cancelledBy)}
                           </p>
                         )}
                       </td>
@@ -287,7 +277,7 @@ export default function ReportsPage() {
             {visibleOrders.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Бул мөөнөттө заказ жок</p>
+                <p>{tx('За этот период заказов нет', 'Бул мөөнөттө заказ жок', 'No orders for this period')}</p>
               </div>
             )}
           </div>

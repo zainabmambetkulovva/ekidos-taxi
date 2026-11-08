@@ -96,7 +96,7 @@ const t: Record<Lang, Record<string, string>> = {
     assigned: 'Назначен',
     inProgress: 'В пути',
     completed: 'Выполнен',
-    cancelled: 'Отменён',
+    cancelled: 'Отмена',
 
     // Tables
     viewTables: 'Просмотр данных в таблицах',
@@ -118,7 +118,7 @@ const t: Record<Lang, Record<string, string>> = {
     yearly: 'Годовой',
     totalOrders: 'Всего заказов',
     completedOrders: 'Выполнено',
-    cancelledOrders: 'Отменено',
+    cancelledOrders: 'Отмена',
     revenue: 'Доход',
 
     // Settings
@@ -239,7 +239,7 @@ const t: Record<Lang, Record<string, string>> = {
     notes: 'Эскертмелер',
     accountStatus: 'Аккаунт статусу',
     save: 'Сактоо',
-    cancel: 'Жокко чыгаруу',
+    cancel: 'Отмена',
     noDriversFound: 'Айдоочу табылган жок',
     orders: 'заказ',
     edit: 'Өзгөртүү',
@@ -270,7 +270,7 @@ const t: Record<Lang, Record<string, string>> = {
     assigned: 'Дайындалды',
     inProgress: 'Жолдо',
     completed: 'Аткарылды',
-    cancelled: 'Жокко чыгарылды',
+    cancelled: 'Отмена',
 
     // Tables
     viewTables: 'Маалыматтарды таблицада кароо',
@@ -292,7 +292,7 @@ const t: Record<Lang, Record<string, string>> = {
     yearly: 'Жылдык',
     totalOrders: 'Бардык заказдар',
     completedOrders: 'Аткарылды',
-    cancelledOrders: 'Жокко чыгарылды',
+    cancelledOrders: 'Отмена',
     revenue: 'Киреше',
 
     // Settings
@@ -413,7 +413,7 @@ const t: Record<Lang, Record<string, string>> = {
     notes: 'Notes',
     accountStatus: 'Account Status',
     save: 'Save',
-    cancel: 'Cancel',
+    cancel: 'Отмена',
     noDriversFound: 'No drivers found',
     orders: 'orders',
     edit: 'Edit',
@@ -444,7 +444,7 @@ const t: Record<Lang, Record<string, string>> = {
     assigned: 'Assigned',
     inProgress: 'In Progress',
     completed: 'Completed',
-    cancelled: 'Cancelled',
+    cancelled: 'Отмена',
 
     // Tables
     viewTables: 'View all data in tables',
@@ -466,7 +466,7 @@ const t: Record<Lang, Record<string, string>> = {
     yearly: 'Yearly',
     totalOrders: 'Total Orders',
     completedOrders: 'Completed',
-    cancelledOrders: 'Cancelled',
+    cancelledOrders: 'Отмена',
     revenue: 'Revenue',
 
     // Settings

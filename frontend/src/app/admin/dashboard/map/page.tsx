@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/axios';
 import { connectSocket } from '@/lib/socket';
+import { useLanguageStore } from '@/store/useLanguageStore';
+import { pick, orderStatusLabel, driverStatusLabel } from '@/lib/tx';
 
 // Түстөр: заказда — кызыл, бош — жашыл, занят — оранжевый
 const STATUS_COLOR: Record<string, string> = {
@@ -16,36 +18,24 @@ const STATUS_COLOR: Record<string, string> = {
   BUSY_PERSONAL: '#f97316',
   OFFLINE: '#6b7280',
 };
-const STATUS_LABEL: Record<string, string> = {
-  ONLINE: 'Бош',
-  BUSY: 'Заказда',
-  BUSY_PERSONAL: 'Занят',
-  OFFLINE: 'Оффлайн',
+
+const ORDER_STATUS: Record<string, { row: string; text: string }> = {
+  PENDING: { row: 'bg-yellow-500/10 hover:bg-yellow-500/20', text: 'text-yellow-400' },
+  ASSIGNED: { row: 'bg-red-500/10 hover:bg-red-500/20', text: 'text-red-400' },
+  IN_PROGRESS: { row: 'bg-red-500/10 hover:bg-red-500/20', text: 'text-red-400' },
+  COMPLETED: { row: 'bg-green-500/10 hover:bg-green-500/20', text: 'text-green-400' },
+  CANCELLED: { row: 'bg-white/[0.03] hover:bg-white/[0.06] opacity-60', text: 'text-gray-400' },
 };
 
-const ORDER_STATUS: Record<string, { label: string; row: string; text: string }> = {
-  PENDING: { label: 'Күтүүдө', row: 'bg-yellow-500/10 hover:bg-yellow-500/20', text: 'text-yellow-400' },
-  ASSIGNED: { label: 'Алынды', row: 'bg-red-500/10 hover:bg-red-500/20', text: 'text-red-400' },
-  IN_PROGRESS: { label: 'Жолдо', row: 'bg-red-500/10 hover:bg-red-500/20', text: 'text-red-400' },
-  COMPLETED: { label: 'Бүттү', row: 'bg-green-500/10 hover:bg-green-500/20', text: 'text-green-400' },
-  CANCELLED: { label: 'Отмена', row: 'bg-white/[0.03] hover:bg-white/[0.06] opacity-60', text: 'text-gray-400' },
-};
-
-const FILTERS = [
-  { key: 'ALL', label: 'Баары' },
-  { key: 'PENDING', label: 'Күтүүдө' },
-  { key: 'ACTIVE', label: 'Аткарылууда' },
-  { key: 'COMPLETED', label: 'Бүттү' },
-  { key: 'CANCELLED', label: 'Отмена' },
-];
+const FILTER_KEYS = ['ALL', 'PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED'];
 
 const hhmm = (d?: string | null) =>
   d ? new Date(d).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
 
-const minutesBetween = (from?: string | null, to?: string | number | null) => {
+const minutesBetween = (from?: string | null, to?: string | number | null, suffix = 'м') => {
   if (!from || !to) return '';
   const m = Math.max(0, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60000));
-  return `${m}м`;
+  return `${m}${suffix}`;
 };
 
 const callsignLabel = (d: any) =>
@@ -67,6 +57,15 @@ interface LiveDriver {
 }
 
 export default function LiveMapPage() {
+  const lang = useLanguageStore(st => st.lang);
+  const tx = (ru: string, kg: string, en: string) => pick(lang, ru, kg, en);
+  const minSuffix = tx('м', 'м', 'm');
+  const filterLabel = (k: string) =>
+    k === 'ALL' ? tx('Все', 'Баары', 'All')
+    : k === 'PENDING' ? tx('Ожидает', 'Күтүүдө', 'Pending')
+    : k === 'ACTIVE' ? tx('В работе', 'Аткарылууда', 'Active')
+    : k === 'COMPLETED' ? tx('Выполнен', 'Бүттү', 'Completed')
+    : 'Отмена';
   const queryClient = useQueryClient();
   const [mapLoaded, setMapLoaded] = useState(false);
   const [filter, setFilter] = useState('ALL');
@@ -232,11 +231,11 @@ export default function LiveMapPage() {
       const popup =
         `<div style="font-family:sans-serif;min-width:170px">` +
         `<b>${escapeHtml(d.firstName)} ${escapeHtml(d.lastName)}</b>` +
-        (d.callsign ? `<br><span style="color:#ef4444;font-weight:700">Позывной: ${escapeHtml(d.callsign)}</span>` : '') +
+        (d.callsign ? `<br><span style="color:#ef4444;font-weight:700">${tx('Позывной', 'Позывной', 'Callsign')}: ${escapeHtml(d.callsign)}</span>` : '') +
         (d.phone ? `<br>${escapeHtml(d.phone)}` : '') +
         (d.vehicle ? `<br>${escapeHtml(d.vehicle.brand)} ${escapeHtml(d.vehicle.model)} <b>${escapeHtml(d.vehicle.plateNumber)}</b>` : '') +
-        `<br><span style="color:${color};font-weight:700">${STATUS_LABEL[d.status] || d.status}</span>` +
-        (order ? `<br><span style="font-size:12px">🚕 ${escapeHtml(order.pickupAddress)} — алды ${hhmm(order.assignedAt)}</span>` : '') +
+        `<br><span style="color:${color};font-weight:700">${driverStatusLabel(lang, d.status)}</span>` +
+        (order ? `<br><span style="font-size:12px">🚕 ${escapeHtml(order.pickupAddress)} — ${tx('принял', 'алды', 'accepted')} ${hhmm(order.assignedAt)}</span>` : '') +
         `</div>`;
 
       const existing = driverMarkersRef.current[d.id];
@@ -270,7 +269,7 @@ export default function LiveMapPage() {
       map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 15 });
       fittedRef.current = true;
     }
-  }, [drivers, showOffline, activeOrderByDriver, mapLoaded]);
+  }, [drivers, showOffline, activeOrderByDriver, mapLoaded, lang]);
 
   // Активдүү заказдардын (координаты бар) маркерлери
   useEffect(() => {
@@ -284,7 +283,7 @@ export default function LiveMapPage() {
       seen.add(o.id);
       const color = o.status === 'PENDING' ? '#eab308' : '#ef4444';
       const html = `<div style="width:16px;height:16px;background:${color};border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px ${color}55"></div>`;
-      const popup = `<div style="font-family:sans-serif"><b>#${escapeHtml(o.orderNumber)}</b><br>${escapeHtml(o.pickupAddress)}<br>${ORDER_STATUS[o.status]?.label || o.status}</div>`;
+      const popup = `<div style="font-family:sans-serif"><b>#${escapeHtml(o.orderNumber)}</b><br>${escapeHtml(o.pickupAddress)}<br>${orderStatusLabel(lang, o.status)}</div>`;
       const existing = orderMarkersRef.current[o.id];
       if (existing) {
         existing.setIcon(L.divIcon({ className: '', html, iconSize: [16, 16], iconAnchor: [8, 8] }));
@@ -301,7 +300,7 @@ export default function LiveMapPage() {
         delete orderMarkersRef.current[id];
       }
     });
-  }, [orders, mapLoaded]);
+  }, [orders, mapLoaded, lang]);
 
   const focusDriver = useCallback((driverId?: string | null) => {
     if (!driverId) return;
@@ -343,15 +342,15 @@ export default function LiveMapPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Карта</h1>
-          <p className="text-muted-foreground text-sm">Бүгүнкү заказдар жана водительдер — чыныгы убакытта</p>
+          <h1 className="text-2xl font-bold">{tx('Карта', 'Карта', 'Map')}</h1>
+          <p className="text-muted-foreground text-sm">{tx('Заказы и водители за сегодня — в реальном времени', 'Бүгүнкү заказдар жана водительдер — чыныгы убакытта', "Today's orders and drivers — live")}</p>
         </div>
         <div className="flex flex-wrap gap-2 text-sm">
           {(['ONLINE', 'BUSY', 'BUSY_PERSONAL', 'OFFLINE'] as const).map(s => (
             <div key={s} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5">
               <span className="w-3 h-3 rounded-full" style={{ background: STATUS_COLOR[s] }} />
               <span className="font-bold">{counts[s]}</span>
-              <span className="text-muted-foreground">{STATUS_LABEL[s]}</span>
+              <span className="text-muted-foreground">{driverStatusLabel(lang, s)}</span>
             </div>
           ))}
         </div>
@@ -361,7 +360,7 @@ export default function LiveMapPage() {
       {!fullMap && (
         <Card className="overflow-hidden">
           <div className="flex flex-wrap items-center gap-2 p-3 border-b border-white/10">
-            {FILTERS.map(f => (
+            {FILTER_KEYS.map(key => ({ key, label: filterLabel(key) })).map(f => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
@@ -377,24 +376,24 @@ export default function LiveMapPage() {
             ))}
             <div className="relative ml-auto w-full sm:w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Адрес, позывной, номер..." className="h-8 pl-8 text-xs" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx('Адрес, позывной, номер...', 'Дарек, позывной, номер...', 'Address, callsign, phone...')} className="h-8 pl-8 text-xs" />
             </div>
           </div>
           <div className="max-h-[42vh] overflow-auto">
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10 bg-[#0f1720] text-gray-400">
                 <tr className="text-left">
-                  <th className="px-2 py-2 font-semibold">Адрес подачи</th>
-                  <th className="px-2 py-2 font-semibold">Адрес назначения</th>
-                  <th className="px-2 py-2 font-semibold">Түзүлдү</th>
-                  <th className="px-2 py-2 font-semibold" title="Заказ алынганга чейин күтүү">Күтүү</th>
-                  <th className="px-2 py-2 font-semibold">Позывной</th>
-                  <th className="px-2 py-2 font-semibold">Водитель</th>
-                  <th className="px-2 py-2 font-semibold">Алды</th>
-                  <th className="px-2 py-2 font-semibold">Бүттү</th>
-                  <th className="px-2 py-2 font-semibold" title="Алгандан бүткөнгө чейин">Убакыт</th>
-                  <th className="px-2 py-2 font-semibold text-right">Баа</th>
-                  <th className="px-2 py-2 font-semibold">Статус</th>
+                  <th className="px-2 py-2 font-semibold">{tx('Адрес подачи', 'Алуу дареги', 'Pickup')}</th>
+                  <th className="px-2 py-2 font-semibold">{tx('Адрес назначения', 'Баруучу дарек', 'Destination')}</th>
+                  <th className="px-2 py-2 font-semibold">{tx('Создан', 'Түзүлдү', 'Created')}</th>
+                  <th className="px-2 py-2 font-semibold" title={tx('Ожидание до принятия', 'Заказ алынганга чейин күтүү', 'Wait until accepted')}>{tx('Ожидание', 'Күтүү', 'Wait')}</th>
+                  <th className="px-2 py-2 font-semibold">{tx('Позывной', 'Позывной', 'Callsign')}</th>
+                  <th className="px-2 py-2 font-semibold">{tx('Водитель', 'Айдоочу', 'Driver')}</th>
+                  <th className="px-2 py-2 font-semibold">{tx('Принял', 'Алды', 'Accepted')}</th>
+                  <th className="px-2 py-2 font-semibold">{tx('Завершил', 'Бүттү', 'Finished')}</th>
+                  <th className="px-2 py-2 font-semibold" title={tx('От принятия до завершения', 'Алгандан бүткөнгө чейин', 'From accept to finish')}>{tx('Время', 'Убакыт', 'Time')}</th>
+                  <th className="px-2 py-2 font-semibold text-right">{tx('Цена', 'Баа', 'Price')}</th>
+                  <th className="px-2 py-2 font-semibold">{tx('Статус', 'Статус', 'Status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -402,7 +401,7 @@ export default function LiveMapPage() {
                   <tr><td colSpan={11} className="p-3"><Skeleton className="h-6 w-full" /></td></tr>
                 )}
                 {!ordersLoading && filteredOrders.length === 0 && (
-                  <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Бүгүн заказ жок</td></tr>
+                  <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">{tx('Сегодня заказов нет', 'Бүгүн заказ жок', 'No orders today')}</td></tr>
                 )}
                 {filteredOrders.map(o => {
                   const st = ORDER_STATUS[o.status] || ORDER_STATUS.PENDING;
@@ -418,20 +417,20 @@ export default function LiveMapPage() {
                       <td className="px-2 py-1.5 font-medium text-white max-w-[220px] truncate" title={o.pickupAddress}>{o.pickupAddress}</td>
                       <td className="px-2 py-1.5 text-gray-300 max-w-[180px] truncate" title={o.destAddress}>{o.destAddress === 'Не указано' ? '' : o.destAddress}</td>
                       <td className="px-2 py-1.5 font-mono">{hhmm(o.createdAt)}</td>
-                      <td className="px-2 py-1.5 font-mono text-yellow-300">{minutesBetween(o.createdAt, waitEnd)}</td>
+                      <td className="px-2 py-1.5 font-mono text-yellow-300">{minutesBetween(o.createdAt, waitEnd, minSuffix)}</td>
                       <td className="px-2 py-1.5 font-mono font-bold">
                         {o.driver ? (
                           <span className="text-white">{callsignLabel(o.driver)}</span>
                         ) : (target || o.targetCallsign) ? (
-                          <span className="text-blue-400" title="Диспетчер ушул водительге берди">🎯 {target ? callsignLabel(target) : o.targetCallsign}</span>
+                          <span className="text-blue-400" title={tx('Диспетчер назначил этому водителю', 'Диспетчер ушул водительге берди', 'Assigned by dispatcher')}>🎯 {target ? callsignLabel(target) : o.targetCallsign}</span>
                         ) : ''}
                       </td>
                       <td className="px-2 py-1.5 text-gray-300 whitespace-nowrap">{o.driver ? `${o.driver.firstName} ${o.driver.lastName?.[0] || ''}.` : ''}</td>
                       <td className="px-2 py-1.5 font-mono">{hhmm(o.assignedAt)}</td>
                       <td className="px-2 py-1.5 font-mono">{hhmm(o.completedAt)}</td>
-                      <td className="px-2 py-1.5 font-mono">{o.assignedAt ? minutesBetween(o.assignedAt, tripEnd) : ''}</td>
+                      <td className="px-2 py-1.5 font-mono">{o.assignedAt ? minutesBetween(o.assignedAt, tripEnd, minSuffix) : ''}</td>
                       <td className="px-2 py-1.5 font-mono text-right">{o.price ? Math.round(o.price) : 0}</td>
-                      <td className={`px-2 py-1.5 font-semibold whitespace-nowrap ${st.text}`}>{st.label}</td>
+                      <td className={`px-2 py-1.5 font-semibold whitespace-nowrap ${st.text}`}>{orderStatusLabel(lang, o.status)}</td>
                     </tr>
                   );
                 })}
@@ -446,12 +445,12 @@ export default function LiveMapPage() {
         <div className="absolute top-3 right-3 z-[1000] flex gap-2">
           <label className="flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1.5 text-xs text-white cursor-pointer">
             <input type="checkbox" checked={showOffline} onChange={e => setShowOffline(e.target.checked)} />
-            Оффлайн
+            {tx('Оффлайн', 'Оффлайн', 'Offline')}
           </label>
           <button
             onClick={() => setFullMap(v => !v)}
             className="rounded-md bg-black/70 p-1.5 text-white hover:bg-black"
-            title={fullMap ? 'Таблицаны көрсөтүү' : 'Картаны чоңойтуу'}
+            title={fullMap ? tx('Показать таблицу', 'Таблицаны көрсөтүү', 'Show table') : tx('Увеличить карту', 'Картаны чоңойтуу', 'Enlarge map')}
           >
             {fullMap ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>

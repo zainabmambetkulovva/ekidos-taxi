@@ -1,5 +1,7 @@
 'use client';
 
+import { orderStatusLabel } from '@/lib/tx';
+import { useLanguageStore } from '@/store/useLanguageStore';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, MapPin, Clock } from 'lucide-react';
@@ -7,6 +9,7 @@ import api from '@/lib/axios';
 
 export default function ArchivePage() {
   const router = useRouter();
+  const lang = useLanguageStore(st => st.lang);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -72,7 +75,7 @@ export default function ArchivePage() {
                   order.status === 'CANCELLED' ? 'bg-red-500/20 text-red-400' :
                   order.status === 'ASSIGNED' ? 'bg-yellow-500/20 text-yellow-400' :
                   'bg-gray-500/20 text-gray-400'
-                }`}>{order.status}</span>
+                }`}>{orderStatusLabel(lang, order.status)}</span>
               </div>
             </div>
           ))}

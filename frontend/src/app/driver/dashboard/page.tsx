@@ -11,9 +11,11 @@ import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { connectSocket } from '@/lib/socket';
+import { useTx, pick } from '@/lib/tx';
 
 // Active Order Card with step-by-step flow
 function ActiveOrderCard({ order, onComplete, onCancel }: { order: any; onComplete: () => void; onCancel: () => void }) {
+  const tx = useTx();
   const [step, setStep] = useState<'driving' | 'arrived' | 'client_in_car'>('driving');
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [countdown, setCountdown] = useState(120);
@@ -44,13 +46,13 @@ function ActiveOrderCard({ order, onComplete, onCancel }: { order: any; onComple
       socket.emit('driver:arrived', { orderId: order.id, driverId });
     }
     setStep('arrived');
-    toast.success('Клиент уведомлён!');
+    toast.success(tx('Клиент уведомлён!', 'Клиентке кабар берилди!', 'Client notified!'));
   };
 
   const handleClientInCar = () => {
     playWelcomeSound();
     setStep('client_in_car');
-    toast.success('В пути!');
+    toast.success(tx('В пути!', 'Жолдо!', 'On the way!'));
   };
 
   const handleComplete = () => {
@@ -62,9 +64,9 @@ function ActiveOrderCard({ order, onComplete, onCancel }: { order: any; onComple
     <div className="bg-[#0d0d0d] border border-green-500/30 rounded-2xl p-4 shadow-2xl">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-bold text-green-400 uppercase tracking-wider">
-          {step === 'driving' && 'Еду к клиенту'}
-          {step === 'arrived' && 'На месте'}
-          {step === 'client_in_car' && 'В пути'}
+          {step === 'driving' && tx('Еду к клиенту', 'Клиентке бара жатам', 'Driving to client')}
+          {step === 'arrived' && tx('На месте', 'Жеттим', 'Arrived')}
+          {step === 'client_in_car' && tx('В пути', 'Жолдо', 'On the way')}
         </span>
       </div>
 
@@ -81,7 +83,7 @@ function ActiveOrderCard({ order, onComplete, onCancel }: { order: any; onComple
       </div>
 
       <div className="flex items-center justify-between mb-3 bg-white/5 rounded-xl px-3 py-2">
-        <span className="text-xs text-gray-400">Клиент: <span className="text-white font-medium">{order.clientName}</span></span>
+        <span className="text-xs text-gray-400">{tx('Клиент', 'Клиент', 'Client')}: <span className="text-white font-medium">{order.clientName}</span></span>
         {order.clientPhone && (
           <a href={`tel:${order.clientPhone}`} className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center">
             <Phone className="w-3.5 h-3.5 text-blue-400" />
@@ -111,14 +113,14 @@ function ActiveOrderCard({ order, onComplete, onCancel }: { order: any; onComple
             className="flex-1 h-11 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
           >
             <Navigation className="w-4 h-4" />
-            Навигация
+            {tx('Навигация', 'Навигация', 'Navigation')}
           </button>
           <button
             onClick={handleArrived}
             className="flex-1 h-11 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-all"
           >
             <MapPinIcon className="w-4 h-4" />
-            Я подъехал
+            {tx('Я подъехал', 'Мен келдим', "I've arrived")}
           </button>
         </div>
       )}
@@ -129,7 +131,7 @@ function ActiveOrderCard({ order, onComplete, onCancel }: { order: any; onComple
           className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all"
         >
           <Car className="w-5 h-5" />
-          Клиент в машине
+          {tx('Клиент в машине', 'Клиент машинада', 'Client in car')}
         </button>
       )}
 
@@ -139,26 +141,26 @@ function ActiveOrderCard({ order, onComplete, onCancel }: { order: any; onComple
           className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-lg shadow-green-500/20"
         >
           <CheckCircle2 className="w-5 h-5" />
-          Завершить заказ
+          {tx('Завершить заказ', 'Заказды бүтүрүү', 'Finish order')}
         </button>
       )}
 
       {/* Отмена — заказ башка водительдерге кетет */}
       {confirmCancel ? (
         <div className="mt-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
-          <p className="text-xs text-red-200 text-center mb-2">Заказды чын эле отмена кыласызбы? Заказ башка водительге берилет.</p>
+          <p className="text-xs text-red-200 text-center mb-2">{tx('Точно отмена? Заказ передадут другому водителю.', 'Заказды чын эле отмена кыласызбы? Заказ башка айдоочуга берилет.', 'Sure, Отмена? The order goes to another driver.')}</p>
           <div className="flex gap-2">
             <button
               onClick={() => setConfirmCancel(false)}
               className="flex-1 h-10 rounded-lg bg-white/10 text-white text-xs font-bold active:scale-[0.97] transition-all"
             >
-              Жок
+              {tx('Нет', 'Жок', 'No')}
             </button>
             <button
               onClick={() => { setConfirmCancel(false); onCancel(); }}
               className="flex-1 h-10 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold active:scale-[0.97] transition-all"
             >
-              Ооба, отмена
+              {tx('Да, отмена', 'Ооба, отмена', 'Yes, Отмена')}
             </button>
           </div>
         </div>
@@ -185,6 +187,7 @@ const DriverMap = dynamic(() => import('./driver-map'), {
 });
 
 export default function DriverHomePage() {
+  const tx = useTx();
   const { isOnline, activeOrder, lineStatus, setLineStatus, setActiveOrder } = useDriverStore();
   const { t } = useLanguageStore();
   const toktogulCenter: [number, number] = [41.8747, 72.9422];
@@ -277,7 +280,7 @@ export default function DriverHomePage() {
     const orderId = activeOrder.id;
     // Дароо бошотобуз — экран заматта жашыл болот
     setActiveOrder(null);
-    toast.success('Заказ выполнен! Молодец!');
+    toast.success(pick(useLanguageStore.getState().lang, 'Заказ выполнен! Молодец!', 'Заказ бүттү! Азаматсыз!', 'Order completed! Well done!'));
     api.patch(`/orders/${orderId}/complete`).catch(() => {
       // Тармак катасы — бир жолу кайра аракет
       setTimeout(() => api.patch(`/orders/${orderId}/complete`).catch(() => {}), 2000);
@@ -291,7 +294,8 @@ export default function DriverHomePage() {
     setActiveOrder(null);
     try {
       const { data } = await api.patch(`/orders/${order.id}/driver-cancel`);
-      toast('Заказ отмена болду. Башка водительге берилди.', { icon: '↩️' });
+      const lang = useLanguageStore.getState().lang;
+      toast(pick(lang, 'Отмена. Заказ передан другому водителю.', 'Заказ отмена болду. Башка айдоочуга берилди.', 'Отмена. The order went to another driver.'), { icon: '↩️' });
       if (typeof data?.newBalance === 'number') {
         try {
           const info = localStorage.getItem('driverInfo');
@@ -306,7 +310,7 @@ export default function DriverHomePage() {
     } catch (error: any) {
       // Отмена болбоду — заказды кайра көрсөтөбүз
       if (!useDriverStore.getState().activeOrder) setActiveOrder(order);
-      toast.error(error?.response?.data?.error || 'Отмена кылуу мүмкүн болбоду');
+      toast.error(error?.response?.data?.error || pick(useLanguageStore.getState().lang, 'Не удалось отменить', 'Отмена кылуу мүмкүн болбоду', 'Could not cancel'));
     }
   };
 
@@ -317,16 +321,16 @@ export default function DriverHomePage() {
         <div className="absolute inset-0 z-[9998] bg-black/95 flex flex-col items-center justify-center p-6">
           <div className="w-32 h-32 rounded-full border-4 border-red-500 flex flex-col items-center justify-center mb-6 shadow-lg shadow-red-500/30">
             <span className="text-3xl font-black text-red-500">{balance}</span>
-            <span className="text-xs text-gray-400 mt-1">сом</span>
+            <span className="text-xs text-gray-400 mt-1">{tx('сом', 'сом', 'som')}</span>
           </div>
-          <h1 className="text-2xl font-black text-white mb-3 text-center">Балансыңызды толуктаңыз!</h1>
+          <h1 className="text-2xl font-black text-white mb-3 text-center">{tx('Пополните баланс!', 'Балансыңызды толуктаңыз!', 'Top up your balance!')}</h1>
           <p className="text-gray-400 text-sm text-center mb-6 max-w-xs leading-relaxed">
-            Заказ кабыл алуу үчүн балансыңыз кем дегенде <span className="text-yellow-400 font-bold">12 сом</span> болушу керек.
+            {tx('Чтобы принимать заказы, на балансе должно быть минимум', 'Заказ кабыл алуу үчүн балансыңыз кем дегенде', 'To accept orders your balance must be at least')} <span className="text-yellow-400 font-bold">12 {tx('сом', 'сом', 'som')}</span>{tx('.', ' болушу керек.', '.')}
           </p>
           <div className="bg-white/5 border border-red-500/30 rounded-2xl p-5 w-full max-w-xs space-y-2">
-            <p className="text-sm text-white text-center font-semibold">Кантип толуктоо керек?</p>
-            <p className="text-xs text-gray-400 text-center">Telegram ботко өтүп, чек жөнөтүңүз.</p>
-            <p className="text-xs text-gray-400 text-center">Канча сом салсаңыз — ошончо баланс болот.</p>
+            <p className="text-sm text-white text-center font-semibold">{tx('Как пополнить?', 'Кантип толуктоо керек?', 'How to top up?')}</p>
+            <p className="text-xs text-gray-400 text-center">{tx('Перейдите в Telegram-бот и отправьте чек.', 'Telegram ботко өтүп, чек жөнөтүңүз.', 'Open the Telegram bot and send the receipt.')}</p>
+            <p className="text-xs text-gray-400 text-center">{tx('Сколько сом внесёте — столько будет на балансе.', 'Канча сом салсаңыз — ошончо баланс болот.', 'Whatever you pay in is added to your balance.')}</p>
           </div>
         </div>
       )}

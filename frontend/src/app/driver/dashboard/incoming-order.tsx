@@ -9,6 +9,8 @@ import { playOrderAlertSound, playWelcomeSound } from '@/lib/sounds';
 import { getOptionEmoji, getOptionLabel } from '@/lib/order-options';
 import api from '@/lib/axios';
 import { connectSocket } from '@/lib/socket';
+import { useTx, pick } from '@/lib/tx';
+import { useLanguageStore } from '@/store/useLanguageStore';
 
 /**
  * Жаңы заказ — толук экран сунуш.
@@ -20,6 +22,7 @@ export default function IncomingOrderOverlay() {
   const { setActiveOrder } = useDriverStore();
   const [incomingOrder, setIncomingOrder] = useState<any>(null);
   const [incomingTimer, setIncomingTimer] = useState(0);
+  const tx = useTx();
 
   // Listen for INCOMING ORDER (fullscreen) — ALWAYS active when logged in
   useEffect(() => {
@@ -112,7 +115,7 @@ export default function IncomingOrderOverlay() {
     try {
       const { data } = await api.patch(`/orders/${order.id}/accept`, { driverId });
       setActiveOrder(data);
-      toast.success('Заказ принят!');
+      toast.success(pick(useLanguageStore.getState().lang, 'Заказ принят!', 'Заказ кабыл алынды!', 'Order accepted!'));
       // Баланс дароо жаңырат (12 / түнкүсү 14 сом алынды)
       if (typeof data?.newBalance === 'number') {
         try {
@@ -128,7 +131,7 @@ export default function IncomingOrderOverlay() {
     } catch (error: any) {
       // Кабыл алынбады (башка водитель алды / баланс жетишсиз) — артка кайтарабыз
       if (useDriverStore.getState().activeOrder?.id === order.id) setActiveOrder(null);
-      toast.error(error?.response?.data?.error || 'Заказды кабыл алуу мүмкүн болбоду');
+      toast.error(error?.response?.data?.error || pick(useLanguageStore.getState().lang, 'Не удалось принять заказ', 'Заказды кабыл алуу мүмкүн болбоду', 'Could not accept the order'));
     }
   };
 
@@ -163,8 +166,8 @@ export default function IncomingOrderOverlay() {
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl font-black text-white mb-2">ЖАҢЫ ЗАКАЗ!</h1>
-          <p className="text-sm text-gray-400 mb-6">{incomingOrder.distanceMeters}м алыстыкта</p>
+          <h1 className="text-2xl font-black text-white mb-2">{tx('НОВЫЙ ЗАКАЗ!', 'ЖАҢЫ ЗАКАЗ!', 'NEW ORDER!')}</h1>
+          <p className="text-sm text-gray-400 mb-6">{tx(`${incomingOrder.distanceMeters} м от вас`, `${incomingOrder.distanceMeters}м алыстыкта`, `${incomingOrder.distanceMeters} m away`)}</p>
 
           {/* Order card */}
           <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-3xl p-6 space-y-4 mb-8">
@@ -183,14 +186,14 @@ export default function IncomingOrderOverlay() {
 
             {/* Client */}
             <div className="bg-white/5 rounded-xl px-4 py-2">
-              <span className="text-xs text-gray-400">Клиент: </span>
+              <span className="text-xs text-gray-400">{tx('Клиент', 'Клиент', 'Client')}: </span>
               <span className="text-sm text-white font-medium">{incomingOrder.clientName}</span>
             </div>
 
             {/* Options */}
             {incomingOrder.options && incomingOrder.options.length > 0 && (
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3">
-                <p className="text-xs text-yellow-400 font-semibold mb-2 uppercase tracking-wide">Опции к заказу</p>
+                <p className="text-xs text-yellow-400 font-semibold mb-2 uppercase tracking-wide">{tx('Опции к заказу', 'Заказдын опциялары', 'Order options')}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {incomingOrder.options.map((optId: string) => (
                     <span
@@ -213,13 +216,13 @@ export default function IncomingOrderOverlay() {
               className="w-full h-16 rounded-2xl bg-green-600 hover:bg-green-700 text-white text-xl font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-green-600/30"
             >
               <CheckCircle2 className="w-7 h-7" />
-              ПРИНЯТЬ
+              {tx('ПРИНЯТЬ', 'КАБЫЛ АЛУУ', 'ACCEPT')}
             </button>
             <button
               onClick={handleRejectIncoming}
               className="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-gray-400 text-sm font-medium active:scale-95 transition-all"
             >
-              Отклонить
+              {tx('Отклонить', 'Баш тартуу', 'Decline')}
             </button>
           </div>
         </div>

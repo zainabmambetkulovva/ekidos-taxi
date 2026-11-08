@@ -17,6 +17,7 @@ import { connectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { useLanguageStore } from '@/store/useLanguageStore';
+import { useTx, pick, cancelledByLabel } from '@/lib/tx';
 
 import { ORDER_OPTIONS as OPTIONS_LIST } from '@/lib/order-options';
 
@@ -31,6 +32,7 @@ function OptionsBottomSheet({
   onClose: () => void;
   onSave: (opts: string[]) => void;
 }) {
+  const tx = useTx();
   const [local, setLocal] = useState<string[]>(selected);
 
   useEffect(() => { if (open) setLocal(selected); }, [open]);
@@ -46,7 +48,7 @@ function OptionsBottomSheet({
         style={{ width: '520px', maxWidth: '90vw' }}
       >
         <DialogHeader className="pb-3">
-          <DialogTitle className="text-base text-white">Опции к заказу</DialogTitle>
+          <DialogTitle className="text-base text-white">{tx('Опции к заказу', 'Заказдын опциялары', 'Order options')}</DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -76,7 +78,7 @@ function OptionsBottomSheet({
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSave(local); onClose(); }}
           className="w-full h-9 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all cursor-pointer"
         >
-          Сохранить{local.length > 0 ? ` (${local.length})` : ''}
+          {tx('Сохранить', 'Сактоо', 'Save')}{local.length > 0 ? ` (${local.length})` : ''}
         </button>
       </DialogContent>
     </Dialog>
@@ -126,9 +128,16 @@ function nextLocalPhone(raw: string, current: string, caret: number | null): str
   return next;
 }
 
-function validateLocalPhone(local: string): string | null {
-  if (local.length === 0) return 'Номер жазыңыз';
-  if (local.length < 9) return `Номер толук эмес: +996 XXX XXX XXX (дагы ${9 - local.length} сан керек)`;
+function validateLocalPhone(local: string, tx: (ru: string, kg: string, en: string) => string): string | null {
+  if (local.length === 0) return tx('Введите номер', 'Номер жазыңыз', 'Enter a phone number');
+  if (local.length < 9) {
+    const left = 9 - local.length;
+    return tx(
+      `Номер неполный: +996 XXX XXX XXX (ещё ${left} цифр)`,
+      `Номер толук эмес: +996 XXX XXX XXX (дагы ${left} сан керек)`,
+      `Incomplete number: +996 XXX XXX XXX (${left} more digits)`,
+    );
+  }
   return null;
 }
 
@@ -140,12 +149,6 @@ function isToday(d?: string | null): boolean {
   return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
 }
 
-const CANCELLED_BY_TEXT: Record<string, string> = {
-  DISPATCHER: 'Диспетчер отмена кылды',
-  CLIENT: 'Клиент отмена кылды',
-  DRIVER: 'Водитель отмена кылды',
-  SYSTEM: 'Система отмена кылды',
-};
 
 function isValidAddress(address: string): boolean {
   const trimmed = address.trim();
@@ -156,7 +159,8 @@ function isValidAddress(address: string): boolean {
 
 export default function DispatcherPage() {
   const queryClient = useQueryClient();
-  const { t } = useLanguageStore();
+  const { t, lang } = useLanguageStore();
+  const tx = (ru: string, kg: string, en: string) => pick(lang, ru, kg, en);
   const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -257,11 +261,13 @@ export default function DispatcherPage() {
       return { prev };
     },
     onSuccess: (data) => {
-      toast.success(data?.refunded > 0 ? `Заказ отмена болду. Водительге ${data.refunded} сом кайтарылды.` : 'Заказ отмена болду');
+      toast.success(data?.refunded > 0
+        ? tx(`Заказ — отмена. Водителю возвращено ${data.refunded} сом.`, `Заказ отмена болду. Айдоочуга ${data.refunded} сом кайтарылды.`, `Order — Отмена. ${data.refunded} som returned to the driver.`)
+        : tx('Заказ — отмена', 'Заказ отмена болду', 'Order — Отмена'));
     },
     onError: (error: any, _id, ctx: any) => {
       if (ctx?.prev) queryClient.setQueryData(['dispatcher-orders'], ctx.prev);
-      toast.error(error.response?.data?.error || 'Отмена кылуу мүмкүн болбоду');
+      toast.error(error.response?.data?.error || tx('Не удалось отменить', 'Отмена кылуу мүмкүн болбоду', 'Could not cancel'));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
@@ -271,12 +277,12 @@ export default function DispatcherPage() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!isValidAddress(orderForm.pickupAddress)) {
-      newErrors.pickupAddress = t('pickupAddress') + ' — кеминде 3 символ';
+      newErrors.pickupAddress = t('pickupAddress') + tx(' — минимум 3 символа', ' — кеминде 3 символ', ' — at least 3 characters');
     }
     if (orderForm.destAddress && !isValidAddress(orderForm.destAddress)) {
-      newErrors.destAddress = t('destAddress') + ' — кеминде 3 символ';
+      newErrors.destAddress = t('destAddress') + tx(' — минимум 3 символа', ' — кеминде 3 символ', ' — at least 3 characters');
     }
-    const phoneError = validateLocalPhone(orderForm.clientPhone);
+    const phoneError = validateLocalPhone(orderForm.clientPhone, tx);
     if (phoneError) {
       newErrors.clientPhone = phoneError;
     }
@@ -346,16 +352,16 @@ export default function DispatcherPage() {
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm font-bold text-red-400">#{order.orderNumber}</span>
                           {order.status === 'CANCELLED' ? (
-                            <Badge variant="destructive">Заказ отмена болду</Badge>
+                            <Badge variant="destructive">{tx('Заказ — отмена', 'Заказ отмена болду', 'Order — Отмена')}</Badge>
                           ) : getStatusBadge(order.status)}
                           {order.status === 'CANCELLED' && (
                             <span className="text-xs font-semibold text-red-400">
-                              {CANCELLED_BY_TEXT[order.cancelledBy] || 'Отмена болду'}
+                              {cancelledByLabel(lang, order.cancelledBy)}
                               {order.cancelledAt && ` · ${new Date(order.cancelledAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
                             </span>
                           )}
                           {order.status === 'PENDING' && order.targetCallsign && (
-                            <Badge variant="info">🎯 {order.targetCallsign} гана</Badge>
+                            <Badge variant="info">🎯 {tx(`только ${order.targetCallsign}`, `${order.targetCallsign} гана`, `only ${order.targetCallsign}`)}</Badge>
                           )}
                         </div>
                         <div className="flex items-start gap-2 text-sm">
@@ -395,10 +401,10 @@ export default function DispatcherPage() {
                               disabled={cancelOrderMutation.isPending}
                               onClick={() => cancelOrderMutation.mutate(order.id)}
                             >
-                              Ооба, отмена
+                              {tx('Да, отмена', 'Ооба, отмена', 'Yes, Отмена')}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => setConfirmCancelId(null)}>
-                              Жок
+                              {tx('Нет', 'Жок', 'No')}
                             </Button>
                           </div>
                         ) : (
@@ -409,7 +415,7 @@ export default function DispatcherPage() {
                             onClick={() => setConfirmCancelId(order.id)}
                           >
                             <XCircle className="w-4 h-4" />
-                            Отмена
+                            {t('cancel')}
                           </Button>
                         )}
                       </div>
@@ -460,7 +466,7 @@ export default function DispatcherPage() {
 
             {/* Б точка */}
             <div className="space-y-2">
-              <Label>{t('destAddress')} <span className="text-muted-foreground text-xs">(милдеттүү эмес)</span></Label>
+              <Label>{t('destAddress')} <span className="text-muted-foreground text-xs">{tx('(необязательно)', '(милдеттүү эмес)', '(optional)')}</span></Label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400" />
                 <Input
@@ -476,26 +482,26 @@ export default function DispatcherPage() {
             {/* Позывной (опционально) */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                Позывной водителя
-                <span className="text-xs text-muted-foreground font-normal">(милдеттүү эмес)</span>
+                {tx('Позывной водителя', 'Айдоочунун позывному', 'Driver callsign')}
+                <span className="text-xs text-muted-foreground font-normal">{tx('(необязательно)', '(милдеттүү эмес)', '(optional)')}</span>
               </Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
                 <Input
                   value={orderForm.targetCallsign}
                   onChange={(e) => setOrderForm({...orderForm, targetCallsign: e.target.value})}
-                  placeholder="Мисалы: 001, 003..."
+                  placeholder={tx('Например: 001, 003...', 'Мисалы: 001, 003...', 'e.g. 001, 003...')}
                   className="pl-10"
                 />
               </div>
               {orderForm.targetCallsign.trim() && (
-                <p className="text-xs text-blue-400">⚡ Заказ позывной <b>{orderForm.targetCallsign.trim()}</b> дегенге гана жиберилет</p>
+                <p className="text-xs text-blue-400">⚡ {tx('Заказ получит только позывной', 'Заказ позывной', 'Only callsign')} <b>{orderForm.targetCallsign.trim()}</b> {tx('', 'дегенге гана жиберилет', 'will get this order')}</p>
               )}
             </div>
 
             {/* Номер */}
             <div className="space-y-2">
-              <Label>Номер *</Label>
+              <Label>{tx('Номер', 'Номер', 'Phone')} *</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                 <Input
@@ -513,7 +519,7 @@ export default function DispatcherPage() {
 
             {/* Опции */}
             <div className="space-y-2">
-              <Label>Опции к заказу</Label>
+              <Label>{tx('Опции к заказу', 'Заказдын опциялары', 'Order options')}</Label>
               <button
                 type="button"
                 onClick={() => setIsOptionsOpen(true)}
@@ -529,7 +535,7 @@ export default function DispatcherPage() {
                     {selectedOptions.map(id => OPTIONS_LIST.find(o => o.id === id)?.label).filter(Boolean).join(', ')}
                   </span>
                 ) : (
-                  <span className="text-sm flex-1">Опцияларды тандаңыз...</span>
+                  <span className="text-sm flex-1">{tx('Выберите опции...', 'Опцияларды тандаңыз...', 'Choose options...')}</span>
                 )}
                 {selectedOptions.length > 0 && (
                   <span className="text-xs bg-red-500/30 text-red-400 px-2 py-0.5 rounded-full font-bold">{selectedOptions.length}</span>

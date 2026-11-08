@@ -11,6 +11,7 @@ import { useLanguageStore } from '@/store/useLanguageStore';
 import { useDriverStore } from '@/store/useDriverStore';
 import BlockTimer from './block-timer';
 import IncomingOrderOverlay from './incoming-order';
+import { useTx } from '@/lib/tx';
 import { connectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 import { playWelcomeSound, playClickSound, playOrderAlertSound } from '@/lib/sounds';
@@ -202,6 +203,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasActiveOrder, setHasActiveOrder] = useState(false);
   const [cancelNotice, setCancelNotice] = useState<any>(null);
+  const tx = useTx();
 
   // AUTH GUARD: check token exists, redirect to login if not
   useEffect(() => {
@@ -397,9 +399,11 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
             <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center">
               <X className="w-10 h-10 text-red-400" />
             </div>
-            <h2 className="text-2xl font-black text-white mb-2">ЗАКАЗ ОТМЕНА БОЛДУ</h2>
+            <h2 className="text-2xl font-black text-white mb-2">{tx('ЗАКАЗ — ОТМЕНА', 'ЗАКАЗ ОТМЕНА БОЛДУ', 'ORDER — ОТМЕНА')}</h2>
             <p className="text-base text-red-200 mb-4">
-              {cancelNotice.by === 'client' ? 'Клиент заказды отмена кылды' : 'Бул заказ диспетчер тарабынан отмена болду'}
+              {cancelNotice.by === 'client'
+                ? tx('Клиент сделал отмену заказа', 'Клиент заказды отмена кылды', 'The client made an Отмена')
+                : tx('Этот заказ — отмена от диспетчера', 'Бул заказ диспетчер тарабынан отмена болду', 'Отмена by the dispatcher')}
             </p>
             {(cancelNotice.pickupAddress || cancelNotice.orderNumber) && (
               <div className="rounded-xl bg-white/5 px-4 py-3 mb-5 text-left space-y-1">
@@ -414,7 +418,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
               onClick={() => setCancelNotice(null)}
               className="w-full h-14 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-lg font-black active:scale-95 transition-all"
             >
-              ТҮШҮНДҮМ
+              {tx('ПОНЯТНО', 'ТҮШҮНДҮМ', 'OK')}
             </button>
           </div>
         </div>
