@@ -465,7 +465,7 @@ export default function DispatcherPage() {
                   onChange={(e) => { setOrderForm({...orderForm, clientPhone: e.target.value}); setErrors({...errors, clientPhone: ''}); }}
                   type="tel"
                   inputMode="tel"
-                  placeholder="0995 576 660, +996 ..., каалаган формат"
+                  placeholder="+996"
                   className={`pl-10 ${errors.clientPhone ? 'border-red-500' : ''}`}
                   required
                 />
