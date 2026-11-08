@@ -6,6 +6,7 @@ exports.dispatchOrder = dispatchOrder;
 exports.rejectOffer = rejectOffer;
 exports.dispatchPendingOrders = dispatchPendingOrders;
 exports.acceptOrder = acceptOrder;
+exports.dispatcherCancelOrder = dispatcherCancelOrder;
 exports.driverCancelOrder = driverCancelOrder;
 exports.completeOrder = completeOrder;
 exports.releaseDriver = releaseDriver;
@@ -269,6 +270,50 @@ async function acceptOrder(orderId, driverId) {
         type: 'order_accepted',
     });
     return { ok: true, order: finalOrder, balance: newBalance };
+}
+// ===== DISPATCHER CANCEL =====
+/**
+ * Диспетчер заказды отмена кылат (мисалы, клиент кайра чалып отмена кылды).
+ * Заказ CANCELLED болот, эч кимге жиберилбейт. Водитель алган болсо — ал бошойт,
+ * алынган комиссия кайтарылат (водитель күнөөлүү эмес).
+ */
+async function dispatcherCancelOrder(orderId) {
+    const order = await server_1.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order)
+        return fail(404, { error: 'Order not found' });
+    const cancelled = await server_1.prisma.order.updateMany({
+        where: { id: orderId, status: { in: ['PENDING', ...ACTIVE_STATUSES] } },
+        data: { status: 'CANCELLED', cancelledAt: new Date() },
+    });
+    if (cancelled.count === 0)
+        return fail(400, { error: 'Заказ мурунтан бүткөн же отмена болгон' });
+    // Азыр сунуш көрүп жаткан водительдин экранын жабабыз
+    const offeredTo = activeDispatches.get(orderId)?.currentDriverId;
+    if (offeredTo)
+        server_1.io.to(`driver:${offeredTo}`).emit('order:expired', { orderId });
+    stopDispatch(orderId);
+    let refunded = 0;
+    if (order.driverId && ACTIVE_STATUSES.includes(order.status)) {
+        refunded = order.companyCommission || 0;
+        if (refunded > 0) {
+            const d = await server_1.prisma.driver.update({
+                where: { id: order.driverId },
+                data: { balance: { increment: refunded } },
+                select: { balance: true },
+            });
+            server_1.io.to(`driver:${order.driverId}`).emit('balance:updated', { balance: d.balance });
+        }
+        await releaseDriver(order.driverId, orderId);
+    }
+    const updated = await server_1.prisma.order.findUnique({ where: { id: orderId } });
+    server_1.io.emit('order:cancelled', { orderId });
+    server_1.io.to('admin-room').emit('order:status-changed', { orderId, status: 'CANCELLED', order: updated });
+    server_1.io.to('admin-room').emit('notification', {
+        title: 'Заказ отмена болду',
+        message: `#${order.orderNumber} — диспетчер тарабынан отмена кылынды`,
+        type: 'order_cancelled',
+    });
+    return { ok: true, order: updated, balance: refunded };
 }
 // ===== DRIVER CANCEL =====
 /**

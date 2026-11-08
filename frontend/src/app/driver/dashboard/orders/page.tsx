@@ -124,6 +124,12 @@ export default function DriverOrdersPage() {
       setOrders(prev => prev.filter(o => o.id !== orderId));
     });
 
+    // Диспетчер отмена кылды — тизмеден алып салабыз
+    const onCancelled = ({ orderId }: { orderId: string }) => {
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+    };
+    socket.on('order:cancelled', onCancelled);
+
     setLoading(false);
 
     // Request notification permission
@@ -136,6 +142,7 @@ export default function DriverOrdersPage() {
       socket.off('order:incoming');
       socket.off('order:taken');
       socket.off('order:expired');
+      socket.off('order:cancelled', onCancelled);
     };
   }, []);
 

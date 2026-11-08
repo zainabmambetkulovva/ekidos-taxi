@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Plus, MapPin, Phone, User, Loader2, Clock, SlidersHorizontal, X, Check } from 'lucide-react';
+import { Plus, MapPin, Phone, User, Loader2, Clock, SlidersHorizontal, X, Check, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -184,6 +184,35 @@ export default function DispatcherPage() {
     },
   });
 
+  // Заказды отмена кылуу (клиент кайра чалып отмена кылганда)
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const cancelOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data } = await api.patch(`/orders/${orderId}/dispatcher-cancel`);
+      return data;
+    },
+    onMutate: async (orderId: string) => {
+      // Тизмеден дароо алып салабыз
+      setConfirmCancelId(null);
+      await queryClient.cancelQueries({ queryKey: ['dispatcher-orders'] });
+      const prev = queryClient.getQueryData(['dispatcher-orders']);
+      queryClient.setQueryData(['dispatcher-orders'], (old: any) =>
+        old?.orders ? { ...old, orders: old.orders.map((o: any) => (o.id === orderId ? { ...o, status: 'CANCELLED' } : o)) } : old
+      );
+      return { prev };
+    },
+    onSuccess: (data) => {
+      toast.success(data?.refunded > 0 ? `Заказ отмена болду. Водительге ${data.refunded} сом кайтарылды.` : 'Заказ отмена болду');
+    },
+    onError: (error: any, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(['dispatcher-orders'], ctx.prev);
+      toast.error(error.response?.data?.error || 'Отмена кылуу мүмкүн болбоду');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatcher-orders'] });
+    },
+  });
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!isValidAddress(orderForm.pickupAddress)) {
@@ -295,6 +324,31 @@ export default function DispatcherPage() {
                           <p className="font-medium text-yellow-400 font-mono text-lg">{order.clientPhone}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</p>
                         </div>
+                        {confirmCancelId === order.id ? (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={cancelOrderMutation.isPending}
+                              onClick={() => cancelOrderMutation.mutate(order.id)}
+                            >
+                              Ооба, отмена
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setConfirmCancelId(null)}>
+                              Жок
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 border-red-500/40 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                            onClick={() => setConfirmCancelId(order.id)}
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Отмена
+                          </Button>
+                        )}
                       </div>
                     </div>
                     {order.driver && (

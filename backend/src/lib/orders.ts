@@ -297,6 +297,54 @@ export async function acceptOrder(orderId: string, driverId: string): Promise<Ac
   return { ok: true, order: finalOrder, balance: newBalance };
 }
 
+// ===== DISPATCHER CANCEL =====
+
+/**
+ * Диспетчер заказды отмена кылат (мисалы, клиент кайра чалып отмена кылды).
+ * Заказ CANCELLED болот, эч кимге жиберилбейт. Водитель алган болсо — ал бошойт,
+ * алынган комиссия кайтарылат (водитель күнөөлүү эмес).
+ */
+export async function dispatcherCancelOrder(orderId: string): Promise<ActionResult> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return fail(404, { error: 'Order not found' });
+
+  const cancelled = await prisma.order.updateMany({
+    where: { id: orderId, status: { in: ['PENDING', ...ACTIVE_STATUSES] } },
+    data: { status: 'CANCELLED', cancelledAt: new Date() },
+  });
+  if (cancelled.count === 0) return fail(400, { error: 'Заказ мурунтан бүткөн же отмена болгон' });
+
+  // Азыр сунуш көрүп жаткан водительдин экранын жабабыз
+  const offeredTo = activeDispatches.get(orderId)?.currentDriverId;
+  if (offeredTo) io.to(`driver:${offeredTo}`).emit('order:expired', { orderId });
+  stopDispatch(orderId);
+
+  let refunded = 0;
+  if (order.driverId && ACTIVE_STATUSES.includes(order.status)) {
+    refunded = order.companyCommission || 0;
+    if (refunded > 0) {
+      const d = await prisma.driver.update({
+        where: { id: order.driverId },
+        data: { balance: { increment: refunded } },
+        select: { balance: true },
+      });
+      io.to(`driver:${order.driverId}`).emit('balance:updated', { balance: d.balance });
+    }
+    await releaseDriver(order.driverId, orderId);
+  }
+
+  const updated = await prisma.order.findUnique({ where: { id: orderId } });
+  io.emit('order:cancelled', { orderId });
+  io.to('admin-room').emit('order:status-changed', { orderId, status: 'CANCELLED', order: updated });
+  io.to('admin-room').emit('notification', {
+    title: 'Заказ отмена болду',
+    message: `#${order.orderNumber} — диспетчер тарабынан отмена кылынды`,
+    type: 'order_cancelled',
+  });
+
+  return { ok: true, order: updated, balance: refunded };
+}
+
 // ===== DRIVER CANCEL =====
 
 /**
