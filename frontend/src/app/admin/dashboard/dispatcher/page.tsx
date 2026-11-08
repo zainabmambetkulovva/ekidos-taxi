@@ -85,35 +85,51 @@ function OptionsBottomSheet({
 // ===== END OPTIONS =====
 
 /**
- * Номерди каалаган форматта кабыл алат: 0995576660, 995 576 660, +996 995 576 660,
- * 996995576660, (0995) 57-66-60, шаардык номер ж.б.
- * Кыргызстан номерин +996XXXXXXXXX түрүнө келтирет, башкасын ошол бойдон калтырат.
- * Ката болсо — себебин кайтарат.
+ * Номер талаасы: "+996" ар дайым башында турат, диспетчер калган 9 санды жазат.
+ * Кандай жазса да (0995576660, 995 576 660, +996995576660 ж.б.) — 9 сан гана калат.
  */
-function parseClientPhone(raw: string): { ok: true; phone: string } | { ok: false; error: string } {
-  const value = raw.trim();
-  if (!value) return { ok: false, error: 'Номер жазыңыз' };
-  if (/[^\d\s+\-().]/.test(value)) return { ok: false, error: 'Номерде сан гана болушу керек (тамга жок)' };
-  if (value.indexOf('+') > 0 || (value.match(/\+/g) || []).length > 1) {
-    return { ok: false, error: '"+" белгиси номердин башында гана болот' };
+const PHONE_PREFIX = '+996';
+
+function toLocalPhoneDigits(raw: string): string {
+  let d = raw.replace(/\D/g, '');
+  if (raw.trim().startsWith(PHONE_PREFIX)) {
+    d = d.slice(3);
+  } else if (raw.includes('+') && d.length <= 3 && '996'.startsWith(d)) {
+    // "+996" префиксин өчүрүп жатат
+    d = '';
   }
-
-  const digits = value.replace(/\D/g, '');
-  if (digits.length < 6) return { ok: false, error: `Номер өтө кыска (${digits.length} сан). Кеминде 6 сан керек` };
-  if (digits.length > 15) return { ok: false, error: `Номер өтө узун (${digits.length} сан)` };
-
-  // Кыргызстан мобилдик/шаардык номерлери
-  if (/^996\d{9}$/.test(digits)) return { ok: true, phone: `+${digits}` };
-  if (/^0\d{9}$/.test(digits)) return { ok: true, phone: `+996${digits.slice(1)}` };
-  if (/^[1-9]\d{8}$/.test(digits) && !value.startsWith('+')) return { ok: true, phone: `+996${digits}` };
-
-  // Башка өлкө же кыска шаардык номер — киргизилгендей сакталат
-  return { ok: true, phone: value.startsWith('+') ? `+${digits}` : digits };
+  // +996 кайра чапталса (мис. "+996 +996995576660")
+  while (d.length > 9 && d.startsWith('996')) d = d.slice(3);
+  // 0995576660 → 995576660
+  if (d.startsWith('0')) d = d.slice(1);
+  return d.slice(0, 9);
 }
 
-function formatPhonePreview(phone: string): string {
-  const m = phone.match(/^\+996(\d{3})(\d{3})(\d{3})$/);
-  return m ? `+996 ${m[1]} ${m[2]} ${m[3]}` : phone;
+function formatPhoneInput(local: string): string {
+  const groups = [local.slice(0, 3), local.slice(3, 6), local.slice(6, 9)].filter(Boolean);
+  return `${PHONE_PREFIX} ${groups.join(' ')}`.trimEnd() + (local.length === 0 ? ' ' : '');
+}
+
+/** Талаа өзгөргөндө: бош орун же "+996" өчүрүлсө — сандар бузулбайт. */
+function nextLocalPhone(raw: string, current: string, caret: number | null): string {
+  const prev = formatPhoneInput(current);
+  // "+996" префиксинен бир белги өчүрүлдү — префикс өзгөрбөйт
+  if (raw.length === prev.length - 1 && !raw.startsWith(PHONE_PREFIX)) return current;
+  let next = toLocalPhoneDigits(raw);
+  // Сандардын ортосундагы бош орун өчүрүлдү — анын алдындагы санды өчүрөбүз
+  if (raw.length < prev.length && next === current && current.length > 0) {
+    const pos = caret ?? raw.length;
+    const digitsBefore = raw.slice(0, pos).replace(/\D/g, '').length - 3;
+    const idx = Math.min(current.length, digitsBefore) - 1;
+    if (idx >= 0) next = current.slice(0, idx) + current.slice(idx + 1);
+  }
+  return next;
+}
+
+function validateLocalPhone(local: string): string | null {
+  if (local.length === 0) return 'Номер жазыңыз';
+  if (local.length < 9) return `Номер толук эмес: +996 XXX XXX XXX (дагы ${9 - local.length} сан керек)`;
+  return null;
 }
 
 function isValidAddress(address: string): boolean {
@@ -245,9 +261,9 @@ export default function DispatcherPage() {
     if (orderForm.destAddress && !isValidAddress(orderForm.destAddress)) {
       newErrors.destAddress = t('destAddress') + ' — кеминде 3 символ';
     }
-    const parsedPhone = parseClientPhone(orderForm.clientPhone);
-    if (!parsedPhone.ok) {
-      newErrors.clientPhone = parsedPhone.error;
+    const phoneError = validateLocalPhone(orderForm.clientPhone);
+    if (phoneError) {
+      newErrors.clientPhone = phoneError;
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -256,8 +272,7 @@ export default function DispatcherPage() {
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    const parsed = parseClientPhone(orderForm.clientPhone);
-    const phone = parsed.ok ? parsed.phone : orderForm.clientPhone.trim();
+    const phone = `${PHONE_PREFIX}${orderForm.clientPhone}`;
     createOrderMutation.mutate({
       ...orderForm,
       clientPhone: phone,
@@ -461,26 +476,16 @@ export default function DispatcherPage() {
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                 <Input
-                  value={orderForm.clientPhone}
-                  onChange={(e) => { setOrderForm({...orderForm, clientPhone: e.target.value}); setErrors({...errors, clientPhone: ''}); }}
+                  value={formatPhoneInput(orderForm.clientPhone)}
+                  onChange={(e) => { setOrderForm({...orderForm, clientPhone: nextLocalPhone(e.target.value, orderForm.clientPhone, e.target.selectionStart)}); setErrors({...errors, clientPhone: ''}); }}
                   type="tel"
                   inputMode="tel"
                   placeholder="+996"
-                  className={`pl-10 ${errors.clientPhone ? 'border-red-500' : ''}`}
+                  className={`pl-10 font-mono ${errors.clientPhone ? 'border-red-500' : ''}`}
                   required
                 />
               </div>
-              {errors.clientPhone ? (
-                <p className="text-xs text-red-400">{errors.clientPhone}</p>
-              ) : (() => {
-                if (!orderForm.clientPhone.trim()) return null;
-                const parsed = parseClientPhone(orderForm.clientPhone);
-                return parsed.ok ? (
-                  <p className="text-xs text-green-400">✓ {formatPhonePreview(parsed.phone)}</p>
-                ) : (
-                  <p className="text-xs text-yellow-400">{parsed.error}</p>
-                );
-              })()}
+              {errors.clientPhone && <p className="text-xs text-red-400">{errors.clientPhone}</p>}
             </div>
 
             {/* Опции */}
