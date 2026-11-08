@@ -530,6 +530,11 @@ async function ensureOptionsColumn() {
     `);
         await exports.prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "targetDriverId" TEXT;`);
         await exports.prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "arrivedAt" TIMESTAMP(3);`);
+        await exports.prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "cancelledBy" TEXT;`);
+        // Заказ көбөйгөндө да тез иштеши үчүн индекстер
+        await exports.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "orders_status_idx" ON orders ("status");`);
+        await exports.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "orders_driverId_status_idx" ON orders ("driverId", "status");`);
+        await exports.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "orders_createdAt_idx" ON orders ("createdAt");`);
         console.log('✅ options column ensured');
     }
     catch (e) {

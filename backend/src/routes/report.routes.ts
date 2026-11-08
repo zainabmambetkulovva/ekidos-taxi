@@ -36,17 +36,26 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     if (dateFrom) startDate = new Date(dateFrom as string);
     if (dateTo) endDate = new Date(dateTo as string);
 
-    const [totalOrders, completedOrders, cancelledOrders, revenue] = await Promise.all([
-      prisma.order.count({ where: { createdAt: { gte: startDate, lte: endDate } } }),
-      prisma.order.count({ where: { createdAt: { gte: startDate, lte: endDate }, status: 'COMPLETED' } }),
-      prisma.order.count({ where: { createdAt: { gte: startDate, lte: endDate }, status: 'CANCELLED' } }),
-      prisma.order.aggregate({ where: { createdAt: { gte: startDate, lte: endDate }, status: 'COMPLETED' }, _sum: { price: true } }),
+    const range = { createdAt: { gte: startDate, lte: endDate } };
+    const [totalOrders, completedOrders, cancelledOrders, revenue, cancelGroups, orders] = await Promise.all([
+      prisma.order.count({ where: range }),
+      prisma.order.count({ where: { ...range, status: 'COMPLETED' } }),
+      prisma.order.count({ where: { ...range, status: 'CANCELLED' } }),
+      prisma.order.aggregate({ where: { ...range, status: 'COMPLETED' }, _sum: { price: true } }),
+      prisma.order.groupBy({ by: ['cancelledBy'], where: { ...range, status: 'CANCELLED' }, _count: { _all: true } }),
+      prisma.order.findMany({
+        where: range,
+        include: {
+          driver: { select: { id: true, firstName: true, lastName: true, callsign: true, phone: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
 
-    const orders = await prisma.order.findMany({
-      where: { createdAt: { gte: startDate, lte: endDate } },
-      include: { driver: true },
-      orderBy: { createdAt: 'desc' },
+    // Ким канча отмена кылды: { DISPATCHER: 3, CLIENT: 1, DRIVER: 0, UNKNOWN: 2 }
+    const cancelledBy: Record<string, number> = { DISPATCHER: 0, CLIENT: 0, DRIVER: 0, SYSTEM: 0, UNKNOWN: 0 };
+    cancelGroups.forEach(g => {
+      cancelledBy[g.cancelledBy || 'UNKNOWN'] = (cancelledBy[g.cancelledBy || 'UNKNOWN'] || 0) + g._count._all;
     });
 
     return res.json({
@@ -56,6 +65,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       totalOrders,
       completedOrders,
       cancelledOrders,
+      cancelledBy,
       revenue: revenue._sum.price || 0,
       orders,
     });

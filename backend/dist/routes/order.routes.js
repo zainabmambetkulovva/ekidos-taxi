@@ -176,7 +176,7 @@ router.post('/clear-pending', async (req, res) => {
     try {
         const result = await server_1.prisma.order.updateMany({
             where: { status: 'PENDING' },
-            data: { status: 'CANCELLED' },
+            data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: 'SYSTEM' },
         });
         return res.json({ cleared: result.count });
     }
@@ -458,7 +458,7 @@ router.patch('/:id/client-cancel', async (req, res) => {
         // Cancel the order
         await server_1.prisma.order.update({
             where: { id },
-            data: { status: 'CANCELLED', cancelledAt: new Date() },
+            data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: 'CLIENT' },
         });
         (0, orders_1.stopDispatch)(id);
         // If driver was assigned, free them
@@ -503,7 +503,7 @@ router.patch('/:id/cancel', auth_middleware_1.authenticateToken, async (req, res
         // Step 3: cancel order + block driver for 5 hours
         await server_1.prisma.order.update({
             where: { id },
-            data: { status: 'CANCELLED', cancelledAt: new Date() },
+            data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: req.user?.role === 'DRIVER' ? 'DRIVER' : 'DISPATCHER' },
         });
         (0, orders_1.stopDispatch)(id);
         const blockDriverId = driverId || order.driverId;

@@ -184,7 +184,7 @@ router.post('/clear-pending', async (req: Request, res: Response) => {
   try {
     const result = await prisma.order.updateMany({
       where: { status: 'PENDING' },
-      data: { status: 'CANCELLED' },
+      data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: 'SYSTEM' },
     });
     return res.json({ cleared: result.count });
   } catch (error) {
@@ -471,7 +471,7 @@ router.patch('/:id/client-cancel', async (req: Request, res: Response) => {
     // Cancel the order
     await prisma.order.update({
       where: { id },
-      data: { status: 'CANCELLED', cancelledAt: new Date() },
+      data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: 'CLIENT' },
     });
     stopDispatch(id);
 
@@ -521,7 +521,7 @@ router.patch('/:id/cancel', authenticateToken, async (req: AuthRequest, res: Res
     // Step 3: cancel order + block driver for 5 hours
     await prisma.order.update({
       where: { id },
-      data: { status: 'CANCELLED', cancelledAt: new Date() },
+      data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: req.user?.role === 'DRIVER' ? 'DRIVER' : 'DISPATCHER' },
     });
     stopDispatch(id);
 

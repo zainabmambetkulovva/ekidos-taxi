@@ -111,6 +111,7 @@ model Order {
   arrivedAt       DateTime?
   completedAt     DateTime?
   cancelledAt     DateTime?
+  cancelledBy     String?   // DISPATCHER | CLIENT | DRIVER | SYSTEM
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -118,6 +119,9 @@ model Order {
   client          Client?   @relation("ClientOrders", fields: [clientId], references: [id])
   payment         Payment?
 
+  @@index([status])
+  @@index([driverId, status])
+  @@index([createdAt])
   @@map("orders")
 }
 

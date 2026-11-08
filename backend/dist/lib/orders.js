@@ -283,7 +283,7 @@ async function dispatcherCancelOrder(orderId) {
         return fail(404, { error: 'Order not found' });
     const cancelled = await server_1.prisma.order.updateMany({
         where: { id: orderId, status: { in: ['PENDING', ...ACTIVE_STATUSES] } },
-        data: { status: 'CANCELLED', cancelledAt: new Date() },
+        data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: 'DISPATCHER' },
     });
     if (cancelled.count === 0)
         return fail(400, { error: 'Заказ мурунтан бүткөн же отмена болгон' });
