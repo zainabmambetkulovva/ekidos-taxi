@@ -10,6 +10,7 @@ import {
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { useDriverStore } from '@/store/useDriverStore';
 import BlockTimer from './block-timer';
+import IncomingOrderOverlay from './incoming-order';
 import { connectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 import { playWelcomeSound, playClickSound, playOrderAlertSound } from '@/lib/sounds';
@@ -327,10 +328,26 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       const driverInfo = localStorage.getItem('driverInfo');
       const driverId = driverInfo ? JSON.parse(driverInfo).id : null;
       if (driverId) {
+        // Телефондун экраны өчүп/браузер фонго кетип байланыш үзүлсө, сервер водительди
+        // OFFLINE кылат. Кайра ачылганда линия статусун калыбына келтиребиз — заказдар кайра келет.
+        const restoreLine = () => {
+          const line = localStorage.getItem('ekidos-driver-line-status');
+          if (line === 'ONLINE' || line === 'BUSY_PERSONAL') {
+            socket.emit('driver:restore-status', { driverId, status: line });
+          }
+        };
         socket.emit('driver:join', driverId);
+        restoreLine();
         // Re-join on reconnect
         socket.on('connect', () => {
           socket.emit('driver:join', driverId);
+          restoreLine();
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            if (!socket.connected) socket.connect();
+            else restoreLine();
+          }
         });
       }
     }
@@ -371,6 +388,8 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-[#141E30] flex flex-col">
       {/* Block Timer Overlay */}
       <BlockTimer />
+      {/* Жаңы заказ — бардык беттерде экранга чыгат */}
+      <IncomingOrderOverlay />
       {/* Заказ отмена болду — толук экран кабар */}
       {cancelNotice && (
         <div className="fixed inset-0 z-[10000] bg-black/90 backdrop-blur-sm flex items-center justify-center p-5">

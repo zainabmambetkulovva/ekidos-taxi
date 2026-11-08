@@ -104,7 +104,7 @@ export default function DriverOrdersPage() {
     const fetchIv = setInterval(fetchAvailableOrders, 10000);
 
     // New order arrives — ONLY if assigned to THIS driver
-    socket.on('order:incoming', (order: any) => {
+    const onIncoming = (order: any) => {
       if (order.assignedDriverId !== driverId) return;
       setOrders(prev => {
         const exists = prev.find((o: any) => o.id === order.id);
@@ -112,7 +112,8 @@ export default function DriverOrdersPage() {
         notifyNewOrder(prev.length + 1);
         return [order, ...prev];
       });
-    });
+    };
+    socket.on('order:incoming', onIncoming);
 
     // Order taken by another driver — remove from list
     socket.on('order:taken', ({ orderId }: { orderId: string }) => {
@@ -139,7 +140,7 @@ export default function DriverOrdersPage() {
 
     return () => {
       clearInterval(fetchIv);
-      socket.off('order:incoming');
+      socket.off('order:incoming', onIncoming);
       socket.off('order:taken');
       socket.off('order:expired');
       socket.off('order:cancelled', onCancelled);

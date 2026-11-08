@@ -67,6 +67,36 @@ function setupSocketHandlers(io) {
                 console.error('Location update error:', error);
             }
         });
+        // Телефон кайра ачылганда линия статусун калыбына келтирүү.
+        // Серверде OFFLINE болуп калса гана өзгөртөт; заказда болсо BUSY калат. Админге билдирүү спам жок.
+        socket.on('driver:restore-status', async (data) => {
+            try {
+                if (!data?.driverId || !['ONLINE', 'BUSY_PERSONAL'].includes(data.status))
+                    return;
+                const driver = await server_1.prisma.driver.findUnique({
+                    where: { id: data.driverId },
+                    select: { status: true, accountStatus: true },
+                });
+                if (!driver || driver.accountStatus !== 'ACTIVE' || driver.status !== 'OFFLINE')
+                    return;
+                const activeOrder = await server_1.prisma.order.findFirst({
+                    where: { driverId: data.driverId, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
+                    select: { id: true },
+                });
+                const status = activeOrder ? 'BUSY' : data.status;
+                const updated = await server_1.prisma.driver.updateMany({
+                    where: { id: data.driverId, status: 'OFFLINE' },
+                    data: { status },
+                });
+                if (updated.count > 0) {
+                    io.emit('driver:status-changed', { driverId: data.driverId, status });
+                    console.log(`🔁 Driver ${data.driverId} status restored → ${status}`);
+                }
+            }
+            catch (error) {
+                console.error('Restore status error:', error);
+            }
+        });
         // Driver status change
         socket.on('driver:status', async (data) => {
             try {

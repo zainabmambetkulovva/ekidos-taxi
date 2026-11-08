@@ -132,6 +132,21 @@ function validateLocalPhone(local: string): string | null {
   return null;
 }
 
+// Отмена болгон заказдар бүгүн гана тизмеде калат
+function isToday(d?: string | null): boolean {
+  if (!d) return false;
+  const date = new Date(d);
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+}
+
+const CANCELLED_BY_TEXT: Record<string, string> = {
+  DISPATCHER: 'Диспетчер отмена кылды',
+  CLIENT: 'Клиент отмена кылды',
+  DRIVER: 'Водитель отмена кылды',
+  SYSTEM: 'Система отмена кылды',
+};
+
 function isValidAddress(address: string): boolean {
   const trimmed = address.trim();
   if (trimmed.length < 3) return false;
@@ -237,7 +252,7 @@ export default function DispatcherPage() {
       await queryClient.cancelQueries({ queryKey: ['dispatcher-orders'] });
       const prev = queryClient.getQueryData(['dispatcher-orders']);
       queryClient.setQueryData(['dispatcher-orders'], (old: any) =>
-        old?.orders ? { ...old, orders: old.orders.map((o: any) => (o.id === orderId ? { ...o, status: 'CANCELLED' } : o)) } : old
+        old?.orders ? { ...old, orders: old.orders.map((o: any) => (o.id === orderId ? { ...o, status: 'CANCELLED', cancelledBy: 'DISPATCHER', cancelledAt: new Date().toISOString() } : o)) } : old
       );
       return { prev };
     },
@@ -322,15 +337,23 @@ export default function DispatcherPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {ordersData?.orders?.filter((order: any) => order.status !== 'COMPLETED' && order.status !== 'CANCELLED').map((order: any, index: number) => (
+            {ordersData?.orders?.filter((order: any) => order.status !== 'COMPLETED' && (order.status !== 'CANCELLED' || isToday(order.cancelledAt || order.createdAt))).map((order: any, index: number) => (
               <motion.div key={order.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}>
-                <Card className="hover:border-white/20 transition-all">
+                <Card className={`transition-all ${order.status === 'CANCELLED' ? 'border-red-500/40 bg-red-500/[0.06] opacity-80' : 'hover:border-white/20'}`}>
                   <CardContent className="p-4">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm font-bold text-red-400">#{order.orderNumber}</span>
-                          {getStatusBadge(order.status)}
+                          {order.status === 'CANCELLED' ? (
+                            <Badge variant="destructive">Заказ отмена болду</Badge>
+                          ) : getStatusBadge(order.status)}
+                          {order.status === 'CANCELLED' && (
+                            <span className="text-xs font-semibold text-red-400">
+                              {CANCELLED_BY_TEXT[order.cancelledBy] || 'Отмена болду'}
+                              {order.cancelledAt && ` · ${new Date(order.cancelledAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
+                            </span>
+                          )}
                           {order.status === 'PENDING' && order.targetCallsign && (
                             <Badge variant="info">🎯 {order.targetCallsign} гана</Badge>
                           )}
@@ -364,7 +387,7 @@ export default function DispatcherPage() {
                           <p className="font-medium text-yellow-400 font-mono text-lg">{order.clientPhone}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</p>
                         </div>
-                        {confirmCancelId === order.id ? (
+                        {order.status === 'CANCELLED' ? null : confirmCancelId === order.id ? (
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
