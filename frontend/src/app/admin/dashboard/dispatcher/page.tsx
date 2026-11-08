@@ -84,12 +84,36 @@ function OptionsBottomSheet({
 }
 // ===== END OPTIONS =====
 
-function isValidKyrgyzPhone(phone: string): boolean {
-  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
-  if (/^\+996[57]\d{8}$/.test(cleaned)) return true;
-  if (/^0[57]\d{8}$/.test(cleaned)) return true;
-  if (/^996[57]\d{8}$/.test(cleaned)) return true;
-  return false;
+/**
+ * Номерди каалаган форматта кабыл алат: 0995576660, 995 576 660, +996 995 576 660,
+ * 996995576660, (0995) 57-66-60, шаардык номер ж.б.
+ * Кыргызстан номерин +996XXXXXXXXX түрүнө келтирет, башкасын ошол бойдон калтырат.
+ * Ката болсо — себебин кайтарат.
+ */
+function parseClientPhone(raw: string): { ok: true; phone: string } | { ok: false; error: string } {
+  const value = raw.trim();
+  if (!value) return { ok: false, error: 'Номер жазыңыз' };
+  if (/[^\d\s+\-().]/.test(value)) return { ok: false, error: 'Номерде сан гана болушу керек (тамга жок)' };
+  if (value.indexOf('+') > 0 || (value.match(/\+/g) || []).length > 1) {
+    return { ok: false, error: '"+" белгиси номердин башында гана болот' };
+  }
+
+  const digits = value.replace(/\D/g, '');
+  if (digits.length < 6) return { ok: false, error: `Номер өтө кыска (${digits.length} сан). Кеминде 6 сан керек` };
+  if (digits.length > 15) return { ok: false, error: `Номер өтө узун (${digits.length} сан)` };
+
+  // Кыргызстан мобилдик/шаардык номерлери
+  if (/^996\d{9}$/.test(digits)) return { ok: true, phone: `+${digits}` };
+  if (/^0\d{9}$/.test(digits)) return { ok: true, phone: `+996${digits.slice(1)}` };
+  if (/^[1-9]\d{8}$/.test(digits) && !value.startsWith('+')) return { ok: true, phone: `+996${digits}` };
+
+  // Башка өлкө же кыска шаардык номер — киргизилгендей сакталат
+  return { ok: true, phone: value.startsWith('+') ? `+${digits}` : digits };
+}
+
+function formatPhonePreview(phone: string): string {
+  const m = phone.match(/^\+996(\d{3})(\d{3})(\d{3})$/);
+  return m ? `+996 ${m[1]} ${m[2]} ${m[3]}` : phone;
 }
 
 function isValidAddress(address: string): boolean {
@@ -221,11 +245,9 @@ export default function DispatcherPage() {
     if (orderForm.destAddress && !isValidAddress(orderForm.destAddress)) {
       newErrors.destAddress = t('destAddress') + ' — кеминде 3 символ';
     }
-    const callsign = orderForm.clientPhone.trim();
-    if (!callsign) {
-      newErrors.clientPhone = 'Номер жазыңыз';
-    } else if (!isValidKyrgyzPhone(callsign)) {
-      newErrors.clientPhone = '+996 7XX XXX XXX форматында жазыңыз';
+    const parsedPhone = parseClientPhone(orderForm.clientPhone);
+    if (!parsedPhone.ok) {
+      newErrors.clientPhone = parsedPhone.error;
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -234,9 +256,12 @@ export default function DispatcherPage() {
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
+    const parsed = parseClientPhone(orderForm.clientPhone);
+    const phone = parsed.ok ? parsed.phone : orderForm.clientPhone.trim();
     createOrderMutation.mutate({
       ...orderForm,
-      clientName: orderForm.clientPhone,
+      clientPhone: phone,
+      clientName: phone,
       options: selectedOptions,
       targetCallsign: orderForm.targetCallsign.trim() || undefined,
     });
@@ -438,12 +463,24 @@ export default function DispatcherPage() {
                 <Input
                   value={orderForm.clientPhone}
                   onChange={(e) => { setOrderForm({...orderForm, clientPhone: e.target.value}); setErrors({...errors, clientPhone: ''}); }}
-                  placeholder="+996 7XX XXX XXX"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="0995 576 660, +996 ..., каалаган формат"
                   className={`pl-10 ${errors.clientPhone ? 'border-red-500' : ''}`}
                   required
                 />
               </div>
-              {errors.clientPhone && <p className="text-xs text-red-400">{errors.clientPhone}</p>}
+              {errors.clientPhone ? (
+                <p className="text-xs text-red-400">{errors.clientPhone}</p>
+              ) : (() => {
+                if (!orderForm.clientPhone.trim()) return null;
+                const parsed = parseClientPhone(orderForm.clientPhone);
+                return parsed.ok ? (
+                  <p className="text-xs text-green-400">✓ {formatPhonePreview(parsed.phone)}</p>
+                ) : (
+                  <p className="text-xs text-yellow-400">{parsed.error}</p>
+                );
+              })()}
             </div>
 
             {/* Опции */}
