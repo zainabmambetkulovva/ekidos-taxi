@@ -479,6 +479,10 @@ router.patch('/:id/client-cancel', async (req: Request, res: Response) => {
     if (order.driverId) {
       await releaseDriver(order.driverId, id);
       io.to(`driver:${order.driverId}`).emit('order:cancelled-by-client', { orderId: id });
+      io.to(`driver:${order.driverId}`).emit('order:cancelled-notice', {
+        orderId: id, orderNumber: order.orderNumber, pickupAddress: order.pickupAddress,
+        destAddress: order.destAddress, by: 'client',
+      });
     }
 
     // Notify everyone

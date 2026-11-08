@@ -12,7 +12,7 @@ import { useDriverStore } from '@/store/useDriverStore';
 import BlockTimer from './block-timer';
 import { connectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
-import { playWelcomeSound, playClickSound } from '@/lib/sounds';
+import { playWelcomeSound, playClickSound, playOrderAlertSound } from '@/lib/sounds';
 
 import api from '@/lib/axios';
 
@@ -200,6 +200,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const [authChecked, setAuthChecked] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasActiveOrder, setHasActiveOrder] = useState(false);
+  const [cancelNotice, setCancelNotice] = useState<any>(null);
 
   // AUTH GUARD: check token exists, redirect to login if not
   useEffect(() => {
@@ -240,6 +241,10 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
           const { data: st } = await api.get(`/orders/${current.id}/status`).catch(() => ({ data: null }));
           if ((st?.status === 'COMPLETED' || st?.status === 'CANCELLED') && useDriverStore.getState().activeOrder?.id === current.id) {
             setActiveOrder(null);
+            // Телефон өчүк турганда отмена болгон — кабарды көрсөтөбүз
+            if (st?.status === 'CANCELLED') {
+              setCancelNotice({ orderId: current.id, orderNumber: current.orderNumber, pickupAddress: current.pickupAddress, destAddress: current.destAddress, by: 'dispatcher' });
+            }
           }
         }
       } catch {}
@@ -266,9 +271,20 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       if (current && current.id === payload?.orderId) {
         setActiveOrder(null);
         setHasActiveOrder(false);
-        toast('Заказ диспетчер тарабынан отмена болду', { icon: '⚠️' });
       }
     };
+    // Диспетчер (же клиент) отмена кылды — экранга чоң кабар
+    const onCancelNotice = (notice: any) => {
+      const current = useDriverStore.getState().activeOrder;
+      if (current && current.id === notice?.orderId) {
+        setActiveOrder(null);
+        setHasActiveOrder(false);
+      }
+      setCancelNotice(notice);
+      try { playOrderAlertSound(); } catch {}
+      if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 400]);
+    };
+    socket.on('order:cancelled-notice', onCancelNotice);
     socket.on('order:accepted', onAccepted);
     socket.on('order:completed', onFinished);
     socket.on('order:cancelled', onCancelled);
@@ -279,6 +295,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       socket.off('order:accepted', onAccepted);
       socket.off('order:completed', onFinished);
       socket.off('order:cancelled', onCancelled);
+      socket.off('order:cancelled-notice', onCancelNotice);
       socket.off('connect', checkActiveOrder);
     };
   }, [authChecked, setActiveOrder]);
@@ -354,6 +371,35 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-[#141E30] flex flex-col">
       {/* Block Timer Overlay */}
       <BlockTimer />
+      {/* Заказ отмена болду — толук экран кабар */}
+      {cancelNotice && (
+        <div className="fixed inset-0 z-[10000] bg-black/90 backdrop-blur-sm flex items-center justify-center p-5">
+          <div className="w-full max-w-sm rounded-3xl border-2 border-red-500 bg-[#1a0d0d] p-6 text-center shadow-2xl shadow-red-500/30">
+            <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center">
+              <X className="w-10 h-10 text-red-400" />
+            </div>
+            <h2 className="text-2xl font-black text-white mb-2">ЗАКАЗ ОТМЕНА БОЛДУ</h2>
+            <p className="text-base text-red-200 mb-4">
+              {cancelNotice.by === 'client' ? 'Клиент заказды отмена кылды' : 'Бул заказ диспетчер тарабынан отмена болду'}
+            </p>
+            {(cancelNotice.pickupAddress || cancelNotice.orderNumber) && (
+              <div className="rounded-xl bg-white/5 px-4 py-3 mb-5 text-left space-y-1">
+                {cancelNotice.orderNumber && <p className="text-xs text-gray-400">#{cancelNotice.orderNumber}</p>}
+                {cancelNotice.pickupAddress && <p className="text-sm text-white">📍 {cancelNotice.pickupAddress}</p>}
+                {cancelNotice.destAddress && cancelNotice.destAddress !== 'Не указано' && (
+                  <p className="text-sm text-gray-300">🏁 {cancelNotice.destAddress}</p>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setCancelNotice(null)}
+              className="w-full h-14 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-lg font-black active:scale-95 transition-all"
+            >
+              ТҮШҮНДҮМ
+            </button>
+          </div>
+        </div>
+      )}
       {/* Top Nav - neon glow when on duty */}
       <header className="sticky top-0 z-[5000] px-4 py-3"
       style={

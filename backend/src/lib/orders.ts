@@ -314,10 +314,23 @@ export async function dispatcherCancelOrder(orderId: string): Promise<ActionResu
   });
   if (cancelled.count === 0) return fail(400, { error: 'Заказ мурунтан бүткөн же отмена болгон' });
 
-  // Азыр сунуш көрүп жаткан водительдин экранын жабабыз
+  // Водительдин экранына "диспетчер отмена кылды" деген кабар
+  const notice = {
+    orderId,
+    orderNumber: order.orderNumber,
+    pickupAddress: order.pickupAddress,
+    destAddress: order.destAddress,
+    by: 'dispatcher',
+  };
+
+  // Азыр сунуш көрүп жаткан водительдин экранын жабабыз жана кабарлайбыз
   const offeredTo = activeDispatches.get(orderId)?.currentDriverId;
-  if (offeredTo) io.to(`driver:${offeredTo}`).emit('order:expired', { orderId });
+  if (offeredTo) {
+    io.to(`driver:${offeredTo}`).emit('order:expired', { orderId });
+    if (offeredTo !== order.driverId) io.to(`driver:${offeredTo}`).emit('order:cancelled-notice', notice);
+  }
   stopDispatch(orderId);
+  if (order.driverId) io.to(`driver:${order.driverId}`).emit('order:cancelled-notice', notice);
 
   let refunded = 0;
   if (order.driverId && ACTIVE_STATUSES.includes(order.status)) {
