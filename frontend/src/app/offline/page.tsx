@@ -1,8 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
 
 export default function OfflinePage() {
+  // Убакыт браузерде гана эсептелет — серверде башка убакыт чыгып, hydration катасы болчу
+  const [now, setNow] = useState('');
+  useEffect(() => { setNow(new Date().toLocaleString('ru-RU')); }, []);
+
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
       {/* Logo */}
@@ -35,7 +40,7 @@ export default function OfflinePage() {
 
       {/* Status hint */}
       <p className="text-gray-600 text-xs mt-12">
-        Акыркы жолу онлайн: {new Date().toLocaleString('ru-RU')}
+        Акыркы жолу онлайн: {now}
       </p>
     </div>
   );

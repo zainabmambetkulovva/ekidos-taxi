@@ -341,11 +341,12 @@ export default function DriverMap({ center, showMarker }: DriverMapProps) {
       const color = getDriverColor(driverStatus);
 
       // Тегеректин ичинде позывной; жок болсо — аттын биринчи тамгасы
-      const label = driverCallsign ? (parseInt(driverCallsign, 10) || driverCallsign).toString() : (driverName ? driverName.charAt(0).toUpperCase() : '?');
+      // Позывной толук жазылат (001, 002...) — нөлдөрдү кеспейбиз, "1" саны "!" болуп көрүнбөсүн
+      const label = driverCallsign ? String(driverCallsign).trim() : (driverName ? driverName.charAt(0).toUpperCase() : '?');
       const fontSize = label.length <= 2 ? '13px' : label.length <= 3 ? '11px' : '9px';
       const iconW = Math.max(34, label.length * 10 + 14);
       const html =
-        `<div style="min-width:34px;height:34px;background:${color};border-radius:17px;border:2.5px solid white;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.45);font-size:${fontSize};font-weight:900;color:white;font-family:sans-serif;padding:0 6px;white-space:nowrap;letter-spacing:-0.5px">${escapeHtml(label)}</div>`;
+        `<div style="min-width:34px;height:34px;background:${color};border-radius:17px;border:2.5px solid white;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.45);font-size:${fontSize};font-weight:800;color:white;font-family:Arial,Helvetica,sans-serif;font-variant-numeric:tabular-nums;padding:0 6px;white-space:nowrap">${escapeHtml(label)}</div>`;
 
       // Popup: позывной жана телефон номери гана
       const popup =
