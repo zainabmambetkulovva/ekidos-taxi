@@ -13,25 +13,25 @@ catch (e) {
     console.error('Push module failed to load in socket:', e);
 }
 function setupSocketHandlers(io) {
-    // Track socket → driverId mapping for auto-offline on disconnect
+    // Track socket → driverId mapping (логдор үчүн)
     const socketToDriver = new Map();
-    // Track disconnect timeouts so we can cancel if they reconnect quickly
-    const disconnectTimeouts = new Map();
     io.on('connection', (socket) => {
         console.log(`🔌 Client connected: ${socket.id}`);
         // Driver joins their room
         socket.on('driver:join', (driverId) => {
-            socket.join(`driver:${driverId}`);
-            // Map this socket to the driver
+            if (!driverId)
+                return;
+            const room = `driver:${driverId}`;
+            const alreadyJoined = socket.rooms.has(room);
+            const wasConnected = (0, orders_1.isDriverConnected)(driverId);
+            socket.join(room);
             socketToDriver.set(socket.id, driverId);
-            // Cancel any pending auto-offline timeout (driver reconnected)
-            const existingTimeout = disconnectTimeouts.get(driverId);
-            if (existingTimeout) {
-                clearTimeout(existingTimeout);
-                disconnectTimeouts.delete(driverId);
-                console.log(`🔄 Driver ${driverId} reconnected — cancelled auto-offline`);
+            // Жаңы туташуу (чалуудан кийин / колдонмого кайтканда): азыркы сунушту кайра көрсөтөбүз
+            if (!alreadyJoined) {
+                (0, orders_1.onDriverConnected)(driverId, (event, data) => socket.emit(event, data));
+                if (!wasConnected)
+                    console.log(`🔄 Driver ${driverId} reconnected`);
             }
-            console.log(`🚖 Driver ${driverId} joined`);
         });
         // Admin/Dispatcher joins
         socket.on('admin:join', (adminId) => {
@@ -306,57 +306,10 @@ function setupSocketHandlers(io) {
         // ===== END DIRECT MESSAGES =====
         socket.on('disconnect', () => {
             console.log(`❌ Client disconnected: ${socket.id}`);
-            // Check if this socket was a driver
-            const driverId = socketToDriver.get(socket.id);
+            // Водитель линиядан АВТОМАТТЫК ТҮРДӨ ЧЫГАРЫЛБАЙТ.
+            // Телефонго чалуу келсе, башка колдонмого өтсө же экран өчсө да — ал линияда калат,
+            // картада көрүнөт. Линиядан өзү "Завершить линию" басканда гана чыгат.
             socketToDriver.delete(socket.id);
-            if (driverId) {
-                // Check if driver has other active sockets (multiple tabs/devices)
-                const driverRoom = io.sockets.adapter.rooms.get(`driver:${driverId}`);
-                if (driverRoom && driverRoom.size > 0) {
-                    // Driver still connected on another socket — don't auto-offline
-                    return;
-                }
-                // Set 5-second timeout before going offline
-                // If driver reconnects within 5 sec, the timeout gets cancelled
-                const timeout = setTimeout(async () => {
-                    disconnectTimeouts.delete(driverId);
-                    try {
-                        // Check current status — only auto-offline if ONLINE or BUSY_PERSONAL
-                        const driver = await server_1.prisma.driver.findUnique({
-                            where: { id: driverId },
-                            select: { status: true },
-                        });
-                        if (!driver)
-                            return;
-                        // Don't auto-offline if driver is BUSY (executing an order)
-                        if (driver.status === 'BUSY')
-                            return;
-                        // Only auto-offline if currently ONLINE or BUSY_PERSONAL
-                        if (driver.status === 'ONLINE' || driver.status === 'BUSY_PERSONAL') {
-                            await server_1.prisma.driver.update({
-                                where: { id: driverId },
-                                data: { status: 'OFFLINE' },
-                            });
-                            await server_1.prisma.driverStatusLog.create({
-                                data: { driverId, status: 'OFFLINE' },
-                            });
-                            // Notify admin and other drivers
-                            io.emit('driver:status-changed', { driverId, status: 'OFFLINE' });
-                            io.to('admin-room').emit('notification', {
-                                title: 'Автоматтык оффлайн',
-                                message: `Водитель приложениядан чыкты — линиядан алынды`,
-                                type: 'driver_status',
-                            });
-                            console.log(`⏰ Driver ${driverId} auto-offline (disconnected 30s ago)`);
-                        }
-                    }
-                    catch (error) {
-                        console.error('Auto-offline error:', error);
-                    }
-                }, 5000); // 5 seconds
-                disconnectTimeouts.set(driverId, timeout);
-                console.log(`⏳ Driver ${driverId} disconnected — 5s auto-offline timer started`);
-            }
         });
     });
 }

@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SAFE_DRIVER_SELECT = void 0;
 exports.stopDispatch = stopDispatch;
+exports.isDriverConnected = isDriverConnected;
+exports.onDriverConnected = onDriverConnected;
 exports.dispatchOrder = dispatchOrder;
 exports.rejectOffer = rejectOffer;
 exports.dispatchPendingOrders = dispatchPendingOrders;
@@ -48,6 +50,28 @@ function stopDispatch(orderId) {
     activeDispatches.delete(orderId);
     exhaustedAt.delete(orderId);
     notifiedNoDriver.delete(orderId);
+}
+/** Водительдин телефону азыр сервер менен байланыштабы (колдонмо ачыкпы) */
+function isDriverConnected(driverId) {
+    const room = server_1.io.sockets.adapter.rooms.get(`driver:${driverId}`);
+    return !!room && room.size > 0;
+}
+/**
+ * Водитель кайра туташты (чалуу бүттү / колдонмого кайтты).
+ * Ага азыр сунушталып жаткан заказ болсо — калган убактысы менен кайра көрсөтөбүз.
+ * Болбосо күтүп турган заказдар 5 секунд ичинде кайра сунушталсын деп күтүүнү алып салабыз.
+ */
+function onDriverConnected(driverId, emit) {
+    for (const state of activeDispatches.values()) {
+        if (state.currentDriverId !== driverId || !state.currentOffer)
+            continue;
+        const remaining = Math.floor((state.offerExpiresAt - Date.now()) / 1000);
+        if (remaining >= 3) {
+            emit('order:incoming', { ...state.currentOffer, timeoutSeconds: remaining });
+            return;
+        }
+    }
+    exhaustedAt.clear();
 }
 async function getBusyDriverIds() {
     const rows = await server_1.prisma.order.findMany({
@@ -96,7 +120,10 @@ async function dispatchOrder(order, excludeDriverIds = []) {
     const cooldownStart = exhaustedAt.get(order.id);
     if (cooldownStart && Date.now() - cooldownStart < RETRY_COOLDOWN_MS)
         return;
-    const state = { timeout: null, tried: new Set(excludeDriverIds), currentDriverId: null, offerNext: async () => { } };
+    const state = {
+        timeout: null, tried: new Set(excludeDriverIds), currentDriverId: null,
+        currentOffer: null, offerExpiresAt: 0, offerNext: async () => { },
+    };
     activeDispatches.set(order.id, state);
     exhaustedAt.delete(order.id);
     const offerNext = async () => {
@@ -109,8 +136,12 @@ async function dispatchOrder(order, excludeDriverIds = []) {
                 return;
             }
             const candidates = (await getCandidates(fresh)).filter(c => !state.tried.has(c.id));
-            const near = candidates.filter(c => c.distance <= NEAR_THRESHOLD_KM);
-            const pool = near.length > 0 ? near : candidates;
+            // Колдонмосу азыр ачык водительдерге биринчи сунушталат. Телефону убактылуу байланышсыз
+            // (чалуу, башка колдонмо) водительдер да линияда калат — аларга кезек башкалардан кийин келет.
+            const connected = candidates.filter(c => isDriverConnected(c.id));
+            const base = connected.length > 0 ? connected : candidates;
+            const near = base.filter(c => c.distance <= NEAR_THRESHOLD_KM);
+            const pool = near.length > 0 ? near : base;
             if (pool.length === 0) {
                 activeDispatches.delete(order.id);
                 // Сунуш берилип четке кагылса гана күтөбүз; эч ким жок болсо — 5 сек кийин кайра текшерилет
@@ -124,17 +155,21 @@ async function dispatchOrder(order, excludeDriverIds = []) {
             const selected = pool[Math.floor(Math.random() * pool.length)];
             state.tried.add(selected.id);
             state.currentDriverId = selected.id;
-            server_1.io.to(`driver:${selected.id}`).emit('order:incoming', {
+            state.currentOffer = {
                 ...fresh,
                 assignedDriverId: selected.id,
                 distanceMeters: selected.distance < 999 ? Math.round(selected.distance * 1000) : 0,
                 timeoutSeconds: OFFER_SECONDS,
-            });
-            server_1.io.to('admin-room').emit('notification', {
-                title: fresh.targetDriverId ? '🎯 Заказ жөнөтүлдү' : 'Заказ жөнөтүлдү',
-                message: `#${fresh.orderNumber} → ${selected.callsign ? `${selected.callsign} ` : ''}${selected.firstName} — ${OFFER_SECONDS} сек`,
-                type: 'auto_assigned',
-            });
+            };
+            state.offerExpiresAt = Date.now() + OFFER_SECONDS * 1000;
+            server_1.io.to(`driver:${selected.id}`).emit('order:incoming', state.currentOffer);
+            // Байланышы жок водительге кайталап аракет кылганда админди билдирүү менен толтурбайбыз
+            if (isDriverConnected(selected.id))
+                server_1.io.to('admin-room').emit('notification', {
+                    title: fresh.targetDriverId ? '🎯 Заказ жөнөтүлдү' : 'Заказ жөнөтүлдү',
+                    message: `#${fresh.orderNumber} → ${selected.callsign ? `${selected.callsign} ` : ''}${selected.firstName} — ${OFFER_SECONDS} сек`,
+                    type: 'auto_assigned',
+                });
             state.timeout = setTimeout(() => {
                 if (activeDispatches.get(order.id) !== state)
                     return;
@@ -160,6 +195,7 @@ function rejectOffer(orderId, driverId) {
         clearTimeout(state.timeout);
     state.timeout = null;
     state.currentDriverId = null;
+    state.currentOffer = null;
     state.offerNext();
 }
 /** Ар 5 секундда: PENDING заказдарды бош водительдерге кайра сунуштайт. */

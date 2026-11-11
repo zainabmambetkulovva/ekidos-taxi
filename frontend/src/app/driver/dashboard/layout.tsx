@@ -198,7 +198,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useLanguageStore();
-  const { lineStatus, activeOrder, setActiveOrder } = useDriverStore();
+  const { lineStatus, activeOrder, setActiveOrder, setLineStatus } = useDriverStore();
   const [authChecked, setAuthChecked] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasActiveOrder, setHasActiveOrder] = useState(false);
@@ -357,6 +357,13 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
 
   // Handle logout — ONLY when driver explicitly taps logout
   const handleLogout = () => {
+    // Аккаунттан чыгуу — линияны да бүтүрөт (сервер водительди өзү оффлайн кылбайт)
+    try {
+      const info = localStorage.getItem('driverInfo');
+      const driverId = info ? JSON.parse(info).id : null;
+      if (driverId) connectSocket().emit('driver:status', { driverId, status: 'OFFLINE' });
+    } catch {}
+    setLineStatus('OFFLINE');
     localStorage.removeItem('token');
     localStorage.removeItem('driverInfo');
     router.replace('/driver/login');

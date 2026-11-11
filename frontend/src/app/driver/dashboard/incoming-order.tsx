@@ -45,7 +45,8 @@ export default function IncomingOrderOverlay() {
       if (bal !== null && bal < 12) return;
       
       setIncomingOrder(order);
-      setIncomingTimer(20);
+      // Кайра туташканда сервер калган убакытты жиберет
+      setIncomingTimer(Math.max(1, Math.min(20, Number(order.timeoutSeconds) || 20)));
       // Play alert sound
       playOrderAlertSound();
       // Aggressive vibrate
