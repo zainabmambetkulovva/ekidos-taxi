@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from '../server';
+import { setSocketPresence, removeSocketPresence } from '../lib/presence';
 import { acceptOrder, completeOrder, rejectOffer, isDriverConnected, onDriverConnected } from '../lib/orders';
 
 // Safe import — if push module fails, socket still works
@@ -37,12 +38,20 @@ export function setupSocketHandlers(io: Server) {
       const wasConnected = isDriverConnected(driverId);
       socket.join(room);
       socketToDriver.set(socket.id, driverId);
+      if (!alreadyJoined) setSocketPresence(socket.id, driverId, true);
 
       // Жаңы туташуу (чалуудан кийин / колдонмого кайтканда): азыркы сунушту кайра көрсөтөбүз
       if (!alreadyJoined) {
         onDriverConnected(driverId, (event, data) => socket.emit(event, data));
         if (!wasConnected) console.log(`🔄 Driver ${driverId} reconnected`);
       }
+    });
+
+    // Колдонмо экранда ачыкпы же фондобу (push жиберүү керекпи — ушуга жараша)
+    socket.on('driver:visibility', (data: { driverId: string; visible: boolean }) => {
+      if (!data?.driverId) return;
+      socket.join(`driver:${data.driverId}`);
+      setSocketPresence(socket.id, data.driverId, !!data.visible);
     });
 
     // Admin/Dispatcher joins
@@ -340,6 +349,7 @@ export function setupSocketHandlers(io: Server) {
       // Телефонго чалуу келсе, башка колдонмого өтсө же экран өчсө да — ал линияда калат,
       // картада көрүнөт. Линиядан өзү "Завершить линию" басканда гана чыгат.
       socketToDriver.delete(socket.id);
+      removeSocketPresence(socket.id);
     });
   });
 }

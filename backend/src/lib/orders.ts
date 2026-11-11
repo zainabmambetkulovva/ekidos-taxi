@@ -1,5 +1,7 @@
 import { prisma, io } from '../server';
 import { getCommissionAmount, calculateDistance } from './tariff';
+import { isDriverAppVisible } from './presence';
+import { pushNewOrder } from './webpush';
 
 /**
  * Заказ логикасы бир жерде:
@@ -174,6 +176,10 @@ export async function dispatchOrder(order: any, excludeDriverIds: string[] = [])
       };
       state.offerExpiresAt = Date.now() + OFFER_SECONDS * 1000;
       io.to(`driver:${selected.id}`).emit('order:incoming', state.currentOffer);
+      // Колдонмо экранда ачык эмес (башка колдонмодо / экран өчүк) — телефонго уведомление
+      if (!isDriverAppVisible(selected.id)) {
+        pushNewOrder(selected.id, fresh, OFFER_SECONDS + 5).catch(e => console.error('pushNewOrder error:', e));
+      }
       // Байланышы жок водительге кайталап аракет кылганда админди билдирүү менен толтурбайбыз
       if (isDriverConnected(selected.id)) io.to('admin-room').emit('notification', {
         title: fresh.targetDriverId ? '🎯 Заказ жөнөтүлдү' : 'Заказ жөнөтүлдү',

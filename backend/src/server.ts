@@ -19,6 +19,7 @@ import notificationRoutes from './routes/notification.routes';
 import adminRoutes from './routes/admin.routes';
 import chatRoutes from './routes/chat.routes';
 import dmRoutes from './routes/dm.routes';
+import pushRoutes from './routes/push.routes';
 import { setupSocketHandlers } from './socket';
 import { dispatchPendingOrders } from './lib/orders';
 
@@ -78,6 +79,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/dm', dmRoutes);
+app.use('/api/push', pushRoutes);
 
 // ===== INLINE TOPUP ROUTES =====
 // POST /api/topup — from bot
@@ -538,6 +540,14 @@ async function ensureOptionsColumn() {
     await prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "targetDriverId" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "arrivedAt" TIMESTAMP(3);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "cancelledBy" TEXT;`);
+    // Web Push таблицалары (prisma db push иштебей калса да болсун)
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "push_subscriptions" (
+      "id" TEXT PRIMARY KEY, "driverId" TEXT NOT NULL, "endpoint" TEXT NOT NULL UNIQUE,
+      "p256dh" TEXT NOT NULL, "auth" TEXT NOT NULL, "lang" TEXT NOT NULL DEFAULT 'ru',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "push_subscriptions_driverId_idx" ON "push_subscriptions" ("driverId");`);
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "app_secrets" (
+      "key" TEXT PRIMARY KEY, "value" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
     // Заказ көбөйгөндө да тез иштеши үчүн индекстер
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "orders_status_idx" ON orders ("status");`);
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "orders_driverId_status_idx" ON orders ("driverId", "status");`);

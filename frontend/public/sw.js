@@ -143,37 +143,42 @@ function isStaticAsset(pathname) {
     || pathname.startsWith('/_next/static/');
 }
 
-// ===== PUSH EVENT (for future push notifications via web push) =====
+// ===== PUSH EVENT — "Жаңы заказ" уведомлениеси (колдонмо фондо же жабык болсо да) =====
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { data = {}; }
 
   const title = data.title || '🚖 EKIDOS TAXI';
   const options = {
     body: data.body || 'Жаңы заказ!',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: [300, 100, 300, 100, 300],
-    tag: 'order-notification',
+    vibrate: [500, 200, 500, 200, 500, 200, 500],
+    tag: data.tag || 'order-notification',
     renotify: true,
     requireInteraction: true,
+    timestamp: Date.now(),
     data: data,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Handle notification click
+// Уведомлениени басканда — колдонмону ачуу (ачык болсо алдыга чыгаруу)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/driver/dashboard';
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then((clients) => {
-      // Focus existing window or open new
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client && !client.url.includes('/driver/dashboard')) {
+            return client.navigate(url).then((c) => (c || client).focus());
+          }
           return client.focus();
         }
       }
-      return self.clients.openWindow('/driver/dashboard');
+      return self.clients.openWindow(url);
     })
   );
 });

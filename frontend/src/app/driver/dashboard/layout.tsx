@@ -5,13 +5,14 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   MapPin, List, Navigation,
   UserCircle, Settings, LogOut, Menu, X,
-  Star, Car, Loader2, Radio, Power, Coffee, MessageCircle,
+  Star, Car, Loader2, Radio, Power, Coffee, MessageCircle, Bell,
 } from 'lucide-react';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { useDriverStore } from '@/store/useDriverStore';
 import BlockTimer from './block-timer';
 import IncomingOrderOverlay from './incoming-order';
 import { useTx } from '@/lib/tx';
+import { pushPermission, ensurePushSubscription, requestPushPermission, removePushSubscription } from '@/lib/push';
 import { connectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 import { playWelcomeSound, playClickSound, playOrderAlertSound } from '@/lib/sounds';
@@ -169,6 +170,8 @@ function LineStatusButton({ status }: { status: 'ONLINE' | 'OFFLINE' | 'BUSY_PER
     }
 
     if (status === 'ONLINE') {
+      // Линияга чыкканда уведомлениеге уруксат сурайбыз (браузер басууну талап кылат)
+      requestPushPermission().then(() => window.dispatchEvent(new Event('ekidosPushChanged')));
       toast.success('Линияга чыктыңыз! Заказдар келет.');
     } else if (status === 'BUSY_PERSONAL') {
       toast('Занят. Заказдар келбейт.', { icon: '☕' });
@@ -203,6 +206,28 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasActiveOrder, setHasActiveOrder] = useState(false);
   const [cancelNotice, setCancelNotice] = useState<any>(null);
+  // Уведомление уруксаты: 'default' — сурала элек, 'granted', 'denied', 'unsupported'
+  const [pushState, setPushState] = useState<string>('unsupported');
+  const [pushHintHidden, setPushHintHidden] = useState(false);
+
+  useEffect(() => {
+    if (!authChecked) return;
+    const sync = () => {
+      const st = pushPermission();
+      setPushState(st);
+      if (st === 'granted') ensurePushSubscription();
+    };
+    sync();
+    try { setPushHintHidden(Date.now() - Number(localStorage.getItem('ekidos-push-hint-hidden') || 0) < 7 * 24 * 60 * 60 * 1000); } catch {}
+    window.addEventListener('ekidosPushChanged', sync);
+    return () => window.removeEventListener('ekidosPushChanged', sync);
+  }, [authChecked]);
+
+  const enablePush = async () => {
+    const ok = await requestPushPermission();
+    setPushState(pushPermission());
+    if (ok) toast.success(tx('Уведомления включены', 'Уведомление күйгүзүлдү', 'Notifications enabled'));
+  };
   const tx = useTx();
 
   // AUTH GUARD: check token exists, redirect to login if not
@@ -338,18 +363,29 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
             socket.emit('driver:restore-status', { driverId, status: line });
           }
         };
+        // Колдонмо экранда ачыкпы — серверге айтабыз: фондо болсо заказ push-уведомление болуп келет
+        const sendVisibility = () => {
+          socket.emit('driver:visibility', { driverId, visible: document.visibilityState === 'visible' });
+        };
         socket.emit('driver:join', driverId);
+        sendVisibility();
         restoreLine();
         // Re-join on reconnect
         socket.on('connect', () => {
           socket.emit('driver:join', driverId);
+          sendVisibility();
           restoreLine();
         });
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
             if (!socket.connected) socket.connect();
-            else restoreLine();
+            else { sendVisibility(); restoreLine(); }
+          } else {
+            sendVisibility();
           }
+        });
+        window.addEventListener('pagehide', () => {
+          socket.emit('driver:visibility', { driverId, visible: false });
         });
       }
     }
@@ -364,9 +400,13 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
       if (driverId) connectSocket().emit('driver:status', { driverId, status: 'OFFLINE' });
     } catch {}
     setLineStatus('OFFLINE');
-    localStorage.removeItem('token');
-    localStorage.removeItem('driverInfo');
-    router.replace('/driver/login');
+    // Бул телефонго мындан ары заказ уведомлениеси келбесин (токен өчкөнгө чейин жиберебиз)
+    const finish = () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('driverInfo');
+      router.replace('/driver/login');
+    };
+    Promise.race([removePushSubscription(), new Promise(r => setTimeout(r, 1500))]).finally(finish);
   };
 
   if (!authChecked) {
@@ -609,6 +649,42 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
           })}
         </div>
       </div>
+
+      {/* Заказ уведомлениеси: уруксат сурала элек болсо — күйгүзүү баскычы */}
+      {pushState === 'default' && (
+        <div className="relative z-[4000] mx-3 mt-2 flex items-center gap-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-2">
+          <Bell className="h-5 w-5 flex-shrink-0 text-yellow-400" />
+          <p className="flex-1 text-xs leading-snug text-yellow-100">
+            {tx(
+              'Включите уведомления — заказ придёт, даже если вы в другом приложении.',
+              'Уведомлениени күйгүзүңүз — башка колдонмодо турсаңыз да заказ келет.',
+              'Turn on notifications — get orders even while in another app.',
+            )}
+          </p>
+          <button onClick={enablePush} className="flex-shrink-0 rounded-lg bg-yellow-500 px-3 py-2 text-xs font-bold text-black active:scale-95">
+            {tx('Включить', 'Күйгүзүү', 'Enable')}
+          </button>
+        </div>
+      )}
+      {pushState === 'denied' && !pushHintHidden && (
+        <div className="relative z-[4000] mx-3 mt-2 flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2">
+          <Bell className="h-5 w-5 flex-shrink-0 text-red-400" />
+          <p className="flex-1 text-xs leading-snug text-red-100">
+            {tx(
+              'Уведомления запрещены. Разрешите их в настройках браузера для этого сайта, иначе заказы в фоне не придут.',
+              'Уведомлениеге тыюу салынган. Браузердин жөндөөсүнөн бул сайтка уруксат бериңиз, антпесе фондо заказ келбейт.',
+              'Notifications are blocked. Allow them for this site in browser settings to get orders in the background.',
+            )}
+          </p>
+          <button
+            onClick={() => { setPushHintHidden(true); try { localStorage.setItem('ekidos-push-hint-hidden', String(Date.now())); } catch {} }}
+            className="flex-shrink-0 rounded-lg p-1.5 text-red-200"
+            aria-label="close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       <main className="flex-1 pb-16">

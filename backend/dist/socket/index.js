@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setupSocketHandlers = setupSocketHandlers;
 const server_1 = require("../server");
+const presence_1 = require("../lib/presence");
 const orders_1 = require("../lib/orders");
 // Safe import — if push module fails, socket still works
 let sendPushToAllOnlineDrivers = async () => 0;
@@ -26,12 +27,21 @@ function setupSocketHandlers(io) {
             const wasConnected = (0, orders_1.isDriverConnected)(driverId);
             socket.join(room);
             socketToDriver.set(socket.id, driverId);
+            if (!alreadyJoined)
+                (0, presence_1.setSocketPresence)(socket.id, driverId, true);
             // Жаңы туташуу (чалуудан кийин / колдонмого кайтканда): азыркы сунушту кайра көрсөтөбүз
             if (!alreadyJoined) {
                 (0, orders_1.onDriverConnected)(driverId, (event, data) => socket.emit(event, data));
                 if (!wasConnected)
                     console.log(`🔄 Driver ${driverId} reconnected`);
             }
+        });
+        // Колдонмо экранда ачыкпы же фондобу (push жиберүү керекпи — ушуга жараша)
+        socket.on('driver:visibility', (data) => {
+            if (!data?.driverId)
+                return;
+            socket.join(`driver:${data.driverId}`);
+            (0, presence_1.setSocketPresence)(socket.id, data.driverId, !!data.visible);
         });
         // Admin/Dispatcher joins
         socket.on('admin:join', (adminId) => {
@@ -310,6 +320,7 @@ function setupSocketHandlers(io) {
             // Телефонго чалуу келсе, башка колдонмого өтсө же экран өчсө да — ал линияда калат,
             // картада көрүнөт. Линиядан өзү "Завершить линию" басканда гана чыгат.
             socketToDriver.delete(socket.id);
+            (0, presence_1.removeSocketPresence)(socket.id);
         });
     });
 }

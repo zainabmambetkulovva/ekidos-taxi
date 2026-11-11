@@ -57,6 +57,7 @@ const notification_routes_1 = __importDefault(require("./routes/notification.rou
 const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
 const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
 const dm_routes_1 = __importDefault(require("./routes/dm.routes"));
+const push_routes_1 = __importDefault(require("./routes/push.routes"));
 const socket_1 = require("./socket");
 const orders_1 = require("./lib/orders");
 dotenv_1.default.config();
@@ -107,6 +108,7 @@ app.use('/api/notifications', notification_routes_1.default);
 app.use('/api/admins', admin_routes_1.default);
 app.use('/api/chat', chat_routes_1.default);
 app.use('/api/dm', dm_routes_1.default);
+app.use('/api/push', push_routes_1.default);
 // ===== INLINE TOPUP ROUTES =====
 // POST /api/topup — from bot
 app.post('/api/topup', async (req, res) => {
@@ -531,6 +533,14 @@ async function ensureOptionsColumn() {
         await exports.prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "targetDriverId" TEXT;`);
         await exports.prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "arrivedAt" TIMESTAMP(3);`);
         await exports.prisma.$executeRawUnsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS "cancelledBy" TEXT;`);
+        // Web Push таблицалары (prisma db push иштебей калса да болсун)
+        await exports.prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "push_subscriptions" (
+      "id" TEXT PRIMARY KEY, "driverId" TEXT NOT NULL, "endpoint" TEXT NOT NULL UNIQUE,
+      "p256dh" TEXT NOT NULL, "auth" TEXT NOT NULL, "lang" TEXT NOT NULL DEFAULT 'ru',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+        await exports.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "push_subscriptions_driverId_idx" ON "push_subscriptions" ("driverId");`);
+        await exports.prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "app_secrets" (
+      "key" TEXT PRIMARY KEY, "value" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
         // Заказ көбөйгөндө да тез иштеши үчүн индекстер
         await exports.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "orders_status_idx" ON orders ("status");`);
         await exports.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "orders_driverId_status_idx" ON orders ("driverId", "status");`);

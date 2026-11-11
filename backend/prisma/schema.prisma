@@ -281,3 +281,27 @@ model DirectMessage {
   @@index([receiverId, isRead])
   @@map("direct_messages")
 }
+
+// Web Push: водительдин телефонундагы браузер жазылуусу (уведомление жиберүү үчүн)
+model PushSubscription {
+  id        String   @id @default(uuid())
+  driverId  String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  lang      String   @default("ru")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([driverId])
+  @@map("push_subscriptions")
+}
+
+// Сервердин ички ачкычтары (мис. Web Push VAPID ачкычтары)
+model AppSecret {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+
+  @@map("app_secrets")
+}

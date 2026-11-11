@@ -15,6 +15,8 @@ exports.releaseDriver = releaseDriver;
 exports.findDriverByCallsign = findDriverByCallsign;
 const server_1 = require("../server");
 const tariff_1 = require("./tariff");
+const presence_1 = require("./presence");
+const webpush_1 = require("./webpush");
 /**
  * Заказ логикасы бир жерде:
  *  - dispatchOrder: заказды водительге толук экранда жиберүү (20 сек), кабыл албаса — кийинкисине
@@ -163,6 +165,10 @@ async function dispatchOrder(order, excludeDriverIds = []) {
             };
             state.offerExpiresAt = Date.now() + OFFER_SECONDS * 1000;
             server_1.io.to(`driver:${selected.id}`).emit('order:incoming', state.currentOffer);
+            // Колдонмо экранда ачык эмес (башка колдонмодо / экран өчүк) — телефонго уведомление
+            if (!(0, presence_1.isDriverAppVisible)(selected.id)) {
+                (0, webpush_1.pushNewOrder)(selected.id, fresh, OFFER_SECONDS + 5).catch(e => console.error('pushNewOrder error:', e));
+            }
             // Байланышы жок водительге кайталап аракет кылганда админди билдирүү менен толтурбайбыз
             if (isDriverConnected(selected.id))
                 server_1.io.to('admin-room').emit('notification', {
