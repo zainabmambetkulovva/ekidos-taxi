@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download, X, Share, PlusSquare } from 'lucide-react';
+import { Download, X, Share, PlusSquare, ExternalLink } from 'lucide-react';
 import { useTx } from '@/lib/tx';
 
 /**
@@ -14,11 +14,24 @@ import { useTx } from '@/lib/tx';
 const DISMISS_KEY = 'ekidos-install-dismissed-at';
 const DISMISS_HOURS = 24;
 
-type Mode = 'native' | 'ios' | 'manual';
+type Mode = 'native' | 'ios' | 'manual' | 'inapp-android' | 'inapp-ios';
 
 function isStandalone(): boolean {
   if (typeof window === 'undefined') return false;
   return window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+}
+
+// Telegram, Instagram, Facebook ж.б. колдонмолордун ичиндеги браузер — бул жерден орнотуу мүмкүн эмес
+function isInAppBrowser(ua: string): boolean {
+  return /Telegram|Instagram|FBAN|FBAV|FB_IAB|FBIOS|Line\/|MicroMessenger|TikTok|musical_ly|; wv\)/i.test(ua);
+}
+
+// Android: ушул баракты Chrome'до ачуу
+function openInChrome() {
+  const { host, pathname, search, href } = window.location;
+  window.location.href =
+    `intent://${host}${pathname}${search}#Intent;scheme=https;package=com.android.chrome;` +
+    `S.browser_fallback_url=${encodeURIComponent(href)};end`;
 }
 
 function recentlyDismissed(): boolean {
@@ -42,6 +55,15 @@ export function InstallPrompt() {
     const ua = navigator.userAgent || '';
     const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isMobile = isIOS || /Android|Mobile/i.test(ua);
+
+    // Ички браузерде (Telegram ж.б.) орнотуу иштебейт — Chrome/Safari'де ачууну сунуштайбыз
+    if (isMobile && isInAppBrowser(ua)) {
+      const t = setTimeout(() => {
+        setMode(isIOS ? 'inapp-ios' : 'inapp-android');
+        setVisible(true);
+      }, 800);
+      return () => clearTimeout(t);
+    }
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
@@ -131,6 +153,35 @@ export function InstallPrompt() {
             <Download className="h-5 w-5" />
             {tx('Установить', 'Установить', 'Install')}
           </button>
+        )}
+
+        {mode === 'inapp-android' && (
+          <>
+            <p className="mt-3 rounded-xl bg-white/5 p-3 text-sm text-gray-200">
+              {tx(
+                'В этом браузере (Telegram и т.п.) установить нельзя. Откройте EKIDOS в Chrome — там появится кнопка «Установить».',
+                'Бул браузерде (Telegram ж.б.) орнотуу мүмкүн эмес. EKIDOS\'ту Chrome\'до ачыңыз — ошол жерде «Установить» баскычы чыгат.',
+                'Installing is not possible in this in-app browser (Telegram etc.). Open EKIDOS in Chrome to get the “Install” button.',
+              )}
+            </p>
+            <button
+              onClick={openInChrome}
+              className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-red-600 text-base font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-700 active:scale-[0.98]"
+            >
+              <ExternalLink className="h-5 w-5" />
+              {tx('Открыть в Chrome', 'Chrome\'до ачуу', 'Open in Chrome')}
+            </button>
+          </>
+        )}
+
+        {mode === 'inapp-ios' && (
+          <div className="mt-3 rounded-xl bg-white/5 p-3 text-sm text-gray-200">
+            {tx(
+              'В этом браузере установить нельзя. Нажмите «⋯» вверху и выберите «Открыть в Safari», затем добавьте на экран «Домой».',
+              'Бул браузерде орнотуу мүмкүн эмес. Жогорудагы «⋯» баскычын басып, «Safari\'де ачуу» дегенди тандаңыз, анан «Домой» экранына кошуңуз.',
+              'Installing is not possible here. Tap “⋯” at the top, choose “Open in Safari”, then add it to the Home Screen.',
+            )}
+          </div>
         )}
 
         {mode === 'ios' && (
