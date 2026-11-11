@@ -8,6 +8,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const server_1 = require("../server");
 const server_2 = require("../server");
 const auth_middleware_1 = require("../middleware/auth.middleware");
+const tariff_1 = require("../lib/tariff");
 const router = (0, express_1.Router)();
 /** Generate random 8-char password: digits + uppercase */
 function generatePassword() {
@@ -459,6 +460,67 @@ router.patch('/:id/balance', auth_middleware_1.authenticateToken, async (req, re
     }
     catch (error) {
         console.error('Direct balance topup error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Admin: driver's balance — WITHDRAW (баланстан алуу). Баланс жетишсиз болсо алынбайт.
+router.patch('/:id/balance-withdraw', auth_middleware_1.authenticateToken, async (req, res) => {
+    if (!req.user || req.user.role === 'DRIVER') {
+        return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
+    }
+    try {
+        const id = req.params.id;
+        const amount = Number(req.body.amount);
+        if (!amount || !isFinite(amount) || amount <= 0) {
+            return res.status(400).json({ error: 'Сумманы туура жазыңыз' });
+        }
+        // Атомдук: баланс жетиштүү болсо гана кемитет
+        const result = await server_1.prisma.driver.updateMany({
+            where: { id, balance: { gte: amount } },
+            data: { balance: { decrement: amount } },
+        });
+        const driver = await server_1.prisma.driver.findUnique({
+            where: { id },
+            select: { id: true, firstName: true, lastName: true, callsign: true, balance: true },
+        });
+        if (!driver)
+            return res.status(404).json({ error: 'Driver not found' });
+        if (result.count === 0) {
+            return res.status(400).json({
+                error: `Балансы жетишсиз: ${driver.balance} сом. ${amount} сом алуу мүмкүн эмес`,
+                current: driver.balance,
+            });
+        }
+        // Водитель балансты дароо көрөт
+        server_2.io.to(`driver:${id}`).emit('balance:updated', { balance: driver.balance });
+        const minBalance = (0, tariff_1.getCommissionAmount)();
+        if (driver.balance < minBalance) {
+            server_2.io.to(`driver:${id}`).emit('balance:low', {
+                balance: driver.balance,
+                required: minBalance,
+                message: `Балансыңыз аз калды: ${driver.balance} сом. Толуктаңыз!`,
+            });
+        }
+        // Тарыхка: терс сумма менен
+        server_1.prisma.topupRequest.create({
+            data: {
+                driverId: id,
+                driverName: `${driver.firstName} ${driver.lastName}`,
+                amount: -amount,
+                status: 'APPROVED',
+                note: 'Админ тарабынан алынды',
+            },
+        }).catch(() => { });
+        return res.json({
+            success: true,
+            driverName: `${driver.firstName} ${driver.lastName}`,
+            callsign: driver.callsign,
+            newBalance: driver.balance,
+            amount,
+        });
+    }
+    catch (error) {
+        console.error('Balance withdraw error:', error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });

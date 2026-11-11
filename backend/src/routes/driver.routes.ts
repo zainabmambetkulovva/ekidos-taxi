@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { prisma } from '../server';
 import { io } from '../server';
 import { authenticateToken, authorizeRoles, AuthRequest } from '../middleware/auth.middleware';
+import { getCommissionAmount } from '../lib/tariff';
 
 const router = Router();
 
@@ -495,6 +496,71 @@ router.patch('/:id/balance', authenticateToken, async (req: AuthRequest, res: Re
     });
   } catch (error) {
     console.error('Direct balance topup error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin: driver's balance — WITHDRAW (баланстан алуу). Баланс жетишсиз болсо алынбайт.
+router.patch('/:id/balance-withdraw', authenticateToken, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role === 'DRIVER') {
+    return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
+  }
+  try {
+    const id = req.params.id as string;
+    const amount = Number(req.body.amount);
+    if (!amount || !isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Сумманы туура жазыңыз' });
+    }
+
+    // Атомдук: баланс жетиштүү болсо гана кемитет
+    const result = await prisma.driver.updateMany({
+      where: { id, balance: { gte: amount } },
+      data: { balance: { decrement: amount } },
+    });
+
+    const driver = await prisma.driver.findUnique({
+      where: { id },
+      select: { id: true, firstName: true, lastName: true, callsign: true, balance: true },
+    });
+    if (!driver) return res.status(404).json({ error: 'Driver not found' });
+    if (result.count === 0) {
+      return res.status(400).json({
+        error: `Балансы жетишсиз: ${driver.balance} сом. ${amount} сом алуу мүмкүн эмес`,
+        current: driver.balance,
+      });
+    }
+
+    // Водитель балансты дароо көрөт
+    io.to(`driver:${id}`).emit('balance:updated', { balance: driver.balance });
+    const minBalance = getCommissionAmount();
+    if (driver.balance < minBalance) {
+      io.to(`driver:${id}`).emit('balance:low', {
+        balance: driver.balance,
+        required: minBalance,
+        message: `Балансыңыз аз калды: ${driver.balance} сом. Толуктаңыз!`,
+      });
+    }
+
+    // Тарыхка: терс сумма менен
+    prisma.topupRequest.create({
+      data: {
+        driverId: id,
+        driverName: `${driver.firstName} ${driver.lastName}`,
+        amount: -amount,
+        status: 'APPROVED',
+        note: 'Админ тарабынан алынды',
+      },
+    }).catch(() => {});
+
+    return res.json({
+      success: true,
+      driverName: `${driver.firstName} ${driver.lastName}`,
+      callsign: driver.callsign,
+      newBalance: driver.balance,
+      amount,
+    });
+  } catch (error) {
+    console.error('Balance withdraw error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

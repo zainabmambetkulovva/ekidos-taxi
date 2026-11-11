@@ -67,14 +67,16 @@ export default function BalanceHistoryPage() {
                     t.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
                     t.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
                     'bg-yellow-500/20 text-yellow-400'
-                  }`}>{t.status === 'APPROVED' ? 'Толукталды' : t.status === 'REJECTED' ? 'Четке кагылды' : 'Күтүүдө'}</span>
+                  }`}>{(t.amount || 0) < 0 ? 'Админ алды' : t.status === 'APPROVED' ? 'Толукталды' : t.status === 'REJECTED' ? 'Четке кагылды' : 'Күтүүдө'}</span>
                 </div>
                 <p className="text-[10px] text-gray-600 mt-1">
                   {t.createdAt ? new Date(t.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
                 </p>
               </div>
               <div className="text-right">
-                {t.amount && <p className="text-sm font-bold text-green-400">+{t.amount}</p>}
+                {!!t.amount && (t.amount < 0
+                  ? <p className="text-sm font-bold text-orange-400">{t.amount}</p>
+                  : <p className="text-sm font-bold text-green-400">+{t.amount}</p>)}
                 <p className="text-[10px] text-gray-500">баланс</p>
               </div>
             </div>
